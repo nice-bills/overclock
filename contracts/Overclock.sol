@@ -7,6 +7,17 @@ interface ICircuits {
     function circuitInfo(uint256 id) external view returns (uint32 nIn, uint32 nOut, uint32 nState, uint32 gateCount);
 }
 
+/// TapeOut factory: only circuits of its registered processors are accepted, because a dispute
+/// re-reads the netlist and relies on TapeOut never changing it.
+interface ITapeOutFactory {
+    function isCPU(address circuits) external view returns (bool);
+}
+
+/// Optional: a contract that posts jobs can receive each result as it finalizes.
+interface IOverclockReceiver {
+    function onOverclockResult(uint256 jobId, bytes calldata outputs, bytes calldata newState) external;
+}
+
 /// Optimistic execution of TapeOut circuits.
 ///
 /// An operator runs a job (any number of beats of a circuit) off-chain and claims the last
@@ -25,6 +36,10 @@ contract Overclock {
 
     uint256 public immutable bond;
     uint256 public immutable window;
+    ITapeOutFactory public immutable factory; // zero only in tests: then any processor is accepted
+    address public immutable treasury;
+    uint256 public immutable feeBps; // protocol share of each job fee
+    uint256 public constant CALLBACK_GAS = 300_000;
 
     struct Job {
         address cpu;
@@ -39,6 +54,7 @@ contract Overclock {
         uint64 nState;
         uint64 flat; // leaves per beat before the state bits
         address poster;
+        uint256 parent; // jobId + 1 of the job this one continues from, 0 if none
         // claim
         address claimant;
         bytes32 traceRoot;
@@ -79,10 +95,11 @@ contract Overclock {
     event Picked(uint256 indexed gameId, uint8 level, uint256 index);
     event Resolved(uint256 indexed jobId, uint256 indexed gameId, address winner, string reason);
     event Finalized(uint256 indexed jobId, bytes outputs);
+    event Continued(uint256 indexed jobId, uint256 indexed parentJobId);
 
-    constructor(uint256 bond_, uint256 window_) {
-        bond = bond_;
-        window = window_;
+    constructor(uint256 bond_, uint256 window_, ITapeOutFactory factory_, address treasury_, uint256 feeBps_) {
+        require(feeBps_ <= 1000, "fee");
+        (bond, window, factory, treasury, feeBps) = (bond_, window_, factory_, treasury_, feeBps_);
     }
 
     // ---------------------------------------------------------------- jobs and claims
@@ -95,14 +112,31 @@ contract Overclock {
         payable
         returns (uint256 jobId)
     {
+        return _post(cpu, id, inputs, state, beats, perBeat, 0);
+    }
+
+    /// Run more beats of the same circuit, starting from a finalized job's final state. A chain of
+    /// jobs keeps a stateful machine (a CPU, a game world) running for as long as anyone pays.
+    function continueJob(uint256 parentJobId, bytes calldata inputs, uint32 beats, bool perBeat) external payable returns (uint256 jobId) {
+        Job storage pj = jobs[parentJobId];
+        require(pj.finalized, "parent not final");
+        jobId = _post(pj.cpu, pj.id, inputs, pj.newState, beats, perBeat, parentJobId + 1);
+        emit Continued(jobId, parentJobId);
+    }
+
+    function _post(address cpu, uint256 id, bytes calldata inputs, bytes memory state, uint32 beats, bool perBeat, uint256 parent)
+        internal
+        returns (uint256 jobId)
+    {
         require(beats >= 1, "beats");
+        require(address(factory) == address(0) || factory.isCPU(cpu), "not a TapeOut processor");
         uint256 f = flatSize(cpu, id); // reverts on a malformed or missing circuit
         (uint32 nIn, uint32 nOut, uint32 nState,) = ICircuits(cpu).circuitInfo(id);
         require(inputs.length == _bytes(perBeat ? uint256(beats) * nIn : nIn), "inputs length");
         require(state.length == _bytes(nState), "state length");
         jobId = jobs.length;
         Job storage j = jobs.push();
-        (j.cpu, j.id, j.inputs, j.state, j.fee, j.poster) = (cpu, id, inputs, state, msg.value, msg.sender);
+        (j.cpu, j.id, j.inputs, j.state, j.fee, j.poster, j.parent) = (cpu, id, inputs, state, msg.value, msg.sender, parent);
         (j.beats, j.perBeat, j.nIn, j.nOut, j.nState, j.flat) = (beats, perBeat, nIn, nOut, nState, uint64(f));
         emit JobPosted(jobId, cpu, id, beats);
     }
@@ -127,8 +161,14 @@ contract Overclock {
         require(j.claimant != address(0) && !j.challenged && !j.finalized, "state");
         require(block.timestamp >= j.claimedAt + window, "window");
         j.finalized = true;
-        _pay(j.claimant, bond + j.fee);
+        uint256 cut = j.fee * feeBps / 10_000;
+        if (cut > 0) _pay(treasury, cut);
+        _pay(j.claimant, bond + j.fee - cut);
         emit Finalized(jobId, j.outputs);
+        if (j.poster.code.length > 0) {
+            // best effort: a receiver that reverts or runs out of gas does not block finalization
+            try IOverclockReceiver(j.poster).onOverclockResult{gas: CALLBACK_GAS}(jobId, j.outputs, j.newState) {} catch {}
+        }
     }
 
     /// The final, unchallenged result of a job. Any contract can read it.

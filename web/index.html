@@ -144,7 +144,7 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
     <div class="fig">
       <div class="boards">
         <div class="board">
-          <div class="head"><h3>Correct run</h3><span class="tag ok">final board accepted</span></div>
+          <div class="head"><h3>Correct run</h3><span class="tag ok" id="jobTag">job 1</span></div>
           <canvas id="honest" width="16" height="16" aria-label="Correct Game of Life board"></canvas>
         </div>
         <div class="board">
@@ -162,7 +162,19 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
 
   <section>
     <div class="sec-head">
-      <span class="label">Figure 2 · The dispute</span>
+      <span class="label">Figure 2 · On TapeOut</span>
+      <h2>Taped out, then kept running by its own wallet</h2>
+      <p id="tapeText">Both circuits go through TapeOut's normal flow: a processor from the factory, transistors minted and burned at tapeout, and REFs from the board into the cell rule. Overclock reads the netlists straight from TapeOut's circuits contract. When the first job finalized, the board circuit's own ERC-6551 account paid for the next one, which continues from the final board.</p>
+    </div>
+    <div class="fig">
+      <p class="mono" id="modeLine" style="color: var(--muted); font-size: 12px"></p>
+      <div class="log"><table><thead><tr><th>Step</th><th style="text-align:right">Gas</th></tr></thead><tbody id="setupBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Figure 3 · The dispute</span>
       <h2>Halving <span id="leafCount">1,817,800</span> steps down to one NAND</h2>
       <p>The watcher re-runs the job, sees a different trace root, and challenges. The operator opens the disputed span into two halves; the watcher keeps whichever half disagrees with its own run. Each row zooms into the half picked in the row above.</p>
     </div>
@@ -175,7 +187,7 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
 
   <section>
     <div class="sec-head">
-      <span class="label">Figure 3 · Cost</span>
+      <span class="label">Figure 4 · Cost</span>
       <h2>What the chain actually runs</h2>
       <p>Gas measured on a local EVM. "Direct" is our straightforward on-chain TAP-02 evaluator running every gate of every generation. Log scale.</p>
     </div>
@@ -242,7 +254,8 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
     return o;
   };
 
-  const honest = run.generations.map(unpack);
+  const honest = [...run.generations, ...(run.generationsMore ?? [])].map(unpack);
+  const total = honest.length - 1;
   const cheat = honest.slice(0, run.lie.beat + 1);
   let s = step(honest[run.lie.beat]);
   s[run.lie.cell] ^= 1;
@@ -281,23 +294,37 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
     $('scrub').value = n;
     $('genLabel').textContent = 'Gen ' + n;
     draw('honest', honest[n]);
-    draw('cheat', cheat[n], honest[n]);
-    const diffs = cheat[n].reduce((a, v, i) => a + (v !== honest[n][i]), 0);
+    const c = Math.min(n, run.beats);
+    draw('cheat', cheat[c], honest[c]);
+    const diffs = cheat[c].reduce((a, v, i) => a + (v !== honest[c][i]), 0);
     const tag = $('cheatTag');
-    if (diffs === 0) { tag.className = 'tag same'; tag.textContent = n > run.lie.beat ? 'matches again' : 'identical so far'; }
+    if (n > run.beats) { tag.className = 'tag bad'; tag.textContent = 'rejected; second job running'; }
+    else if (diffs === 0) { tag.className = 'tag same'; tag.textContent = n > run.lie.beat ? 'matches again' : 'identical so far'; }
     else { tag.className = 'tag bad'; tag.textContent = `${diffs} cell${diffs > 1 ? 's' : ''} wrong`; }
+    $('jobTag').textContent = n > run.beats ? 'job 2 · posted by the circuit' : 'job 1';
   }
-  $('scrub').max = run.beats;
+  $('scrub').max = total;
   $('scrub').addEventListener('input', (e) => { stop(); show(Number(e.target.value)); });
   function stop() { clearInterval(timer); timer = null; $('play').textContent = 'Play'; }
   $('play').addEventListener('click', () => {
     if (timer) return stop();
-    if (gen >= run.beats) show(0);
+    if (gen >= total) show(0);
     $('play').textContent = 'Pause';
-    timer = setInterval(() => { if (gen >= run.beats) return stop(); show(gen + 1); }, 140);
+    timer = setInterval(() => { if (gen >= total) return stop(); show(gen + 1); }, 140);
   });
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  show(reduce ? run.beats : run.lie.beat + 1);
+  show(reduce ? total : run.lie.beat + 1);
+
+  // TapeOut setup
+  const short = (a) => a ? a.slice(0, 6) + '…' + a.slice(-4) : '';
+  if (run.addresses) {
+    const where = run.realTapeOut ? `X Layer mainnet fork, chain ${run.chainId}, block ${fmt(run.startBlock)}, real TapeOut contracts` : 'local EVM with a TapeOut-shaped stand-in (fork run pending)';
+    $('modeLine').textContent = `${where} · processor ${short(run.addresses.circuits)} · cell #${run.addresses.cellId} · board #${run.addresses.boardId} · circuit account ${short(run.addresses.circuitAccount)}`;
+    const rowsS = run.setup.filter((e) => !/^deploy (DirectEval|TapeOutFactoryLocal|OpenerLocal)/.test(e.what));
+    const cont = run.log.find((e) => e.fn === 'continueJob');
+    if (cont) rowsS.push(cont);
+    $('setupBody').innerHTML = rowsS.map((e) => `<tr><td>${e.what}</td><td class="n">${fmt(e.gas)}</td></tr>`).join('');
+  }
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => show(gen));
   new MutationObserver(() => show(gen)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 

@@ -8,10 +8,10 @@ An operator runs the job off-chain and posts the result with a bond. Anyone can 
 
 | Path | Gas |
 |---|---|
-| Running it directly on-chain (our TAP-02 evaluator) | 4,344,189,900 |
-| Overclock, nobody cheats (claim + finalize) | 216,532 |
-| Overclock, a cheat corrupts one NAND: the whole dispute (44 transactions) | 3,276,653 |
-| The one-step check that proves the lie | 876,845 |
+| Running it directly on-chain (our TAP-02 evaluator) | 4,339,721,300 |
+| Overclock, nobody cheats (claim + finalize) | 228,836 |
+| Overclock, a cheat corrupts one NAND: the whole dispute (44 transactions) | 3,283,300 |
+| The one-step check that proves the lie | 876,691 |
 
 The final board read back from `Overclock.result()` matches an independent Life simulation.
 
@@ -40,11 +40,36 @@ TapeOut circuits avoid that problem. They are NAND gates with exact, published s
    - The challenger builds every proof from its own trace plus the nodes the claimant revealed, so nobody has to publish the trace.
 5. **Settle.** The winner takes both bonds. A wrong claim reopens the job. A false challenge restarts the window, so other watchers still get their chance. A party that stops responding loses on `timeout`. Unchallenged claims `finalize`, and then any contract can read the result.
 
+## On TapeOut
+
+The demo goes through TapeOut's own flow end to end:
+
+1. It creates a processor through the factory.
+2. It mints transistors, then tapes out the 57-gate cell rule and the board, which REFs the cell once per cell. Tapeout burns the transistors.
+3. Overclock reads both netlists from TapeOut's circuits contract. It accepts jobs only on circuits of registered TapeOut processors, because a dispute relies on TapeOut never changing a netlist.
+4. After the first job finalizes, the board circuit's own ERC-6551 account calls `continueJob`. That second job runs 50 more generations from the final board, and its result matches.
+
+`contracts/Machine.sol` shows how other contracts build on this. It is a stateful circuit that anyone can pay to advance, one job at a time. It moves forward through `onOverclockResult` callbacks and ignores stale branches.
+
+**Testing against the real contracts.** TapeOut has no testnet, so the "testnet" is a local fork of X Layer mainnet with the real TapeOut contracts at their real addresses. Nothing is broadcast. See [docs/tapeout-notes.md](docs/tapeout-notes.md).
+
+```sh
+npm run fork                                  # Hardhat fork of X Layer mainnet, chain 196
+npm run demo:fork                             # same demo, real factory, transistors, circuits and opener
+RPC_URL=https://rpc.xlayer.tech node scripts/verify-live.js   # our evaluator vs live eval/step
+```
+
+Without network access to X Layer, `npm run demo` runs the identical flow against `contracts/TapeOutLocal.sol`, a stand-in that follows TapeOut's documented interface and rules.
+
 ## Repository
 
 | Path | What it is |
 |---|---|
 | `contracts/Overclock.sol` | Jobs, bonded claims, bisection, the one-step check, result disputes, timeouts |
+| `contracts/TapeOutLocal.sol` | Local stand-in for TapeOut's factory, transistors, circuits and circuit accounts |
+| `contracts/Machine.sol` | A circuit that keeps running on-chain, advanced by Overclock results |
+| `src/tapeout.js` | Client for TapeOut: createCPU, mint, tapeout, circuit accounts |
+| `scripts/verify-live.js` | Compares our evaluator with live `eval`/`step` |
 | `contracts/MockProcessor.sol` | Stand-in for a TapeOut processor. It serves `netlist`/`circuitInfo` and stores netlists in SSTORE2 chunks like the deployed factory |
 | `contracts/DirectEval.sol` | Baseline on-chain evaluator, used for the gas comparison |
 | `src/tap02.js` | TAP-02 decoder, well-formedness checks and evaluator. It passes every vector in TapeOutProtocol/TAPs `assets/tap-02` |
@@ -60,7 +85,7 @@ TapeOut circuits avoid that problem. They are NAND gates with exact, published s
 
 ```sh
 npm install
-npm test             # 30 tests: spec vectors, Life circuits, every-leaf dispute sweeps
+npm test             # 36 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow
 npm run demo         # 16x16 board, 100 generations (about 90 s); --w --h --beats to change
 node scripts/build-web.js   # inline the run into web/overclock.html
 ```

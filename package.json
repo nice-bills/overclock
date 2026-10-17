@@ -4,12 +4,16 @@
   "description": "Optimistic execution for TapeOut circuits on X Layer",
   "type": "module",
   "license": "MIT",
-  "bin": { "overclock": "bin/overclock.js" },
+  "bin": {
+    "overclock": "bin/overclock.js"
+  },
   "scripts": {
     "build": "node scripts/compile.js",
     "test": "node scripts/compile.js && node --test test/*.test.js",
     "demo": "node scripts/compile.js && node scripts/demo.js",
-    "deploy": "node scripts/deploy.js"
+    "deploy": "node scripts/deploy.js",
+    "fork": "hardhat node --port 8545",
+    "demo:fork": "node scripts/compile.js && node scripts/demo.js --fork http://127.0.0.1:8545"
   },
   "dependencies": {
     "@noble/hashes": "^1.3.2",
@@ -17,6 +21,7 @@
   },
   "devDependencies": {
     "ganache": "^7.9.2",
+    "hardhat": "^2.22.17",
     "solc": "^0.8.28"
   }
 }
