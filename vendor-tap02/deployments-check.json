@@ -1,0 +1,426 @@
+{
+ "command": "read-only JSON-RPC script (no transactions; script not published)",
+ "network": "bsc",
+ "transactions_sent": 0,
+ "methods": [
+  "eth_call",
+  "eth_getStorageAt",
+  "eth_getCode"
+ ],
+ "nodes": {
+  "https://bsc-dataseed.bnbchain.org": {
+   "reads": [
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "monthlyFee()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000000000000000000000000000000000000000000000",
+     "value": 0
+    },
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000e4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+     "value": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d"
+    },
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x000000000000000000000000aa226181a6588d3f9ac0035e5f3dbaf311039bce",
+     "value": "0xaa226181a6588d3f9ac0035e5f3dbaf311039bce"
+    },
+    {
+     "contract": "SiteRegistry (proxy)",
+     "address": "0xd006ffdd5ae313b17729621a00999cd3c71ce5e6",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x0000000000000000000000001d279d138a4d803378a7d4557c056f1bed53c261",
+     "value": "0x1d279d138a4d803378a7d4557c056f1bed53c261"
+    },
+    {
+     "contract": "SiteRegistry (proxy)",
+     "address": "0xd006ffdd5ae313b17729621a00999cd3c71ce5e6",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000e4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+     "value": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d"
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "isSealed()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000000000000000000000000000000000000000000000",
+     "value": 0
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x000000000000000000000000a68ccf4931d98ad0a4be15ee40542edc0dec6422",
+     "value": "0xa68ccf4931d98ad0a4be15ee40542edc0dec6422"
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000b3d85b42a045c1a88d800cad0f55d2566a4d3138",
+     "value": "0xb3d85b42a045c1a88d800cad0f55d2566a4d3138"
+    },
+    {
+     "contract": "Circuit beacon",
+     "address": "0xf8d6d8eb894d6971c8976ad8b4971cbefe028156",
+     "item": "implementation()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000008e1d125def6d3826c278299273a0760d47626068",
+     "value": "0x8e1d125def6d3826c278299273a0760d47626068"
+    },
+    {
+     "contract": "Circuit beacon",
+     "address": "0xf8d6d8eb894d6971c8976ad8b4971cbefe028156",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x00000000000000000000000068224f668083c29e9800be2a646d42d18cedf7e2",
+     "value": "0x68224f668083c29e9800be2a646d42d18cedf7e2"
+    }
+   ],
+   "code_bytes": {
+    "DomainBinding (proxy)": 176,
+    "SiteRegistry (proxy)": 176,
+    "Processor factory": 130,
+    "Circuit beacon": 619
+   }
+  },
+  "https://bsc-dataseed1.defibit.io": {
+   "reads": [
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "monthlyFee()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000000000000000000000000000000000000000000000",
+     "value": 0
+    },
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000e4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+     "value": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d"
+    },
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x000000000000000000000000aa226181a6588d3f9ac0035e5f3dbaf311039bce",
+     "value": "0xaa226181a6588d3f9ac0035e5f3dbaf311039bce"
+    },
+    {
+     "contract": "SiteRegistry (proxy)",
+     "address": "0xd006ffdd5ae313b17729621a00999cd3c71ce5e6",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x0000000000000000000000001d279d138a4d803378a7d4557c056f1bed53c261",
+     "value": "0x1d279d138a4d803378a7d4557c056f1bed53c261"
+    },
+    {
+     "contract": "SiteRegistry (proxy)",
+     "address": "0xd006ffdd5ae313b17729621a00999cd3c71ce5e6",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000e4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+     "value": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d"
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "isSealed()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000000000000000000000000000000000000000000000",
+     "value": 0
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x000000000000000000000000a68ccf4931d98ad0a4be15ee40542edc0dec6422",
+     "value": "0xa68ccf4931d98ad0a4be15ee40542edc0dec6422"
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000b3d85b42a045c1a88d800cad0f55d2566a4d3138",
+     "value": "0xb3d85b42a045c1a88d800cad0f55d2566a4d3138"
+    },
+    {
+     "contract": "Circuit beacon",
+     "address": "0xf8d6d8eb894d6971c8976ad8b4971cbefe028156",
+     "item": "implementation()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000008e1d125def6d3826c278299273a0760d47626068",
+     "value": "0x8e1d125def6d3826c278299273a0760d47626068"
+    },
+    {
+     "contract": "Circuit beacon",
+     "address": "0xf8d6d8eb894d6971c8976ad8b4971cbefe028156",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x00000000000000000000000068224f668083c29e9800be2a646d42d18cedf7e2",
+     "value": "0x68224f668083c29e9800be2a646d42d18cedf7e2"
+    }
+   ],
+   "code_bytes": {
+    "DomainBinding (proxy)": 176,
+    "SiteRegistry (proxy)": 176,
+    "Processor factory": 130,
+    "Circuit beacon": 619
+   }
+  },
+  "https://bsc-dataseed1.ninicoin.io": {
+   "reads": [
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "monthlyFee()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000000000000000000000000000000000000000000000",
+     "value": 0
+    },
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000e4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+     "value": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d"
+    },
+    {
+     "contract": "DomainBinding (proxy)",
+     "address": "0x861ee183de2bbe4a6ecf9d15812c123b566a3db7",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x000000000000000000000000aa226181a6588d3f9ac0035e5f3dbaf311039bce",
+     "value": "0xaa226181a6588d3f9ac0035e5f3dbaf311039bce"
+    },
+    {
+     "contract": "SiteRegistry (proxy)",
+     "address": "0xd006ffdd5ae313b17729621a00999cd3c71ce5e6",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x0000000000000000000000001d279d138a4d803378a7d4557c056f1bed53c261",
+     "value": "0x1d279d138a4d803378a7d4557c056f1bed53c261"
+    },
+    {
+     "contract": "SiteRegistry (proxy)",
+     "address": "0xd006ffdd5ae313b17729621a00999cd3c71ce5e6",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000e4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+     "value": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d"
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "isSealed()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000000000000000000000000000000000000000000000",
+     "value": 0
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "ERC-1967 implementation",
+     "method": "eth_getStorageAt",
+     "raw": "0x000000000000000000000000a68ccf4931d98ad0a4be15ee40542edc0dec6422",
+     "value": "0xa68ccf4931d98ad0a4be15ee40542edc0dec6422"
+    },
+    {
+     "contract": "Processor factory",
+     "address": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x000000000000000000000000b3d85b42a045c1a88d800cad0f55d2566a4d3138",
+     "value": "0xb3d85b42a045c1a88d800cad0f55d2566a4d3138"
+    },
+    {
+     "contract": "Circuit beacon",
+     "address": "0xf8d6d8eb894d6971c8976ad8b4971cbefe028156",
+     "item": "implementation()",
+     "method": "eth_call",
+     "raw": "0x0000000000000000000000008e1d125def6d3826c278299273a0760d47626068",
+     "value": "0x8e1d125def6d3826c278299273a0760d47626068"
+    },
+    {
+     "contract": "Circuit beacon",
+     "address": "0xf8d6d8eb894d6971c8976ad8b4971cbefe028156",
+     "item": "owner()",
+     "method": "eth_call",
+     "raw": "0x00000000000000000000000068224f668083c29e9800be2a646d42d18cedf7e2",
+     "value": "0x68224f668083c29e9800be2a646d42d18cedf7e2"
+    }
+   ],
+   "code_bytes": {
+    "DomainBinding (proxy)": 176,
+    "SiteRegistry (proxy)": 176,
+    "Processor factory": 130,
+    "Circuit beacon": 619
+   }
+  }
+ },
+ "chainId": 56,
+ "block": 124767866,
+ "nodes_agree": true,
+ "reference_node": "https://bsc-dataseed.bnbchain.org",
+ "comparison": [
+  {
+   "contract": "DomainBinding (proxy)",
+   "item": "monthlyFee()",
+   "observed": 0,
+   "source": "SPEC §3.4",
+   "expected": [
+    80000000000000000
+   ],
+   "note": "\"The current fee is 0.08 BNB per 30 days\"",
+   "verdict": "MISMATCH"
+  },
+  {
+   "contract": "DomainBinding (proxy)",
+   "item": "monthlyFee()",
+   "observed": 0,
+   "source": "TAP10 §6.3",
+   "expected": null,
+   "note": "no value: \"set by the contract owner … can change at any time\"; clients MUST read monthlyFee() and MUST NOT hard-code it",
+   "verdict": "no value to compare"
+  },
+  {
+   "contract": "DomainBinding (proxy)",
+   "item": "owner()",
+   "observed": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+   "source": null,
+   "expected": null,
+   "note": "not recorded in SPEC or TAP-10",
+   "verdict": "recorded only"
+  },
+  {
+   "contract": "DomainBinding (proxy)",
+   "item": "ERC-1967 implementation",
+   "observed": "0xaa226181a6588d3f9ac0035e5f3dbaf311039bce",
+   "source": "SPEC §4.3 / B.7",
+   "expected": [
+    "0xaa226181a6588d3f9ac0035e5f3dbaf311039bce",
+    "0x4e8684eaea48b524245b2191dee451eaa1c1ca94"
+   ],
+   "note": "current 0xaa22… (upgraded 2026-09-13); previous 0x4e86… kept for rollback",
+   "verdict": "match"
+  },
+  {
+   "contract": "DomainBinding (proxy)",
+   "item": "ERC-1967 implementation",
+   "observed": "0xaa226181a6588d3f9ac0035e5f3dbaf311039bce",
+   "source": "TAP10 Deployments",
+   "expected": [
+    "0xaa226181a6588d3f9ac0035e5f3dbaf311039bce",
+    "0x4e8684eaea48b524245b2191dee451eaa1c1ca94"
+   ],
+   "note": "current 0xaa22… since 2026-09-13, previous 0x4e86…",
+   "verdict": "match"
+  },
+  {
+   "contract": "SiteRegistry (proxy)",
+   "item": "ERC-1967 implementation",
+   "observed": "0x1d279d138a4d803378a7d4557c056f1bed53c261",
+   "source": "SPEC §4.3 / B.7",
+   "expected": [
+    "0x1d279d138a4d803378a7d4557c056f1bed53c261"
+   ],
+   "note": "",
+   "verdict": "match"
+  },
+  {
+   "contract": "SiteRegistry (proxy)",
+   "item": "ERC-1967 implementation",
+   "observed": "0x1d279d138a4d803378a7d4557c056f1bed53c261",
+   "source": "TAP10 Deployments",
+   "expected": [
+    "0x1d279d138a4d803378a7d4557c056f1bed53c261"
+   ],
+   "note": "",
+   "verdict": "match"
+  },
+  {
+   "contract": "SiteRegistry (proxy)",
+   "item": "owner()",
+   "observed": "0xe4fc10592fa8ad7c408b81e99cfc54ef4b14283d",
+   "source": null,
+   "expected": null,
+   "note": "not recorded in SPEC or TAP-10",
+   "verdict": "recorded only"
+  },
+  {
+   "contract": "Processor factory",
+   "item": "isSealed()",
+   "observed": 0,
+   "source": "TAP10 Seal status",
+   "expected": [
+    0
+   ],
+   "note": "\"the processor factory is not sealed on any chain (isSealed() 0)\" as of block 124,389,612",
+   "verdict": "match"
+  },
+  {
+   "contract": "Processor factory",
+   "item": "ERC-1967 implementation",
+   "observed": "0xa68ccf4931d98ad0a4be15ee40542edc0dec6422",
+   "source": "TAP10 Deployments",
+   "expected": [
+    "0xa68ccf4931d98ad0a4be15ee40542edc0dec6422"
+   ],
+   "note": "factory implementation (seal constant, §13.8)",
+   "verdict": "match"
+  },
+  {
+   "contract": "Processor factory",
+   "item": "owner()",
+   "observed": "0xb3d85b42a045c1a88d800cad0f55d2566a4d3138",
+   "source": null,
+   "expected": null,
+   "note": "not recorded in SPEC or TAP-10",
+   "verdict": "recorded only"
+  },
+  {
+   "contract": "Circuit beacon",
+   "item": "implementation()",
+   "observed": "0x8e1d125def6d3826c278299273a0760d47626068",
+   "source": "TAP10 Deployments",
+   "expected": [
+    "0x8e1d125def6d3826c278299273a0760d47626068"
+   ],
+   "note": "circuit implementation",
+   "verdict": "match"
+  },
+  {
+   "contract": "Circuit beacon",
+   "item": "owner()",
+   "observed": "0x68224f668083c29e9800be2a646d42d18cedf7e2",
+   "source": "TAP10 Seal status",
+   "expected": [
+    "0x68224f668083c29e9800be2a646d42d18cedf7e2"
+   ],
+   "note": "\"the beacon's owner (the factory)\"",
+   "verdict": "match"
+  }
+ ],
+ "status": "complete"
+}
