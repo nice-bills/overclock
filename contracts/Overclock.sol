@@ -70,6 +70,7 @@ contract Overclock {
     Job[] public jobs;
     Game[] public games;
     mapping(address => mapping(uint256 => uint256)) internal _flat; // flatSize + 1, 0 = not computed
+    mapping(address => mapping(uint256 => uint256)) internal _nStateOf; // nState, set with _flat
 
     event JobPosted(uint256 indexed jobId, address cpu, uint256 id, uint32 beats);
     event Claimed(uint256 indexed jobId, address claimant, bytes32 traceRoot, bytes outputs);
@@ -343,7 +344,7 @@ contract Overclock {
         uint256 stBase;
         uint256 off;
         while (off < nl.length) {
-            uint8 op = uint8(nl[off]);
+            uint8 op = _op(nl, off);
             if (op == NAND) {
                 if (pos == q) return 1 - (_get(ctx, sigPos[_u24(nl, off + 1)]) & _get(ctx, sigPos[_u24(nl, off + 4)]));
                 sigPos[sig++] = pos++;
@@ -356,7 +357,7 @@ contract Overclock {
             } else if (op == REF) {
                 (address sub, uint256 sid, uint8 ni, uint8 no) = _refHeader(nl, off);
                 uint256 fs = flatSize(sub, sid);
-                (,, uint32 subState,) = ICircuits(sub).circuitInfo(sid);
+                uint256 subState = _nState(sub, sid);
                 if (q < pos + fs) {
                     uint256[] memory childIn = new uint256[](ni);
                     for (uint256 k; k < ni; k++) childIn[k] = sigPos[_u24(nl, off + 31 + 3 * k)];
@@ -385,7 +386,7 @@ contract Overclock {
         uint256 stBase;
         uint256 off;
         while (off < nl.length) {
-            uint8 op = uint8(nl[off]);
+            uint8 op = _op(nl, off);
             if (op == NAND) {
                 pos++;
                 off += 7;
@@ -396,7 +397,7 @@ contract Overclock {
                 off += 4;
             } else {
                 (address sub, uint256 sid, uint8 ni, uint8 no) = _refHeader(nl, off);
-                (,, uint32 subState,) = ICircuits(sub).circuitInfo(sid);
+                uint256 subState = _nState(sub, sid);
                 if (k < stBase + subState) return _latchD(sub, sid, pos, k - stBase);
                 pos += flatSize(sub, sid) + no;
                 stBase += subState;
@@ -415,7 +416,7 @@ contract Overclock {
         uint256 sig = 2 + nIn;
         uint256 off;
         while (off < nl.length) {
-            uint8 op = uint8(nl[off]);
+            uint8 op = _op(nl, off);
             if (op == NAND || op == LATCH) {
                 if (sig == s) return pos;
                 pos++;
@@ -442,11 +443,12 @@ contract Overclock {
         uint256 m = _flat[cpu][id];
         if (m != 0) return m - 1;
         bytes memory nl = ICircuits(cpu).netlist(id);
-        (uint32 nIn,,,) = ICircuits(cpu).circuitInfo(id);
+        (uint32 nIn,, uint32 nState,) = ICircuits(cpu).circuitInfo(id);
+        _nStateOf[cpu][id] = nState;
         uint256 n = 2 + nIn;
         uint256 off;
         while (off < nl.length) {
-            uint8 op = uint8(nl[off]);
+            uint8 op = _op(nl, off);
             if (op == NAND) {
                 n += 1;
                 off += 7;
@@ -466,6 +468,11 @@ contract Overclock {
         return n;
     }
 
+    function _nState(address cpu, uint256 id) internal returns (uint256) {
+        flatSize(cpu, id);
+        return _nStateOf[cpu][id];
+    }
+
     function _nSignals(address cpu, uint256 id) internal view returns (uint256) {
         (uint32 nIn,,,) = ICircuits(cpu).circuitInfo(id);
         return _countSignals(ICircuits(cpu).netlist(id), nIn);
@@ -475,7 +482,7 @@ contract Overclock {
         n = 2 + nIn;
         uint256 off;
         while (off < nl.length) {
-            uint8 op = uint8(nl[off]);
+            uint8 op = _op(nl, off);
             if (op == NAND) {
                 n++;
                 off += 7;
@@ -483,23 +490,39 @@ contract Overclock {
                 n++;
                 off += 4;
             } else {
-                uint8 ni = uint8(nl[off + 29]);
-                n += uint8(nl[off + 30]);
+                (,, uint8 ni, uint8 no) = _refHeader(nl, off);
+                n += no;
                 off += 31 + 3 * uint256(ni);
             }
         }
     }
 
-    function _refHeader(bytes memory nl, uint256 off) internal pure returns (address sub, uint256 sid, uint8 ni, uint8 no) {
-        uint160 a;
-        for (uint256 i; i < 20; i++) a = (a << 8) | uint8(nl[off + 1 + i]);
-        uint64 id;
-        for (uint256 i; i < 8; i++) id = (id << 8) | uint8(nl[off + 21 + i]);
-        return (address(a), id, uint8(nl[off + 29]), uint8(nl[off + 30]));
+    // Netlist reads use mload: the walks over large netlists dominate the one-step check's gas.
+    // Callers stay inside the netlist; the bytes read past a record's end are masked off.
+
+    function _op(bytes memory nl, uint256 off) internal pure returns (uint8 r) {
+        assembly ("memory-safe") {
+            r := byte(0, mload(add(add(nl, 32), off)))
+        }
     }
 
-    function _u24(bytes memory nl, uint256 off) internal pure returns (uint256) {
-        return (uint256(uint8(nl[off])) << 16) | (uint256(uint8(nl[off + 1])) << 8) | uint8(nl[off + 2]);
+    function _refHeader(bytes memory nl, uint256 off) internal pure returns (address sub, uint256 sid, uint8 ni, uint8 no) {
+        uint256 w1;
+        uint256 w2;
+        assembly ("memory-safe") {
+            w1 := mload(add(add(nl, 33), off)) // cpu (20) | id (8) | nIn | nOut | ...
+            w2 := mload(add(add(nl, 53), off))
+        }
+        sub = address(uint160(w1 >> 96));
+        sid = w2 >> 192;
+        ni = uint8(w2 >> 184);
+        no = uint8(w2 >> 176);
+    }
+
+    function _u24(bytes memory nl, uint256 off) internal pure returns (uint256 r) {
+        assembly ("memory-safe") {
+            r := shr(232, mload(add(add(nl, 32), off)))
+        }
     }
 
     /// Bit i of a packed vector, read as the deployed evaluator reads it (TAP-02 §5).
