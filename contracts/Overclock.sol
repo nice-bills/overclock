@@ -324,6 +324,18 @@ contract Overclock {
 
     /// The correct value of leaf q, inside the invocation of (cpu, id) that starts at position p.
     /// inPos: trace positions of this invocation's inputs (top level reads the job's inputs).
+    struct Walk {
+        uint256 pos; // trace position of the next element's first leaf
+        uint256 sig; // next local signal
+        uint256 stBase; // state bits used by earlier elements
+        uint256 off; // byte offset of the next record
+        // big circuits REF the same sub-circuit over and over; keep the last one's sizes
+        address lastSub;
+        uint256 lastId;
+        uint256 fs;
+        uint256 subState;
+    }
+
     function _bitAt(Ctx memory ctx, address cpu, uint256 id, uint256 p, uint256[] memory inPos, bool top, uint256 stateOff, uint256 q)
         internal
         returns (uint8)
@@ -339,38 +351,32 @@ contract Overclock {
         // constants and inputs are copied into this invocation's own block
         uint256[] memory sigPos = new uint256[](_countSignals(nl, nIn));
         for (uint256 s; s < 2 + nIn; s++) sigPos[s] = p + s;
-        uint256 pos = p + 2 + nIn;
-        uint256 sig = 2 + nIn;
-        uint256 stBase;
-        uint256 off;
-        while (off < nl.length) {
-            uint8 op = _op(nl, off);
+        Walk memory w;
+        (w.pos, w.sig) = (p + 2 + nIn, 2 + nIn);
+        while (w.off < nl.length) {
+            uint8 op = _op(nl, w.off);
             if (op == NAND) {
-                if (pos == q) return 1 - (_get(ctx, sigPos[_u24(nl, off + 1)]) & _get(ctx, sigPos[_u24(nl, off + 4)]));
-                sigPos[sig++] = pos++;
-                off += 7;
+                if (w.pos == q) return 1 - (_get(ctx, sigPos[_u24(nl, w.off + 1)]) & _get(ctx, sigPos[_u24(nl, w.off + 4)]));
+                sigPos[w.sig++] = w.pos++;
+                w.off += 7;
             } else if (op == LATCH) {
-                if (pos == q) return _stateBit(ctx, stateOff + stBase);
-                sigPos[sig++] = pos++;
-                stBase += 1;
-                off += 4;
+                if (w.pos == q) return _stateBit(ctx, stateOff + w.stBase);
+                sigPos[w.sig++] = w.pos++;
+                w.stBase += 1;
+                w.off += 4;
             } else if (op == REF) {
-                (address sub, uint256 sid, uint8 ni, uint8 no) = _refHeader(nl, off);
-                uint256 fs = flatSize(sub, sid);
-                uint256 subState = _nState(sub, sid);
-                if (q < pos + fs) {
+                (address sub, uint256 sid, uint8 ni, uint8 no) = _refHeader(nl, w.off);
+                if (sub != w.lastSub || sid != w.lastId) (w.lastSub, w.lastId, w.fs, w.subState) = (sub, sid, flatSize(sub, sid), _nState(sub, sid));
+                if (q < w.pos + w.fs) {
                     uint256[] memory childIn = new uint256[](ni);
-                    for (uint256 k; k < ni; k++) childIn[k] = sigPos[_u24(nl, off + 31 + 3 * k)];
-                    return _bitAt(ctx, sub, sid, pos, childIn, false, stateOff + stBase, q);
+                    for (uint256 k; k < ni; k++) childIn[k] = sigPos[_u24(nl, w.off + 31 + 3 * k)];
+                    return _bitAt(ctx, sub, sid, w.pos, childIn, false, stateOff + w.stBase, q);
                 }
-                uint256 subSig = _nSignals(sub, sid);
-                for (uint256 k; k < no; k++) {
-                    if (pos + fs + k == q) return _get(ctx, _sigPos(sub, sid, pos, subSig - no + k));
-                }
-                pos += fs;
-                for (uint256 k; k < no; k++) sigPos[sig++] = pos++;
-                stBase += subState;
-                off += 31 + 3 * uint256(ni);
+                if (q < w.pos + w.fs + no) return _get(ctx, _sigPos(sub, sid, w.pos, _nSignals(sub, sid) - no + (q - w.pos - w.fs)));
+                w.pos += w.fs;
+                for (uint256 k; k < no; k++) sigPos[w.sig++] = w.pos++;
+                w.stBase += w.subState;
+                w.off += 31 + 3 * uint256(ni);
             } else {
                 revert("bad opcode");
             }

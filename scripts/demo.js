@@ -75,13 +75,13 @@ say(`trace: ${L.n.toLocaleString()} leaves (${L.B.toLocaleString()} per generati
 // The cheat flips the output gate of one cell's rule in one generation, picked so the final board changes.
 const lieBeat = Math.floor(BEATS * 0.6);
 const cellFlat = flatSize(cellC);
-let lieCell = -1;
-for (let k = 0; k < W * H && lieCell < 0; k++) {
-  let s = gens[lieBeat].slice();
-  s = lifeStep(s, W, H);
+let lieCell = -1, most = 0;
+for (let k = 0; k < W * H; k++) {
+  let s = lifeStep(gens[lieBeat], W, H);
   s[k] ^= 1;
   for (let g = lieBeat + 1; g < BEATS; g++) s = lifeStep(s, W, H);
-  if (s.some((v, i) => v !== gens[BEATS][i])) lieCell = k;
+  const diff = s.reduce((n, v, i) => n + (v !== gens[BEATS][i]), 0);
+  if (diff > most) [lieCell, most] = [k, diff];
 }
 const cellStart = lieBeat * L.B + 2 + bdC.nState + lieCell * (cellFlat + 1);
 const lieLeaf = cellStart + cellFlat - 1; // the cell rule's last NAND

@@ -1,0 +1,371 @@
+<title>Overclock</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Optimistic execution for TapeOut circuits on X Layer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a datasheet. One wide column; the replay and the dispute ladder are the two figures. */
+:root {
+  --paper: #f2f4f3;
+  --sheet: #ffffff;
+  --ink: #15211e;
+  --muted: #5b6a66;
+  --rule: #d5dcda;
+  --copper: #b1592a;
+  --copper-soft: #f3e2d7;
+  --mask: #1f5d4c;
+  --mask-soft: #dcebe6;
+  --lie: #c2263b;
+  --lie-soft: #f7dde1;
+  --cell: #15211e;
+  --cell-off: #e7ecea;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0d1715; --sheet: #13201d; --ink: #e3ebe8; --muted: #93a6a0; --rule: #26362f;
+    --copper: #e08a55; --copper-soft: #3a2619; --mask: #6cc1a3; --mask-soft: #18332b;
+    --lie: #ff6b7d; --lie-soft: #3d1a21; --cell: #e3ebe8; --cell-off: #1c2b27; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0d1715; --sheet: #13201d; --ink: #e3ebe8; --muted: #93a6a0; --rule: #26362f;
+  --copper: #e08a55; --copper-soft: #3a2619; --mask: #6cc1a3; --mask-soft: #18332b;
+  --lie: #ff6b7d; --lie-soft: #3d1a21; --cell: #e3ebe8; --cell-off: #1c2b27; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 400 15px/1.55 var(--body); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: 0.01em; text-wrap: balance; margin: 0; line-height: 1.05; }
+h1 { font-size: clamp(44px, 8vw, 76px); font-weight: 700; }
+h2 { font-size: 30px; }
+h3 { font-size: 20px; }
+p { margin: 0; max-width: 66ch; }
+.mono, code { font-family: var(--mono); font-size: 0.92em; }
+.label { font: 500 11px/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+a { color: var(--copper); }
+:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+
+header { display: grid; gap: 14px; }
+.part { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; }
+.part .label b { color: var(--ink); font-weight: 500; }
+.lede { font-size: 19px; line-height: 1.5; max-width: 60ch; }
+
+.specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); }
+.spec { padding: 12px 14px 14px 0; display: grid; gap: 4px; }
+.spec .v { font: 600 30px/1 var(--display); font-variant-numeric: tabular-nums; }
+.spec .v small { font-size: 16px; font-weight: 500; color: var(--muted); }
+
+section { display: grid; gap: 16px; }
+.sec-head { display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 18px; }
+.fig { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+
+.boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.board { display: grid; gap: 8px; min-width: 0; }
+.board canvas { width: 100%; max-width: 420px; aspect-ratio: 1; image-rendering: pixelated; border: 1px solid var(--rule); background: var(--cell-off); }
+.board .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; max-width: 420px; }
+.tag { font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; padding: 5px 7px; border-radius: 3px; }
+.tag.ok { background: var(--mask-soft); color: var(--mask); }
+.tag.bad { background: var(--lie-soft); color: var(--lie); }
+.tag.same { background: var(--cell-off); color: var(--muted); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+button { font: 500 13px/1 var(--mono); color: var(--ink); background: var(--sheet); border: 1px solid var(--ink); border-radius: 3px; padding: 9px 12px; cursor: pointer; }
+button:hover { background: var(--copper-soft); }
+input[type="range"] { flex: 1 1 200px; accent-color: var(--copper); min-width: 0; }
+.gen { font: 600 22px/1 var(--display); font-variant-numeric: tabular-nums; min-width: 9ch; }
+
+.ladder { display: grid; gap: 4px; overflow-x: auto; }
+.rung { display: grid; grid-template-columns: 3.2em minmax(160px, 1fr) minmax(170px, 21em); gap: 10px; align-items: center; font: 400 12px/1.3 var(--mono); }
+.rung .bar { position: relative; height: 16px; background: var(--cell-off); border-radius: 2px; overflow: hidden; }
+.rung .bar i { position: absolute; top: 0; bottom: 0; background: var(--copper); }
+.rung .bar i.agree { background: var(--mask-soft); }
+.rung .where { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rung.final .bar i { background: var(--lie); }
+.rung.final .where { color: var(--lie); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 400 12px/1.3 var(--mono); color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; background: var(--k); border-radius: 2px; }
+
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; border: 1px solid var(--lie); border-radius: 4px; background: var(--lie-soft); }
+.verdict div { padding: 12px 14px; display: grid; gap: 4px; }
+.verdict .v { font: 500 15px/1.3 var(--mono); }
+
+.gas { display: grid; gap: 10px; }
+.gas-row { display: grid; grid-template-columns: minmax(120px, 15em) 1fr; gap: 12px; align-items: center; }
+.gas-row .name { font-size: 14px; }
+.gas-row .name small { display: block; color: var(--muted); font: 400 12px/1.3 var(--mono); }
+.gas-track { position: relative; height: 22px; }
+.gas-track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--mask); border-radius: 2px; }
+.gas-track i.direct { background: var(--lie); }
+.gas-track i.dispute { background: var(--copper); }
+.gas-track span { position: absolute; top: 3px; font: 500 12px/16px var(--mono); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.axis { position: relative; height: 18px; border-top: 1px solid var(--rule); }
+.axis span { position: absolute; top: 4px; transform: translateX(-50%); font: 400 11px/1 var(--mono); color: var(--muted); }
+
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; counter-reset: s; }
+.step { display: grid; gap: 6px; align-content: start; }
+.step h3::before { counter-increment: s; content: counter(s) "  "; color: var(--copper); }
+
+.log { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font: 400 13px/1.4 var(--mono); }
+th { text-align: left; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--ink); padding: 6px 10px 6px 0; }
+td { border-bottom: 1px solid var(--rule); padding: 6px 10px 6px 0; vertical-align: top; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.cheat td:first-child { color: var(--lie); }
+tr.watcher td:first-child { color: var(--mask); }
+details summary { cursor: pointer; font: 500 13px/1.4 var(--mono); color: var(--copper); }
+
+footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font-size: 13px; }
+@media (max-width: 560px) {
+  .rung { grid-template-columns: 2.6em minmax(120px, 1fr); }
+  .rung .where { grid-column: 2; }
+  .gas-row { grid-template-columns: 1fr; gap: 4px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="part"><span class="label">Part <b>OVC-1</b></span><span class="label">Target <b>X Layer · chain 196</b></span><span class="label">Logic <b>TapeOut TAP-02</b></span></div>
+    <h1>Overclock</h1>
+    <p class="lede">Run TapeOut circuits far too big to evaluate on-chain. An operator posts the result with a bond. If one gate in millions is wrong, anyone can prove it with a single transaction, and the liar loses the bond.</p>
+  </header>
+
+  <div class="specs" id="specs"></div>
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Figure 1 · The job</span>
+      <h2>A cheat changes one gate in generation <span id="lieGen">61</span></h2>
+      <p id="jobText">The job runs Conway's Game of Life on a board built from TapeOut circuits: one cell rule, referenced once per cell, with the board held in LATCHes. A cheating operator flips the output of a single NAND in one cell and computes everything after it faithfully, so its claimed trace is consistent everywhere except at one step.</p>
+    </div>
+    <div class="fig">
+      <div class="boards">
+        <div class="board">
+          <div class="head"><h3>Correct run</h3><span class="tag ok">final board accepted</span></div>
+          <canvas id="honest" width="16" height="16" aria-label="Correct Game of Life board"></canvas>
+        </div>
+        <div class="board">
+          <div class="head"><h3>Cheat's claim</h3><span class="tag same" id="cheatTag">identical so far</span></div>
+          <canvas id="cheat" width="16" height="16" aria-label="The cheat's claimed board"></canvas>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="play" type="button">Play</button>
+        <span class="gen" id="genLabel">Gen 0</span>
+        <input id="scrub" type="range" min="0" max="100" value="0" aria-label="Generation">
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Figure 2 · The dispute</span>
+      <h2>Halving <span id="leafCount">1,817,800</span> steps down to one NAND</h2>
+      <p>The watcher re-runs the job, sees a different trace root, and challenges. The operator opens the disputed span into two halves; the watcher keeps whichever half disagrees with its own run. Each row zooms into the half picked in the row above.</p>
+    </div>
+    <div class="fig">
+      <div class="legend"><span style="--k: var(--copper)">half that disagrees</span><span style="--k: var(--mask-soft)">half that matches</span><span style="--k: var(--lie)">the wrong step</span></div>
+      <div class="ladder" id="ladder"></div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Figure 3 · Cost</span>
+      <h2>What the chain actually runs</h2>
+      <p>Gas measured on a local EVM. "Direct" is our straightforward on-chain TAP-02 evaluator running every gate of every generation. Log scale.</p>
+    </div>
+    <div class="fig">
+      <div class="gas" id="gas"></div>
+      <div class="gas-row"><span></span><div class="axis" id="axis"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="label">How it works</span>
+      <h2>Optimistic execution, one gate at a time</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Post a job</h3><p>Name any taped-out circuit by processor and id, give it a starting state and inputs, choose how many beats to run, and attach a fee.</p></div>
+      <div class="step"><h3>Claim with a bond</h3><p>An operator runs it off-chain with a bit-exact TAP-02 evaluator and posts the result plus a Merkle root over every wire value, in execution order.</p></div>
+      <div class="step"><h3>Watch and challenge</h3><p>Anyone can re-run the job for free. A different root starts a bisection; a correct root with a wrong result is disproved directly from the root.</p></div>
+      <div class="step"><h3>Check one step</h3><p>The contract reads the gate from the circuit's on-chain netlist and recomputes that single NAND, LATCH or REF wire. The liar loses the bond to the challenger.</p></div>
+    </div>
+    <p>This only works because TapeOut circuits are NAND gates with exact, public semantics, stored on-chain and never changed. That makes every step of any circuit checkable by a contract, and nested REF calls and LATCH state come along for free.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Appendix · Transactions</span>
+      <h2>Every transaction in the run</h2>
+    </div>
+    <details class="log">
+      <summary id="logSummary">Show all transactions</summary>
+      <table><thead><tr><th>Who</th><th>Action</th><th style="text-align:right">Gas</th></tr></thead><tbody id="logBody"></tbody></table>
+    </details>
+  </section>
+
+  <footer>
+    <span>Overclock · optimistic execution for TapeOut circuits</span>
+    <a href="https://github.com/nice-bills/overclock">github.com/nice-bills/overclock</a>
+    <span id="foot"></span>
+  </footer>
+</div>
+
+<script id="run-data" type="application/json">null</script>
+<script>
+(async function () {
+  let run = JSON.parse(document.getElementById('run-data').textContent);
+  if (!run) run = await (await fetch('demo-run.json')).json();
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n).toLocaleString('en-US');
+  const W = run.w, H = run.h, N = W * H;
+
+  const unpack = (hex) => {
+    const b = hex.slice(2);
+    const out = new Array(N);
+    for (let i = 0; i < N; i++) out[i] = (parseInt(b.substr((i >> 3) * 2, 2) || '0', 16) >> (i & 7)) & 1;
+    return out;
+  };
+  const step = (c) => {
+    const o = new Array(N);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) n += c[((y + dy + H) % H) * W + ((x + dx + W) % W)];
+      o[y * W + x] = n === 3 || (n === 2 && c[y * W + x]) ? 1 : 0;
+    }
+    return o;
+  };
+
+  const honest = run.generations.map(unpack);
+  const cheat = honest.slice(0, run.lie.beat + 1);
+  let s = step(honest[run.lie.beat]);
+  s[run.lie.cell] ^= 1;
+  cheat.push(s);
+  for (let g = run.lie.beat + 2; g <= run.beats; g++) cheat.push(step(cheat.at(-1)));
+
+  // spec strip
+  const g = run.gas;
+  const specs = [
+    [fmt(run.circuits.boardGates), 'gates per generation'],
+    [fmt(run.beats), 'generations'],
+    [fmt(run.trace.leaves), 'steps in the trace'],
+    [(g.directTotal / 1e9).toFixed(2) + '<small>B</small>', 'gas to run it directly'],
+    [fmt(Math.round((g.claim + g.finalize) / 1000)) + '<small>K</small>', 'gas when no one cheats'],
+    [fmt(Math.round(g.resolveLeaf / 1000)) + '<small>K</small>', 'gas to prove the lie'],
+  ];
+  $('specs').innerHTML = specs.map(([v, k]) => `<div class="spec"><span class="v">${v}</span><span class="label">${k}</span></div>`).join('');
+  $('lieGen').textContent = run.lie.generation;
+  $('leafCount').textContent = fmt(run.trace.leaves);
+
+  // boards
+  const css = getComputedStyle(document.documentElement);
+  function draw(id, cells, diff) {
+    const cv = $(id), ctx = cv.getContext('2d');
+    cv.width = W; cv.height = H;
+    const on = css.getPropertyValue('--cell').trim(), off = css.getPropertyValue('--cell-off').trim(), lie = css.getPropertyValue('--lie').trim(), lieSoft = css.getPropertyValue('--lie-soft').trim();
+    for (let i = 0; i < N; i++) {
+      const d = diff && diff[i] !== cells[i];
+      ctx.fillStyle = cells[i] ? (d ? lie : on) : (d ? lieSoft : off);
+      ctx.fillRect(i % W, Math.floor(i / W), 1, 1);
+    }
+  }
+  let gen = 0, timer = null;
+  function show(n) {
+    gen = n;
+    $('scrub').value = n;
+    $('genLabel').textContent = 'Gen ' + n;
+    draw('honest', honest[n]);
+    draw('cheat', cheat[n], honest[n]);
+    const diffs = cheat[n].reduce((a, v, i) => a + (v !== honest[n][i]), 0);
+    const tag = $('cheatTag');
+    if (diffs === 0) { tag.className = 'tag same'; tag.textContent = n > run.lie.beat ? 'matches again' : 'identical so far'; }
+    else { tag.className = 'tag bad'; tag.textContent = `${diffs} cell${diffs > 1 ? 's' : ''} wrong`; }
+  }
+  $('scrub').max = run.beats;
+  $('scrub').addEventListener('input', (e) => { stop(); show(Number(e.target.value)); });
+  function stop() { clearInterval(timer); timer = null; $('play').textContent = 'Play'; }
+  $('play').addEventListener('click', () => {
+    if (timer) return stop();
+    if (gen >= run.beats) show(0);
+    $('play').textContent = 'Pause';
+    timer = setInterval(() => { if (gen >= run.beats) return stop(); show(gen + 1); }, 140);
+  });
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  show(reduce ? run.beats : run.lie.beat + 1);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => show(gen));
+  new MutationObserver(() => show(gen)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // what a leaf is
+  const F = run.trace.perGeneration - run.circuits.latches;
+  const cellFlat = (F - 2 - run.circuits.latches) / run.circuits.refs - 1;
+  const xy = (k) => `(${k % W}, ${Math.floor(k / W)})`;
+  function where(q) {
+    const b = Math.floor(q / run.trace.perGeneration), r = q % run.trace.perGeneration;
+    const gtxt = `gen ${b + 1}`;
+    if (r < 2) return `${gtxt}, constant`;
+    if (r < 2 + run.circuits.latches) return `${gtxt}, LATCH read of cell ${xy(r - 2)}`;
+    if (r >= F) return `${gtxt}, LATCH write of cell ${xy(r - F)}`;
+    const o = r - 2 - run.circuits.latches, k = Math.floor(o / (cellFlat + 1)), w = o % (cellFlat + 1);
+    if (w === cellFlat) return `${gtxt}, cell ${xy(k)} output wire`;
+    if (w < 2) return `${gtxt}, cell ${xy(k)} constant`;
+    if (w < 11) return `${gtxt}, cell ${xy(k)} input ${w - 2}`;
+    return `${gtxt}, cell ${xy(k)} NAND ${w - 10} of ${cellFlat - 11}`;
+  }
+  function span(a, z) {
+    const ga = Math.floor(a / run.trace.perGeneration) + 1, gz = Math.floor(z / run.trace.perGeneration) + 1;
+    if (a === z) return where(a);
+    return ga === gz ? `gen ${ga}, steps ${fmt(a)}–${fmt(z)}` : `gens ${ga}–${Math.min(gz, run.beats)}`;
+  }
+
+  // ladder: each row shows the parent span split in two
+  const rows = [];
+  let parent = { from: 0, to: 2 ** run.trace.depth - 1, level: run.trace.depth };
+  for (const st of run.steps) {
+    const half = 2 ** st.level;
+    const left = st.from === parent.from;
+    const pa = parent.to - parent.from + 1;
+    const lo = (st.from - parent.from) / pa * 100, w = half / pa * 100;
+    const other = left ? lo + w : 0;
+    const final = st.level === 0;
+    rows.push(`<div class="rung${final ? ' final' : ''}"><span>${st.level === 0 ? 'leaf' : 'L' + st.level}</span><div class="bar"><i class="agree" style="left:${other}%;width:${100 - w}%"></i><i style="left:${lo}%;width:${w}%"></i></div><span class="where">${span(st.from, Math.min(st.to, run.trace.leaves - 1))}</span></div>`);
+    parent = st;
+  }
+  $('ladder').innerHTML = rows.join('');
+  $('verdict').innerHTML = [
+    ['Wrong step', `leaf ${fmt(run.lie.leaf)}`],
+    ['Where', where(run.lie.leaf)],
+    ['Checked on-chain for', `${fmt(g.resolveLeaf)} gas`],
+    ['Outcome', `cheat loses its ${run.bond} bond`],
+  ].map(([k, v]) => `<div><span class="label">${k}</span><span class="v">${v}</span></div>`).join('');
+
+  // gas, log scale from 1e4 to 1e10
+  const lo = 4, hi = 10;
+  const pct = (v) => (Math.log10(v) - lo) / (hi - lo) * 100;
+  const bars = [
+    ['Direct evaluation', `${run.beats} generations, every gate`, g.directTotal, 'direct'],
+    ['Direct, one generation', `${fmt(run.circuits.boardGates)} gates`, g.directOneGeneration, 'direct'],
+    ['Overclock, honest', 'claim + finalize', g.claim + g.finalize, ''],
+    ['Overclock, whole dispute', `${g.disputeTxs} transactions`, g.disputeTotal, 'dispute'],
+    ['Largest dispute transaction', 'the one-step check', g.disputeMaxTx, 'dispute'],
+  ];
+  $('gas').innerHTML = bars.map(([n, sub, v, cls]) => {
+    const p = pct(v);
+    const label = p > 70 ? `right:${100 - p}%;margin-right:6px;color:var(--sheet)` : `left:calc(${p}% + 6px)`;
+    return `<div class="gas-row"><span class="name">${n}<small>${sub}</small></span><div class="gas-track"><i class="${cls}" style="width:${p}%"></i><span style="${label}">${fmt(v)}</span></div></div>`;
+  }).join('');
+  $('axis').innerHTML = [4, 5, 6, 7, 8, 9, 10].map((e) => `<span style="left:${(e - lo) / (hi - lo) * 100}%">10<sup>${e}</sup></span>`).join('');
+
+  // log
+  const who = { poster: 'poster', cheat: 'cheat', operator: 'operator', watcher: 'watcher' };
+  const txs = run.log.filter((e) => e.gas);
+  $('logSummary').textContent = `Show all ${txs.length} transactions`;
+  $('logBody').innerHTML = txs.map((e) => `<tr class="${e.who}"><td>${who[e.who] ?? e.who}</td><td>${e.what}</td><td class="n">${fmt(e.gas)}</td></tr>`).join('');
+  $('foot').textContent = `Final board read from Overclock.result() matches an independent Life simulation: ${run.matches ? 'yes' : 'no'}.`;
+})();
+</script>
