@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { load, beat, pack, unpack, hexToBytes, bytesToHex, IllFormed } from '../src/tap02.js';
-import { traceBeat, flatSize, buildTree, root, proof, LEAF } from '../src/trace.js';
+import { traceBeat, traceJob, flatSize, buildTree, Tree, LEAF } from '../src/trace.js';
 import { keccak256 } from 'ethers';
 
 const vectors = JSON.parse(readFileSync(new URL('../vendor-tap02/vectors.json', import.meta.url)));
@@ -63,14 +63,36 @@ test('trace agrees with beat() and has flatSize leaves', () => {
 });
 
 test('merkle proofs verify', () => {
-  const levels = buildTree([0, 1, 1, 0, 1]);
+  const tree = buildTree([0, 1, 1, 0, 1]);
   for (let i = 0; i < 5; i++) {
-    let h = levels[0][i], idx = i;
-    for (const s of proof(levels, i)) {
+    let h = tree.node(0, i), idx = i;
+    for (const s of tree.proof(i)) {
       h = idx & 1 ? keccak256('0x' + s.slice(2) + h.slice(2)) : keccak256('0x' + h.slice(2) + s.slice(2));
       idx >>= 1;
     }
-    assert.equal(h, root(levels));
+    assert.equal(h, tree.root);
   }
-  assert.equal(levels[0][1], LEAF[1]);
+  assert.equal(tree.node(0, 1), LEAF[1]);
+});
+
+test('multi-beat trace: state leaves chain beats together', () => {
+  const v = vectors.valid.find((x) => x.name === 'ref_with_state');
+  const c = loadVector(v);
+  let st = [0, 1];
+  const t = traceJob(c, { state: st, inputs: [1], beats: 5 });
+  for (let b = 0; b < 5; b++) {
+    const one = traceBeat(c, st, [1]);
+    assert.deepEqual(Array.from(t.leaves.subarray(b * t.B, b * t.B + t.F)), one.leaves);
+    assert.deepEqual(Array.from(t.leaves.subarray(b * t.B + t.F, (b + 1) * t.B)), one.newState);
+    st = one.newState;
+  }
+  assert.deepEqual(t.newState, st);
+});
+
+test('cached tree levels agree with a fully built tree', () => {
+  const bits = new Uint8Array(3000).map((_, i) => (i * 7919) % 3 === 0 ? 1 : 0);
+  const full = new Tree(bits);
+  const part = new Tree(bits);
+  part.levels = []; part.cacheFrom = full.depth; part.levels[full.depth] = full.levels[full.depth]; // only the root cached
+  for (const [l, i] of [[0, 5], [1, 1499], [3, 300], [7, 20], [11, 1]]) assert.equal(part.node(l, i), full.node(l, i));
 });

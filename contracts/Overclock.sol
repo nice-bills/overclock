@@ -9,10 +9,11 @@ interface ICircuits {
 
 /// Optimistic execution of TapeOut circuits.
 ///
-/// An operator runs one beat of a circuit off-chain and claims the outputs, committing a
-/// Merkle root over the execution-order trace (see src/trace.js for the layout). Anyone who
-/// disagrees challenges; the two bisect the trace tree down to the first leaf they disagree on,
-/// and the contract re-checks that one step: a single NAND, LATCH read, REF wire or input.
+/// An operator runs a job (any number of beats of a circuit) off-chain and claims the last
+/// beat's outputs and the final state, committing a Merkle root over the execution-order trace
+/// (see src/trace.js for the layout). Anyone who disagrees challenges; the two bisect the trace
+/// tree down to the first leaf they disagree on, and the contract re-checks that one step: a
+/// single NAND, LATCH read, LATCH write, REF wire or input.
 contract Overclock {
     uint8 internal constant NAND = 0x00;
     uint8 internal constant LATCH = 0x01;
@@ -28,9 +29,16 @@ contract Overclock {
     struct Job {
         address cpu;
         uint256 id;
-        bytes inputs; // packed, TAP-02 §5
-        bytes state; // packed, TAP-02 §5
+        bytes inputs; // packed, TAP-02 §5: one beat's inputs, or every beat's when perBeat
+        bytes state; // packed, TAP-02 §5: the state before beat 0
         uint256 fee;
+        uint32 beats;
+        bool perBeat;
+        uint32 nIn;
+        uint32 nOut;
+        uint64 nState;
+        uint64 flat; // leaves per beat before the state bits
+        address poster;
         // claim
         address claimant;
         bytes32 traceRoot;
@@ -63,7 +71,7 @@ contract Overclock {
     Game[] public games;
     mapping(address => mapping(uint256 => uint256)) internal _flat; // flatSize + 1, 0 = not computed
 
-    event JobPosted(uint256 indexed jobId, address cpu, uint256 id);
+    event JobPosted(uint256 indexed jobId, address cpu, uint256 id, uint32 beats);
     event Claimed(uint256 indexed jobId, address claimant, bytes32 traceRoot, bytes outputs);
     event Challenged(uint256 indexed jobId, uint256 indexed gameId, address challenger);
     event Revealed(uint256 indexed gameId, uint8 level, uint256 index, bytes32 left, bytes32 right);
@@ -78,18 +86,37 @@ contract Overclock {
 
     // ---------------------------------------------------------------- jobs and claims
 
-    function postJob(address cpu, uint256 id, bytes calldata inputs, bytes calldata state) external payable returns (uint256 jobId) {
-        flatSize(cpu, id); // reverts on a malformed or missing circuit
+    /// Post a job: run circuit (cpu, id) for `beats` beats from `state`. With perBeat, `inputs`
+    /// holds beats * nIn bits (beat b's input i is bit b * nIn + i); otherwise one beat's inputs,
+    /// applied every beat. msg.value is the fee paid to whoever's claim finalizes.
+    function postJob(address cpu, uint256 id, bytes calldata inputs, bytes calldata state, uint32 beats, bool perBeat)
+        external
+        payable
+        returns (uint256 jobId)
+    {
+        require(beats >= 1, "beats");
+        uint256 f = flatSize(cpu, id); // reverts on a malformed or missing circuit
+        (uint32 nIn, uint32 nOut, uint32 nState,) = ICircuits(cpu).circuitInfo(id);
+        require(inputs.length == _bytes(perBeat ? uint256(beats) * nIn : nIn), "inputs length");
+        require(state.length == _bytes(nState), "state length");
         jobId = jobs.length;
         Job storage j = jobs.push();
-        (j.cpu, j.id, j.inputs, j.state, j.fee) = (cpu, id, inputs, state, msg.value);
-        emit JobPosted(jobId, cpu, id);
+        (j.cpu, j.id, j.inputs, j.state, j.fee, j.poster) = (cpu, id, inputs, state, msg.value, msg.sender);
+        (j.beats, j.perBeat, j.nIn, j.nOut, j.nState, j.flat) = (beats, perBeat, nIn, nOut, nState, uint64(f));
+        emit JobPosted(jobId, cpu, id, beats);
+    }
+
+    /// Leaves in the job's whole trace: one block of flat + nState leaves per beat.
+    function traceSize(uint256 jobId) public view returns (uint256) {
+        Job storage j = jobs[jobId];
+        return uint256(j.beats) * (j.flat + j.nState);
     }
 
     function claim(uint256 jobId, bytes32 traceRoot, bytes calldata outputs, bytes calldata newState) external payable {
         Job storage j = jobs[jobId];
         require(j.claimant == address(0) && !j.finalized, "claimed");
         require(msg.value == bond, "bond");
+        require(outputs.length == _bytes(j.nOut) && newState.length == _bytes(j.nState), "result length");
         (j.claimant, j.traceRoot, j.outputs, j.newState, j.claimedAt) = (msg.sender, traceRoot, outputs, newState, uint64(block.timestamp));
         emit Claimed(jobId, msg.sender, traceRoot, outputs);
     }
@@ -119,7 +146,7 @@ contract Overclock {
         require(msg.value == bond, "bond");
         j.challenged = true;
         gameId = games.length;
-        games.push(Game(jobId, msg.sender, _depth(flatSize(j.cpu, j.id)), 0, j.traceRoot, Turn.Claimant, uint64(block.timestamp + window)));
+        games.push(Game(jobId, msg.sender, _depth(traceSize(jobId)), 0, j.traceRoot, Turn.Claimant, uint64(block.timestamp + window)));
         emit Challenged(jobId, gameId, msg.sender);
     }
 
@@ -135,6 +162,19 @@ contract Overclock {
     }
 
     mapping(uint256 => bytes32[2]) internal _pending;
+
+    /// The two children the claimant revealed for the node under dispute.
+    function pending(uint256 gameId) external view returns (bytes32 left, bytes32 right) {
+        return (_pending[gameId][0], _pending[gameId][1]);
+    }
+
+    function jobCount() external view returns (uint256) {
+        return jobs.length;
+    }
+
+    function gameCount() external view returns (uint256) {
+        return games.length;
+    }
 
     /// Challenger picks the child it disagrees with.
     function pick(uint256 gameId, bool right) external {
@@ -155,33 +195,39 @@ contract Overclock {
         Game storage g = games[gameId];
         require(g.turn == Turn.Leaf, "turn");
         Job storage j = jobs[g.jobId];
-        uint8 depth = _depth(flatSize(j.cpu, j.id));
-        Ctx memory ctx = _ctx(j, depth, deps);
+        Ctx memory ctx = _ctx(j, _depth(traceSize(g.jobId)), deps);
         bytes32 expected;
-        if (g.index >= flatSize(j.cpu, j.id)) {
+        if (g.index >= traceSize(g.jobId)) {
             expected = PAD;
         } else {
-            uint8 b = _bitAt(ctx, j.cpu, j.id, 0, new uint256[](0), true, 0, g.index);
-            expected = b == 1 ? LEAF1 : LEAF0;
+            expected = _expected(ctx, j, g.index) == 1 ? LEAF1 : LEAF0;
         }
         _settle(gameId, g.node != expected, g.node != expected ? "wrong step" : "step was correct");
     }
 
-    /// Claimed outputs that do not match the claimant's own trace.
+    /// A claimed result bit that does not match the claimant's own trace. k < nOut is output k of
+    /// the last beat; nOut + i is bit i of the final state.
     function disputeOutput(uint256 jobId, uint256 k, Leaf[] calldata deps) external payable {
         Job storage j = jobs[jobId];
         require(j.claimant != address(0) && !j.challenged && !j.finalized, "state");
         require(block.timestamp < j.claimedAt + window, "window");
         require(msg.value == bond, "bond");
-        (, uint32 nOut,,) = ICircuits(j.cpu).circuitInfo(j.id);
-        require(k < nOut, "k");
-        Ctx memory ctx = _ctx(j, _depth(flatSize(j.cpu, j.id)), deps);
-        uint256 nSig = _nSignals(j.cpu, j.id);
-        uint256 pos = _sigPos(j.cpu, j.id, 0, nSig - nOut + k);
+        require(k < uint256(j.nOut) + j.nState, "k");
+        Ctx memory ctx = _ctx(j, _depth(traceSize(jobId)), deps);
+        uint256 last = uint256(j.beats - 1) * (j.flat + j.nState);
+        uint256 pos;
+        uint8 claimed;
+        if (k < j.nOut) {
+            pos = _sigPos(j.cpu, j.id, last, _nSignals(j.cpu, j.id) - j.nOut + k);
+            claimed = _bit(j.outputs, k);
+        } else {
+            pos = last + j.flat + (k - j.nOut);
+            claimed = _bit(j.newState, k - j.nOut);
+        }
         j.challenged = true;
         uint256 gameId = games.length;
         games.push(Game(jobId, msg.sender, 0, pos, bytes32(0), Turn.Leaf, 0));
-        bool wrong = _get(ctx, pos) != _bit(j.outputs, k);
+        bool wrong = _get(ctx, pos) != claimed;
         _settle(gameId, wrong, wrong ? "output does not match trace" : "output matches trace");
     }
 
@@ -222,11 +268,17 @@ contract Overclock {
         bytes state;
         uint256[] pos;
         uint8[] bits;
+        uint256 beat; // the beat the leaf under check belongs to
+        uint256 flat;
+        uint256 block_; // leaves per beat
+        uint256 nIn;
+        bool perBeat;
     }
 
     function _ctx(Job storage j, uint8 depth, Leaf[] calldata deps) internal view returns (Ctx memory ctx) {
         ctx.inputs = j.inputs;
         ctx.state = j.state;
+        (ctx.flat, ctx.block_, ctx.nIn, ctx.perBeat) = (j.flat, uint256(j.flat) + j.nState, j.nIn, j.perBeat);
         ctx.pos = new uint256[](deps.length);
         ctx.bits = new uint8[](deps.length);
         for (uint256 i; i < deps.length; i++) {
@@ -249,6 +301,26 @@ contract Overclock {
         revert("missing leaf");
     }
 
+    /// The correct value of leaf q of the job's trace, given the leaves it depends on.
+    function _expected(Ctx memory ctx, Job storage j, uint256 q) internal returns (uint8) {
+        ctx.beat = q / ctx.block_;
+        uint256 p = ctx.beat * ctx.block_;
+        if (q < p + ctx.flat) return _bitAt(ctx, j.cpu, j.id, p, new uint256[](0), true, 0, q);
+        // a state leaf: the value its LATCH's input signal had at the end of this beat
+        return _get(ctx, _latchD(j.cpu, j.id, p, q - p - ctx.flat));
+    }
+
+    /// Input bit i of the top-level circuit in the current beat.
+    function _input(Ctx memory ctx, uint256 i) internal pure returns (uint8) {
+        return _bit(ctx.inputs, ctx.perBeat ? ctx.beat * ctx.nIn + i : i);
+    }
+
+    /// State bit i going into the current beat: the job's state, or the previous beat's state leaves.
+    function _stateBit(Ctx memory ctx, uint256 i) internal pure returns (uint8) {
+        if (ctx.beat == 0) return _bit(ctx.state, i);
+        return _get(ctx, (ctx.beat - 1) * ctx.block_ + ctx.flat + i);
+    }
+
     /// The correct value of leaf q, inside the invocation of (cpu, id) that starts at position p.
     /// inPos: trace positions of this invocation's inputs (top level reads the job's inputs).
     function _bitAt(Ctx memory ctx, address cpu, uint256 id, uint256 p, uint256[] memory inPos, bool top, uint256 stateOff, uint256 q)
@@ -261,7 +333,7 @@ contract Overclock {
         if (q == p + 1) return 1;
         if (q < p + 2 + nIn) {
             uint256 i = q - p - 2;
-            return top ? _bit(ctx.inputs, i) : _get(ctx, inPos[i]);
+            return top ? _input(ctx, i) : _get(ctx, inPos[i]);
         }
         // constants and inputs are copied into this invocation's own block
         uint256[] memory sigPos = new uint256[](_countSignals(nl, nIn));
@@ -277,7 +349,7 @@ contract Overclock {
                 sigPos[sig++] = pos++;
                 off += 7;
             } else if (op == LATCH) {
-                if (pos == q) return _bit(ctx.state, stateOff + stBase);
+                if (pos == q) return _stateBit(ctx, stateOff + stBase);
                 sigPos[sig++] = pos++;
                 stBase += 1;
                 off += 4;
@@ -303,6 +375,35 @@ contract Overclock {
             }
         }
         revert("position outside invocation");
+    }
+
+    /// Trace position of the signal that state bit k of the invocation at p latches.
+    function _latchD(address cpu, uint256 id, uint256 p, uint256 k) internal returns (uint256) {
+        bytes memory nl = ICircuits(cpu).netlist(id);
+        (uint32 nIn,,,) = ICircuits(cpu).circuitInfo(id);
+        uint256 pos = p + 2 + nIn;
+        uint256 stBase;
+        uint256 off;
+        while (off < nl.length) {
+            uint8 op = uint8(nl[off]);
+            if (op == NAND) {
+                pos++;
+                off += 7;
+            } else if (op == LATCH) {
+                if (stBase == k) return _sigPos(cpu, id, p, _u24(nl, off + 1));
+                pos++;
+                stBase++;
+                off += 4;
+            } else {
+                (address sub, uint256 sid, uint8 ni, uint8 no) = _refHeader(nl, off);
+                (,, uint32 subState,) = ICircuits(sub).circuitInfo(sid);
+                if (k < stBase + subState) return _latchD(sub, sid, pos, k - stBase);
+                pos += flatSize(sub, sid) + no;
+                stBase += subState;
+                off += 31 + 3 * uint256(ni);
+            }
+        }
+        revert("no such state bit");
     }
 
     /// Trace position of local signal `s` of the invocation of (cpu, id) starting at p.
@@ -405,6 +506,10 @@ contract Overclock {
     function _bit(bytes memory v, uint256 i) internal pure returns (uint8) {
         if (i >> 3 >= v.length) return 0;
         return (uint8(v[i >> 3]) >> (i & 7)) & 1;
+    }
+
+    function _bytes(uint256 bits) internal pure returns (uint256) {
+        return (bits + 7) >> 3;
     }
 
     function _depth(uint256 n) internal pure returns (uint8 d) {

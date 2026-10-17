@@ -14,5 +14,8 @@
     "ethers": "^6.17.0",
     "ganache": "^7.9.2",
     "solc": "^0.8.28"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.3.2"
   }
 }
