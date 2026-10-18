@@ -19,7 +19,7 @@ lies about the result is caught by a one-gate check on X Layer and loses their b
 | Processor address | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
 | Circuit IDs | On the processor above: #4, Game of Life cell rule (57 gates) · #5, 8×8 board (64 REFs to #4, 3,712 gates per generation) · #6, 4-bit CPU (1,437 gates, 205 LATCH bits). On AlephTape's processor [`0xb00e17789f905234f1890c22e6c01015c10d2f54`](https://www.oklink.com/x-layer/address/0xb00e17789f905234f1890c22e6c01015c10d2f54): #11, their digit net (161,080 gates) |
 | Every mainnet transaction | [docs/mainnet-run.md](mainnet-run.md) (Game of Life), [docs/headline-demos.md](headline-demos.md) (CPU and digit net) |
-| Access link (live job board) | https://overclock-board.onrender.com: every mainnet job, claim and dispute, read live from the contract, plus a replay of the demo run |
+| Access link | https://overclock-board.onrender.com: a landing page, the live job board at [/#board](https://overclock-board.onrender.com/#board) (every mainnet job, claim and dispute, read from the contract) and a recorded run at [/#replay](https://overclock-board.onrender.com/#replay) |
 | Agent access | `/plugin install overclock --marketplace nice-bills/overclock` (Claude Code), or the MCP server over stdio or HTTP |
 | Demo video | to be added |
 

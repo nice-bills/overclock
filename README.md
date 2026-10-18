@@ -30,7 +30,7 @@ Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet cir
 | TapeOut processor | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
 | Circuit IDs | On the processor above: #4, the Life cell rule (57 gates); #5, the 8×8 board (64 REFs to #4); #6, the 4-bit CPU (1,437 gates). On AlephTape's processor [`0xb00e17789f905234f1890c22e6c01015c10d2f54`](https://www.oklink.com/x-layer/address/0xb00e17789f905234f1890c22e6c01015c10d2f54): #11, the digit net (161,080 gates) |
 | TapeOut features used | Processor factory, NAND and LATCH transistors, tapeout, `REF`, `step`, netlist reads, ERC-6551 circuit accounts |
-| Live job board | [overclock-board.onrender.com](https://overclock-board.onrender.com) |
+| Live site | [overclock-board.onrender.com](https://overclock-board.onrender.com): landing, [job board](https://overclock-board.onrender.com/#board), [replay](https://overclock-board.onrender.com/#replay) |
 | Write-up, film script, launch thread | [docs/submission.md](docs/submission.md), [docs/demo-script.md](docs/demo-script.md), [docs/launch-thread.md](docs/launch-thread.md) |
 
 **Demo result (local EVM).** The demo runs Conway's Game of Life on a 16×16 board built from TapeOut circuits, for 100 generations. That is 14,848 gates per generation and 1,817,800 steps in all.
@@ -44,7 +44,7 @@ Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet cir
 
 The final board read back from `Overclock.result()` matches an independent Life simulation.
 
-**Live job board: [overclock-board.onrender.com](https://overclock-board.onrender.com).** It reads the mainnet contract over public RPC and shows every job, claim and dispute, followed by a replay of the demo run. The same page is one self-contained file, [`web/overclock.html`](web/overclock.html), so it can also be opened from disk or published to DeWEB with `scripts/publish-deweb.js`.
+**Live job board: [overclock-board.onrender.com](https://overclock-board.onrender.com).** The landing page animates one job from claim to the wrong gate; the [job board](https://overclock-board.onrender.com/#board) reads the mainnet contract over public RPC and shows every job, claim and dispute; and the [replay](https://overclock-board.onrender.com/#replay) steps through a recorded run. The same page is one self-contained file, [`web/overclock.html`](web/overclock.html), so it can also be opened from disk or published to DeWEB with `scripts/publish-deweb.js`.
 
 ## Why this needs TapeOut
 
