@@ -417,7 +417,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   <main class="view" id="replay" hidden>
     <div class="intro">
       <h1>How a cheat gets caught</h1>
-      <p>A recorded run of Conway's Game of Life built from TapeOut circuits. A cheating operator flips one NAND in one cell and computes everything after it faithfully. One transaction proves it.</p>
+      <p id="replayIntro">A recorded run of Conway's Game of Life built from TapeOut circuits. A cheating operator flips one NAND in one cell and computes everything after it faithfully. One transaction proves it.</p>
     </div>
 
     <div class="specs" id="specs"></div>
@@ -460,7 +460,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     <section>
       <div class="sec-head">
         <h2>What the chain actually runs</h2>
-        <p>Gas on a local EVM, log scale.</p>
+        <p id="gasNote">Gas on a local EVM, log scale.</p>
       </div>
       <div class="card">
         <div class="gas" id="gas"></div>
@@ -730,7 +730,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   const g = run.gas;
   const specs = [
     [fmt(run.trace.leaves), 'steps in the trace'],
-    [(g.directTotal / 1e9).toFixed(2) + '<small>B</small>', 'gas to run it directly'],
+    [g.directTotal >= 1e9 ? (g.directTotal / 1e9).toFixed(2) + '<small>B</small>' : fmt(Math.round(g.directTotal / 1e6)) + '<small>M</small>', 'gas to run it directly'],
     [fmt(Math.round((g.claim + g.finalize) / 1000)) + '<small>K</small>', 'gas when no one cheats'],
     [fmt(Math.round(g.resolveLeaf / 1000)) + '<small>K</small>', 'gas to prove the lie'],
   ];
@@ -763,7 +763,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     if (n > run.beats) { tag.className = 'tag bad'; tag.textContent = 'rejected; second job running'; }
     else if (diffs === 0) { tag.className = 'tag same'; tag.textContent = n > run.lie.beat ? 'matches again' : 'identical so far'; }
     else { tag.className = 'tag bad'; tag.textContent = `${diffs} cell${diffs > 1 ? 's' : ''} wrong`; }
-    $('jobTag').textContent = n > run.beats ? 'job 2 · posted by the circuit' : 'job 1';
+    const [j1, j2] = run.jobIds ?? [1, 2];
+    $('jobTag').textContent = n > run.beats ? `job ${j2} · posted by the circuit` : `job ${j1}`;
   }
   $('scrub').max = total;
   $('scrub').addEventListener('input', (e) => { stop(); show(Number(e.target.value)); });
@@ -778,9 +779,11 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   show(reduce ? total : run.lie.beat + 1);
 
   // TapeOut setup
+  if (run.mode === 'live') $('replayIntro').textContent = `The first Overclock job on X Layer mainnet: ${run.beats} generations of Conway's Game of Life on an ${W}×${H} board taped out on TapeOut. A cheating operator flipped one NAND in one cell. One transaction proved it.`;
+  if (run.mode === 'live') $('gasNote').textContent = `Gas on X Layer mainnet. Direct is ${run.directSource ?? 'running every gate'}, estimated; the rest are real transactions. Log scale.`;
   const short = (a) => a ? a.slice(0, 6) + '…' + a.slice(-4) : '';
   if (run.addresses) {
-    const where = run.realTapeOut ? `X Layer mainnet fork, chain ${run.chainId}, block ${fmt(run.startBlock)}, real TapeOut contracts` : 'local EVM with a TapeOut-shaped stand-in (fork run pending)';
+    const where = run.mode === 'live' ? `X Layer mainnet, chain ${run.chainId}, from block ${fmt(run.startBlock)}, real TapeOut contracts` : run.realTapeOut ? `X Layer mainnet fork, chain ${run.chainId}, block ${fmt(run.startBlock)}, real TapeOut contracts` : 'local EVM with a TapeOut-shaped stand-in (fork run pending)';
     $('modeLine').textContent = `${where} · processor ${short(run.addresses.circuits)} · cell #${run.addresses.cellId} · board #${run.addresses.boardId} · circuit account ${short(run.addresses.circuitAccount)}`;
     const rowsS = run.setup.filter((e) => !/^deploy (DirectEval|TapeOutFactoryLocal|OpenerLocal)/.test(e.what));
     const cont = run.log.find((e) => e.fn === 'continueJob');
@@ -837,7 +840,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   const lo = 4, hi = 10;
   const pct = (v) => (Math.log10(v) - lo) / (hi - lo) * 100;
   const bars = [
-    ['Direct evaluation', `${run.beats} generations, every gate`, g.directTotal, 'direct'],
+    [run.directSource ? 'Direct, TapeOut step()' : 'Direct evaluation', `${run.beats} generations, every gate`, g.directTotal, 'direct'],
     ['Direct, one generation', `${fmt(run.circuits.boardGates)} gates`, g.directOneGeneration, 'direct'],
     ['Overclock, honest', 'claim + finalize', g.claim + g.finalize, ''],
     ['Overclock, whole dispute', `${g.disputeTxs} transactions`, g.disputeTotal, 'dispute'],

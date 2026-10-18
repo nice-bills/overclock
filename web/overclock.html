@@ -417,7 +417,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   <main class="view" id="replay" hidden>
     <div class="intro">
       <h1>How a cheat gets caught</h1>
-      <p>A recorded run of Conway's Game of Life built from TapeOut circuits. A cheating operator flips one NAND in one cell and computes everything after it faithfully. One transaction proves it.</p>
+      <p id="replayIntro">A recorded run of Conway's Game of Life built from TapeOut circuits. A cheating operator flips one NAND in one cell and computes everything after it faithfully. One transaction proves it.</p>
     </div>
 
     <div class="specs" id="specs"></div>
@@ -460,7 +460,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     <section>
       <div class="sec-head">
         <h2>What the chain actually runs</h2>
-        <p>Gas on a local EVM, log scale.</p>
+        <p id="gasNote">Gas on a local EVM, log scale.</p>
       </div>
       <div class="card">
         <div class="gas" id="gas"></div>
@@ -692,414 +692,257 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 })();
 </script>
 <script id="run-data" type="application/json">{
- "w": 16,
- "h": 16,
- "beats": 100,
- "bond": "1.0",
- "fee": "0.1",
- "mode": "local",
- "realTapeOut": false,
- "chainId": 1337,
- "startBlock": 0,
- "more": 50,
+ "w": 8,
+ "h": 8,
+ "beats": 40,
+ "bond": "0.001",
+ "fee": "0.0002",
+ "mode": "live",
+ "jobIds": [
+  0,
+  1
+ ],
+ "gameId": 0,
+ "realTapeOut": true,
+ "chainId": 196,
+ "startBlock": 73578724,
+ "more": 0,
  "addresses": {
-  "factory": "0x7D7161cC1C921a5ff41879d886590952b7520fC4",
-  "circuits": "0x37f07035988c2730ec88f2c042ece78f57bb5d65",
-  "transistors": "0xc0ca11B514CCD9c72750CcBF89BBB1c6900f01B6",
-  "overclock": "0xD17b6a2d904607741859BDC96B6F53467b0E4e55",
-  "cellId": 1,
-  "boardId": 2,
-  "circuitAccount": "0x2B911c6CcDA83Af4cbc5C75Db6f0621f0435D9a2"
+  "factory": "0x1f09daefa827f02cbb40967cc91b259763760761",
+  "circuits": "0xb00f10bb4b2f32c561bf90e205e543d0a2395971",
+  "transistors": "0xb1bD14D8D364BA0672208FCa8AEf6aab5eF1b744",
+  "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+  "cellId": 4,
+  "boardId": 5,
+  "circuitAccount": null
  },
  "setup": [
   {
-   "what": "deploy TapeOutFactoryLocal",
-   "gas": 2502641,
-   "tx": "0xaf0bb658c02e348c6f6cda346bff397158bcdb205f181a53940c2f4e8c74cfdd",
-   "address": "0x7D7161cC1C921a5ff41879d886590952b7520fC4"
-  },
-  {
-   "what": "createCPU \"Overclock Life\"",
-   "gas": 1805274,
-   "tx": "0x47bc6e7ca861bfb6478bb9a0286b3ff908b68c7b242c1ade5ede77ad1c5e9b3f"
-  },
-  {
    "what": "mint 57 NAND",
-   "gas": 70757,
-   "tx": "0x67de89cef1efc53de499d957a6a51c0c15260f1e56297f5b7afc9c85655fc067"
+   "gas": 103499,
+   "tx": "0x7accc50236d823d5de23a7b77584b38bb483cf6cb68738ae8b75a64fc187667b"
   },
   {
-   "what": "mint 256 LATCH",
-   "gas": 53669,
-   "tx": "0x83f6795c4b9a1dd49cb777912599d964b3f48fb307f19b94f94c0ef1c2e41712"
+   "what": "mint 64 LATCH",
+   "gas": 86434,
+   "tx": "0x4b3ed01f51390010069c7af3ef10d2f32acf2b251a4484a58d108b2f94ecc458"
   },
   {
-   "what": "tapeout cell rule as circuit #1",
-   "gas": 363641,
-   "tx": "0x4c45d7684c7d79bf3523387d3e8a180ba0a123c297d3150bbd63e82f6d8ff4d2",
-   "circuit": 1,
+   "what": "tapeout cell rule as circuit #4",
+   "gas": 380366,
+   "tx": "0x12700d22c297dfce4f8c5d2492cefc6c059d423208c7ecb4e9229f194a197420",
+   "circuit": 4,
    "burned": {
     "nand": 57,
     "latch": 0
    }
   },
   {
-   "what": "tapeout 16x16 board as circuit #2 (256 REFs)",
-   "gas": 6266370,
-   "tx": "0xce570267162631751a88a39a9c1d8936d770aec4e90c35d2d7072d1732f6b796",
-   "circuit": 2,
+   "what": "tapeout 8x8 board as circuit #5 (64 REFs)",
+   "gas": 2103982,
+   "tx": "0x624502833d0689be847081b168058c4d96a673e3fb39f75af03b13ecca17f038",
+   "circuit": 5,
    "burned": {
     "nand": 0,
-    "latch": 256
+    "latch": 64
    }
-  },
-  {
-   "what": "deploy DirectEval",
-   "gas": 801165,
-   "tx": "0x89fe09ed4cdca5e3c11864d8b75b42e6c615b7b068a12af99924ace9ac0dae2d",
-   "address": "0x343531e0D9005E596098ac6a4D60A0521e894684"
-  },
-  {
-   "what": "deploy Overclock",
-   "gas": 3654063,
-   "tx": "0xef6fd5ff5fcf0e3c7fddd4901a7b5ac4c5637b1d5ca765075684a1e92d949052",
-   "address": "0xD17b6a2d904607741859BDC96B6F53467b0E4e55"
-  },
-  {
-   "what": "deploy OpenerLocal",
-   "gas": 652245,
-   "tx": "0x0b2ebe3d197d32b7e9fc38e7ae8460246cf077d0f930c674297070c54b0bb558",
-   "address": "0x987Ba9489908059866cD5b1A0B1997aB914DB16B"
-  },
-  {
-   "what": "open circuit #2's ERC-6551 account",
-   "gas": 359390,
-   "tx": "0x3d70e06c9a35d3bd9ed9fe9d16a59c4719264d74fdb2d2347d12f727dbf66a7d"
-  },
-  {
-   "what": "fund the circuit account with the job fee",
-   "gas": 21067,
-   "tx": "0x653628660807eeed051d11400baca03500be1e9693caf5c76020d69be5bc8bc4",
-   "account": "0x2B911c6CcDA83Af4cbc5C75Db6f0621f0435D9a2"
   }
  ],
- "stepChecks": null,
- "directSource": "our reference TAP-02 evaluator (contracts/DirectEval.sol)",
+ "stepChecks": {
+  "generations": 3,
+  "agree": 3
+ },
+ "directSource": "TapeOut's own step()",
  "continued": true,
  "circuits": {
   "cellGates": 57,
-  "boardGates": 14848,
-  "latches": 256,
-  "refs": 256,
+  "boardGates": 3712,
+  "latches": 64,
+  "refs": 64,
   "cellNetlistBytes": 399,
-  "boardNetlistBytes": 15872
+  "boardNetlistBytes": 3968
  },
  "trace": {
-  "leaves": 1817800,
-  "perGeneration": 18178,
-  "depth": 21
+  "leaves": 181840,
+  "perGeneration": 4546,
+  "depth": 18
  },
  "lie": {
-  "beat": 60,
-  "generation": 61,
-  "cell": 192,
-  "x": 0,
-  "y": 12,
-  "leaf": 1104253
+  "beat": 24,
+  "generation": 25,
+  "cell": 19,
+  "x": 3,
+  "y": 2,
+  "leaf": 110548
  },
  "steps": [
   {
-   "level": 20,
-   "from": 1048576,
-   "to": 1817799
-  },
-  {
-   "level": 19,
-   "from": 1048576,
-   "to": 1572863
-  },
-  {
-   "level": 18,
-   "from": 1048576,
-   "to": 1310719
-  },
-  {
    "level": 17,
-   "from": 1048576,
-   "to": 1179647
+   "from": 0,
+   "to": 131071
   },
   {
    "level": 16,
-   "from": 1048576,
-   "to": 1114111
+   "from": 65536,
+   "to": 131071
   },
   {
    "level": 15,
-   "from": 1081344,
-   "to": 1114111
+   "from": 98304,
+   "to": 131071
   },
   {
    "level": 14,
-   "from": 1097728,
-   "to": 1114111
+   "from": 98304,
+   "to": 114687
   },
   {
    "level": 13,
-   "from": 1097728,
-   "to": 1105919
+   "from": 106496,
+   "to": 114687
   },
   {
    "level": 12,
-   "from": 1101824,
-   "to": 1105919
+   "from": 106496,
+   "to": 110591
   },
   {
    "level": 11,
-   "from": 1103872,
-   "to": 1105919
+   "from": 108544,
+   "to": 110591
   },
   {
    "level": 10,
-   "from": 1103872,
-   "to": 1104895
+   "from": 109568,
+   "to": 110591
   },
   {
    "level": 9,
-   "from": 1103872,
-   "to": 1104383
+   "from": 110080,
+   "to": 110591
   },
   {
    "level": 8,
-   "from": 1104128,
-   "to": 1104383
+   "from": 110336,
+   "to": 110591
   },
   {
    "level": 7,
-   "from": 1104128,
-   "to": 1104255
+   "from": 110464,
+   "to": 110591
   },
   {
    "level": 6,
-   "from": 1104192,
-   "to": 1104255
+   "from": 110528,
+   "to": 110591
   },
   {
    "level": 5,
-   "from": 1104224,
-   "to": 1104255
+   "from": 110528,
+   "to": 110559
   },
   {
    "level": 4,
-   "from": 1104240,
-   "to": 1104255
+   "from": 110544,
+   "to": 110559
   },
   {
    "level": 3,
-   "from": 1104248,
-   "to": 1104255
+   "from": 110544,
+   "to": 110551
   },
   {
    "level": 2,
-   "from": 1104252,
-   "to": 1104255
+   "from": 110548,
+   "to": 110551
   },
   {
    "level": 1,
-   "from": 1104252,
-   "to": 1104253
+   "from": 110548,
+   "to": 110549
   },
   {
    "level": 0,
-   "from": 1104253,
-   "to": 1104253
+   "from": 110548,
+   "to": 110548
   }
  ],
  "gas": {
-  "directPerGeneration": 43397213,
-  "directOneGeneration": 43397213,
-  "directTotal": 4339721300,
-  "claim": 169983,
-  "finalize": 58853,
-  "disputeTotal": 3283300,
-  "disputeTxs": 44,
-  "disputeMaxTx": 876691,
-  "resolveLeaf": 876691
+  "directPerGeneration": 11027141,
+  "directOneGeneration": 11027141,
+  "directTotal": 441085640,
+  "claim": 125384,
+  "finalize": 56627,
+  "disputeTotal": 2433720,
+  "disputeTxs": 38,
+  "disputeMaxTx": 347509,
+  "resolveLeaf": 347509
  },
  "matches": true,
  "generations": [
-  "0x0000040008000e380000000000040008000e900008008800781c000e00000000",
-  "0x000000000a100c10041000000000000a000c000418006c087812301200040000",
-  "0x0000000008000a380c00000000000008000a000c3c004400041c480e00000000",
-  "0x00000000041018100c100000000000040018180c3c0036080c12001200040000",
-  "0x00000000080010381c000000000000080010241c020c22001e1c000e00000000",
-  "0x000000000010141018100800000000000014001406141b101e120c1200040000",
-  "0x00000000000010381400180000000000000000360f3011300138120e00000000",
-  "0x00000000001008103010180000000000000006380f400dc00320000c00040000",
-  "0x0000000000001038200038000000000000100930005008600740000c000c0000",
-  "0x000000000010001028103000100000000030001800d0064006e0020c000c0000",
-  "0x000000000000003820002800300000000038004800d8060000e0075c000c0000",
-  "0x00000000001000101010600030000010003800c400f8011000f8035402140000",
-  "0x0000000000000038200040007000003800780084011801000240034403200000",
-  "0x00000000001000100010500060102048004400c4018803800200046003800000",
-  "0x00000000000000380000400050006028006c014c0200028006c004c003c00100",
-  "0x000000000010001000102000c000606c00e000fc028002c00600042002400300",
-  "0x0000000000000038000040008000e0b000000018001802c00740040007000300",
-  "0x000000000010001000100000a000c00040280018003806e00540088005000500",
-  "0x0000000000000038000000008000a000c0080004000807800d200d800d800000",
-  "0x00000000001000100010000040008001c000000c03000d80004010400d800000",
-  "0x00000000000000380000000080000001c0010000078005800840084008800000",
-  "0x000000000010001000100000000040018001830004800c400c401cc000000000",
-  "0x00000000000000380000000000000001400183010d8002c0026014c008000000",
-  "0x00000000001000100010000000008000000387810440022006200ce008000000",
-  "0x000000000000003800000000000000010302878304c002600b300a600c400000",
-  "0x00000000001000100010000000000000848204430421021003901bd00c600000",
-  "0x0000000000000038000000000000000000028e4206230630005818101f600000",
-  "0x0000000000100010001000000000000004010a06017306480c0812d816200e00",
-  "0x040000000000003800000000000000000402062401fb0ecc09ec137810700a00",
-  "0x04000000001000100010000000000000060007ad08020e0018001b041fc80c20",
-  "0x0c00000000000038000000000000000004000906080600000100200000c011c0",
-  "0x0880000000100010001000000000000000000c06000600000000008001400940",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140"
+  "0x0004080e00000000",
+  "0x00000a0c04000000",
+  "0x0000080a0c000000",
+  "0x000004180c000000",
+  "0x000008101c000000",
+  "0x0000001418080000",
+  "0x0000001014180000",
+  "0x0000000830180000",
+  "0x0000001020380000",
+  "0x0000000028301000",
+  "0x0000000020283000",
+  "0x0000000010603000",
+  "0x0000000020407000",
+  "0x0000000000506020",
+  "0x0000000000405060",
+  "0x000000000020c060",
+  "0x00000000004080e0",
+  "0x400000000000a0c0",
+  "0xc0000000000080a0",
+  "0xc000000000004081",
+  "0xc100000000008001",
+  "0x8180000000000041",
+  "0x4181000000000001",
+  "0x0381000000000080",
+  "0x0283000000000001",
+  "0x8203010000000000",
+  "0x0282030000000000",
+  "0x0106030000000000",
+  "0x0204070000000000",
+  "0x0005060200000000",
+  "0x0004050600000000",
+  "0x00020c0600000000",
+  "0x0004080e00000000",
+  "0x00000a0c04000000",
+  "0x0000080a0c000000",
+  "0x000004180c000000",
+  "0x000008101c000000",
+  "0x0000001418080000",
+  "0x0000001014180000",
+  "0x0000000830180000",
+  "0x0000001020380000"
  ],
- "generationsMore": [
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140",
-  "0x0080000000100010001000000000000000000006000600000000008001400140",
-  "0x0080000000000038000000000000000000000006000600000000008001400140"
- ],
- "cheatFinal": "0x000390bb9b480421021e047c0410022082220042200020010700c5003a00f800",
+ "generationsMore": [],
+ "cheatFinal": "0x0a030a3630003036",
  "log": [
   {
    "who": "poster",
-   "what": "posts the job: 100 generations, fee 0.1",
+   "what": "posts the job: 40 generations, fee 0.0002",
    "fn": "postJob",
-   "gas": 734441
+   "gas": 430756,
+   "tx": "0x8c75adfb5da685237bc456ccdeba59ae207c365434b73ba1130aaa4a0971bf2c"
   },
   {
    "who": "cheat",
-   "what": "computed 1817800 leaves and corrupted leaf 1104253",
-   "ms": 11268
+   "what": "computed 181840 leaves and corrupted leaf 110548",
+   "ms": 2696
   },
   {
    "who": "cheat",
    "what": "claims a wrong result",
    "fn": "claim",
-   "gas": 187467,
-   "tx": "0x3290b813ca5114712f3418e3a393ddb80418d81c7fcbe40c2a34857d2f48abec"
+   "gas": 142580,
+   "tx": "0xb959394b47e6523f6877da8b00395410cf6c19ab5ef74ac75967b6b867659677"
   },
   {
    "who": "watcher",
@@ -1109,327 +952,285 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
    "who": "watcher",
    "what": "challenges",
    "fn": "challenge",
-   "gas": 134187,
-   "tx": "0x3e3a9fbe81bffdb8b3fbd05b2189055843c0ece9228d0ea8fff33f7f6714d4a5"
-  },
-  {
-   "who": "cheat",
-   "what": "reveals level 21",
-   "fn": "reveal",
-   "gas": 90333,
-   "tx": "0x792a395133292b063978f3e0c754f626154cbdf931d39268895169912f088f6c"
-  },
-  {
-   "who": "watcher",
-   "what": "picks right at level 21",
-   "fn": "pick",
-   "gas": 66733,
-   "tx": "0x283aca2ab1b6e7b2302e2e9997cec825345a21280368b18d5c13b23410456abd"
-  },
-  {
-   "who": "cheat",
-   "what": "reveals level 20",
-   "fn": "reveal",
-   "gas": 56133,
-   "tx": "0xc72948280e4afaf690924a431a170a105a875a2f0cfe378518f5104dad1d85de"
-  },
-  {
-   "who": "watcher",
-   "what": "picks left at level 20",
-   "fn": "pick",
-   "gas": 49645,
-   "tx": "0x5609f6b43a4c28216462abab6cd3b16d6f32ad7c8595330b58337046fa89a8eb"
-  },
-  {
-   "who": "cheat",
-   "what": "reveals level 19",
-   "fn": "reveal",
-   "gas": 56109,
-   "tx": "0xdcdfd7b8e634bbe5b73474c80eb9cfc509f7e13c079e872ddaab5c0353d0e885"
-  },
-  {
-   "who": "watcher",
-   "what": "picks left at level 19",
-   "fn": "pick",
-   "gas": 49645,
-   "tx": "0x73a35da935789c84178805ea18a78fcf4f47cd6b034dabb34d43c3e1ca1b2317"
+   "gas": 133899,
+   "tx": "0x942b7927db797ff55d6d67dbc2a57b2a3fbe99616123c0bb704df9abac8550b5"
   },
   {
    "who": "cheat",
    "what": "reveals level 18",
    "fn": "reveal",
-   "gas": 56133,
-   "tx": "0xae5c16271bb4cf0175ca02a745eb9ee7949a6f21a2af3001289b503f22850d3e"
+   "gas": 90333,
+   "tx": "0x16eb43736acb93e28bc4f14ae06b1b4f06c681a7669db9f35bb3c3ef06d6652d"
   },
   {
    "who": "watcher",
    "what": "picks left at level 18",
    "fn": "pick",
-   "gas": 49645,
-   "tx": "0xafc394f9bab6c50947653f1050e4078a4a2f235aeeb8d51c376c9bfe4d0764c9"
+   "gas": 46845,
+   "tx": "0x726f0430079011df5c1d3c0c68963fa4ebcb095165be4973d28fa267a6afd780"
   },
   {
    "who": "cheat",
    "what": "reveals level 17",
    "fn": "reveal",
-   "gas": 56133,
-   "tx": "0xd3e98b3e75117c4fc19af1479edd6131ab2ca34518fe6a9c0c80e8f69bc5fd1d"
+   "gas": 56121,
+   "tx": "0xb2c6bff3552487bd986f5ee60628c01ff1f95da593dd7dd97e957f6b76fcbbfd"
   },
   {
    "who": "watcher",
-   "what": "picks left at level 17",
+   "what": "picks right at level 17",
    "fn": "pick",
-   "gas": 49645,
-   "tx": "0x1253f9937b07fe9f857f6591d60ff5cbbc98bd97b2ca0617751394c2c024db40"
+   "gas": 66733,
+   "tx": "0x17514d987ce6953742ac2799c4cfca78283d42647b4ac45c75663c932b06ebc2"
   },
   {
    "who": "cheat",
    "what": "reveals level 16",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x9ef266edd1491a8097a3cfb601c202e212d1d0a047ec0c5acf5949b79e7775ce"
+   "tx": "0xee44541fd471f800ed9947936b515d40c992ecfe7424a5cc5e338e32a761ccaf"
   },
   {
    "who": "watcher",
    "what": "picks right at level 16",
    "fn": "pick",
    "gas": 49633,
-   "tx": "0x4621d9f0f72e6944c6724ecc790f4e986308cf7e211cc59f71cf4354fba7581b"
+   "tx": "0xce4bd061c61d59443e5288f3a43f4c8b900ccfe6259e040b2b320960c17b9d85"
   },
   {
    "who": "cheat",
    "what": "reveals level 15",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0xd4839332a80ab22837db1863ae7d1c170b3d452ff2e6eafb96c50b3930d5eaaf"
+   "tx": "0xdf94c43c67b3e8cc7736422e45c5d324e47ae7862de1525ac797235989d99321"
   },
   {
    "who": "watcher",
-   "what": "picks right at level 15",
+   "what": "picks left at level 15",
    "fn": "pick",
-   "gas": 49633,
-   "tx": "0x61b4f87f04f845738aa318a20e5d7d6f92d30ed573920bddf12b148c94ef0255"
+   "gas": 49645,
+   "tx": "0x7c9172bd49079c40e769aa70e15a03f9f1e02fb10bab3825378e1bbcb03ac056"
   },
   {
    "who": "cheat",
    "what": "reveals level 14",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x64df572103d6e780e24bf6acd6ac913ace38ef06e72e2f0ba194b584291cb7a6"
+   "tx": "0xf503f7e0028bbd4c1f7acb9920bd29f0985909fbee4249c2b4af90a3d6cdc737"
   },
   {
    "who": "watcher",
-   "what": "picks left at level 14",
+   "what": "picks right at level 14",
    "fn": "pick",
-   "gas": 49645,
-   "tx": "0x95c36188462dde244adc18a5600ab929dff54ea03f6ae1df884edd43cee4aad7"
+   "gas": 49633,
+   "tx": "0x3c002fa66099e71162f81a6431622832bb01dbd60a5496a58e0ba71e1539d4b7"
   },
   {
    "who": "cheat",
    "what": "reveals level 13",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x3f776e20719ea400f42e60c0667d3a0c38d0cc010c6be1f8738912450a0bd51a"
+   "tx": "0xbcc57a7295e64fd1e2d0ea54afed4e123b9eec88cc2b830875c9d40774f9269f"
   },
   {
    "who": "watcher",
-   "what": "picks right at level 13",
+   "what": "picks left at level 13",
    "fn": "pick",
-   "gas": 49633,
-   "tx": "0xb7e85369702919ea7701712e9a676085993b0bd263232ae688523cc19ce695a1"
+   "gas": 49645,
+   "tx": "0x69667b957ad269d7fd80f377b25a2afc56996acef9bf1321063a52d20c392c58"
   },
   {
    "who": "cheat",
    "what": "reveals level 12",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0xe3cf11e5cb31ca6977f2a6dfb136fd65e9810a3c400753dcd2d1e78b475005df"
+   "tx": "0xd4ae4c785ee2246d060d446853f0f9de28fdcc10fd70bb2d1f5fbede4f7c2a55"
   },
   {
    "who": "watcher",
    "what": "picks right at level 12",
    "fn": "pick",
    "gas": 49633,
-   "tx": "0x0af364233d0c6c9fc4078e91caf591dd594d77292114998494bc041b89a38a0b"
+   "tx": "0x6d5256b120d137171615e5a42b0eb629605db7849d9f81948ad67629ff97a2b9"
   },
   {
    "who": "cheat",
    "what": "reveals level 11",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x77819b550f56b39d309425a67f7447d1c834ef90ec209c0d922a5b8a6f365886"
+   "tx": "0x51069551aeaeb0d9675360af0eb84336debe96e2dc393927dad5c2ac7dc45c3c"
   },
   {
    "who": "watcher",
-   "what": "picks left at level 11",
+   "what": "picks right at level 11",
    "fn": "pick",
-   "gas": 49645,
-   "tx": "0x205b224f0da75b8d9800ef3a4a5518a809090103fc66411dc10e72e589692401"
+   "gas": 49633,
+   "tx": "0xdd1d627a6030199a967abda903c5f655f6465fc30c2d4387c382bdaf778063dc"
   },
   {
    "who": "cheat",
    "what": "reveals level 10",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x0d55510ef14d366f41afd85f29245537178d78d3c5db2df324b43773fb7841de"
+   "tx": "0xfea1d6ca56b53f85cbe0c46e66d73f7512686b81380549243c2007d12dffd959"
   },
   {
    "who": "watcher",
-   "what": "picks left at level 10",
+   "what": "picks right at level 10",
    "fn": "pick",
-   "gas": 49645,
-   "tx": "0xe85a0f4470004f92844fdfc8bdd9892e446fa861ddd655b5dd32c7bee6f24199"
+   "gas": 49633,
+   "tx": "0x295c93fa3c86e4291d56ae2f2e74171290cd7e710e76eb97b57c597a9112ff34"
   },
   {
    "who": "cheat",
    "what": "reveals level 9",
    "fn": "reveal",
-   "gas": 56121,
-   "tx": "0xb0b76d84afc5548d0080ec9c977b9aa1381f7ae827fde38ca47d9a8d0e2d814b"
+   "gas": 56133,
+   "tx": "0x5fcc360576f7bc162b659bf4a963b89f43ca48f64428246f2cccc0017c03bd45"
   },
   {
    "who": "watcher",
    "what": "picks right at level 9",
    "fn": "pick",
    "gas": 49633,
-   "tx": "0x915e4de6e3b12bfff0c2e43cc74a02c83886df277c1925ef0f1ad3c93923d4fe"
+   "tx": "0xffc81e7a23c982f9ddbbb379d6e3e5719bdeaf35c794f201055dbfb729ac69f1"
   },
   {
    "who": "cheat",
    "what": "reveals level 8",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x0c43519391be65ef7deaff309ac554cc21bf9f970626ea3ea3e284bfe9a4b329"
+   "tx": "0x82baece3d7168372ce19e7ddbf2e2589adb6120bbfc87ffebb27bdb41389275c"
   },
   {
    "who": "watcher",
-   "what": "picks left at level 8",
+   "what": "picks right at level 8",
    "fn": "pick",
-   "gas": 49645,
-   "tx": "0x44170f471556dcb72c7a6c6fa0e84056a378bfca2b2da67e1bd3a566f5d0569d"
+   "gas": 49633,
+   "tx": "0x8d9432c7c0d7235575a9fb5ba62fa007c0198e057c09839dddf93a14c0664420"
   },
   {
    "who": "cheat",
    "what": "reveals level 7",
    "fn": "reveal",
-   "gas": 56133,
-   "tx": "0xa400ea02bd042fda66c19bfaa08762767a9d4e74c90042df5dba3651c295a72c"
+   "gas": 56109,
+   "tx": "0x95efed0ac263f6e70075c9974ea809a5377c47251165a6a6d97f769078f5cd84"
   },
   {
    "who": "watcher",
    "what": "picks right at level 7",
    "fn": "pick",
    "gas": 49633,
-   "tx": "0x6153ccccaeb4be2e96b24b76dd1cfe8558287f2471032c506c1f66bbf33719fd"
+   "tx": "0x6a8068fcbc78b931c9879a6b2d3c76f88a90e77d359caf0782388f1d942061cf"
   },
   {
    "who": "cheat",
    "what": "reveals level 6",
    "fn": "reveal",
-   "gas": 56121,
-   "tx": "0x2502450723a5c1b0ff1c4fefbd54d2de3f528b193c0422c322380e8872e95f22"
+   "gas": 56133,
+   "tx": "0xd92d1e0353a118966c49d9f05a90414700169b98f4efa4f4905f0fa50e028de2"
   },
   {
    "who": "watcher",
-   "what": "picks right at level 6",
+   "what": "picks left at level 6",
    "fn": "pick",
-   "gas": 49633,
-   "tx": "0x0897b371dfb5af2b0036368f71b1a937031e9291240ca8507eaf1b12e4241963"
+   "gas": 49645,
+   "tx": "0x822edecdd90be8c0996f5bd41b03a3947217066095f891ea3067d3e09c3485cb"
   },
   {
    "who": "cheat",
    "what": "reveals level 5",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x53002410735477c779f3cbb542a71b2913bf811c4174a86a5ea197414d2d7a20"
+   "tx": "0x94338ec00f6d0417e734f6d539c3f9da5aaaae4cc9535658cf6cec824dea2d08"
   },
   {
    "who": "watcher",
    "what": "picks right at level 5",
    "fn": "pick",
    "gas": 49633,
-   "tx": "0x048ea6261b26a282632f829e9489f99516684a1268eb3e7f79c20c49f10d424c"
+   "tx": "0xd370e11f31465ebfcb193a7f8f4e62567e506d706a693b453db35aa913839a86"
   },
   {
    "who": "cheat",
    "what": "reveals level 4",
    "fn": "reveal",
    "gas": 56121,
-   "tx": "0x45c1f63c00aa1692968ee6cb7c3832d6a9c4213130f448f6d74a6c19b9a3cb6f"
+   "tx": "0x710936d4cb02ba0db391721ec97c0fd6339acdd52e894a3e2ab3f195a7c9a656"
   },
   {
    "who": "watcher",
-   "what": "picks right at level 4",
+   "what": "picks left at level 4",
    "fn": "pick",
-   "gas": 49633,
-   "tx": "0x2a8a399b726393f1d41faaba95dded8b8e68f8aee0a1c60bbab106f0ae048086"
+   "gas": 49645,
+   "tx": "0x89bb1d357059c060196ec5d29b4a5791cbfee20b4359716c9476d92294596712"
   },
   {
    "who": "cheat",
    "what": "reveals level 3",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x19af44ee50be546c5843a40581be64904a981193c6dc074430b21955550bfa94"
+   "tx": "0xca268e1e84e40d520ffb78356dddb96bcb4d80d943ff4c8e3e7465f2fbee8c4a"
   },
   {
    "who": "watcher",
    "what": "picks right at level 3",
    "fn": "pick",
    "gas": 49633,
-   "tx": "0x2bd18060c9442a4927c3a69a53b9fb5de5d90dc8e2bdb663274dcc1bfe825002"
+   "tx": "0x893f6f02e9470560cb44eb374c88910e3a13ba4b47dfa559a5d1497243db1cec"
   },
   {
    "who": "cheat",
    "what": "reveals level 2",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0x34e16181e4e43001673d960c46258487b442eddaa73dc768e8d0af4b070452a5"
+   "tx": "0x98d555e5d00c1f729813fefb92ed28f636920dff5300a48abd6e9c52a6254d1f"
   },
   {
    "who": "watcher",
    "what": "picks left at level 2",
    "fn": "pick",
    "gas": 49645,
-   "tx": "0x31d74529d1c91475f92ac7ee648923497902ddf8daca1a9d1e73cec3de79c5a5"
+   "tx": "0x485f68ece078dee1d2ca83f8407ff6b90a848289c523b2a52cf158f23dc0e34d"
   },
   {
    "who": "cheat",
    "what": "reveals level 1",
    "fn": "reveal",
    "gas": 56133,
-   "tx": "0xc743517541e817ebf3f8c0b718f3260d076ee0bbcf1a552600a68212e3eb0ae9"
+   "tx": "0xd465ef8215c54cb859d7916a6dfd2e13619506d2a74886d8c5c531c0368d4dfc"
   },
   {
    "who": "watcher",
-   "what": "picks right at level 1",
+   "what": "picks left at level 1",
    "fn": "pick",
-   "gas": 49621,
-   "tx": "0x72349e56c3af822111c53206d6ac0e3920f4b99ace9a371f565144c9ce559918"
+   "gas": 49633,
+   "tx": "0xaf90be51654a6fc9bf3f058ede17ebafeb47b2a47222fc001078455a2b9e2a67"
   },
   {
    "who": "watcher",
-   "what": "narrowed the dispute to leaf 1104253",
-   "leaf": 1104253,
+   "what": "narrowed the dispute to leaf 110548",
+   "leaf": 110548,
    "deps": 2
   },
   {
    "who": "watcher",
    "what": "proves the wrong step",
    "fn": "resolveLeaf",
-   "gas": 876691,
-   "tx": "0x83c265a7359c8dd183654df6c3e48ccaa034ac169dcd7c5f69a28054edd75291"
+   "gas": 347509,
+   "tx": "0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff"
   },
   {
    "who": "operator",
-   "what": "computed 1817800 leaves",
-   "ms": 12561
+   "what": "computed 181840 leaves",
+   "ms": 2865
   },
   {
    "who": "operator",
    "what": "claims the result",
    "fn": "claim",
-   "gas": 169983,
-   "tx": "0xe52bdaf8dc3a4dded17eb7673bbc79f49a0db05bccc0ca90a39aa756feef3252"
+   "gas": 125384,
+   "tx": "0x75779e7f684c3fbe11cd3b68142e726149da990d283c438fb528e784abcd66c9"
   },
   {
    "who": "watcher",
@@ -1439,38 +1240,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
    "who": "operator",
    "what": "finalizes",
    "fn": "finalize",
-   "gas": 58853,
-   "tx": "0x825191ba64b28c9c30aed56d683d312d910ee7580a14197d2c75c08581a38962"
-  },
-  {
-   "who": "circuit",
-   "what": "circuit #2's own account calls continueJob(0, 50 generations)",
-   "fn": "continueJob",
-   "gas": 280188,
-   "tx": "0x6791cce2fd5c5b2daab9ca89c35685ade3fd0d2db818549ce854dadddefe5990"
-  },
-  {
-   "who": "operator",
-   "what": "computed 908900 leaves",
-   "ms": 12961
-  },
-  {
-   "who": "operator",
-   "what": "claims the result",
-   "fn": "claim",
-   "gas": 187095,
-   "tx": "0x09a7e665750c928c9326518d768df481510d6a263a9b4c508836ba4efcdd9317"
-  },
-  {
-   "who": "watcher",
-   "what": "re-ran job 1: claim is correct"
-  },
-  {
-   "who": "operator",
-   "what": "finalizes",
-   "fn": "finalize",
-   "gas": 67206,
-   "tx": "0x5e89992b19caf35f9e02b2e6197804cfb2f96fe3c3129c0e857d327e6ee7cef9"
+   "gas": 56627,
+   "tx": "0x2c45bc0c13bf1a3c2234c98d1fa1665482c6ece5cb55e8b2bc57e50035a863c6"
   }
  ]
 }</script>
@@ -1901,7 +1672,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   const g = run.gas;
   const specs = [
     [fmt(run.trace.leaves), 'steps in the trace'],
-    [(g.directTotal / 1e9).toFixed(2) + '<small>B</small>', 'gas to run it directly'],
+    [g.directTotal >= 1e9 ? (g.directTotal / 1e9).toFixed(2) + '<small>B</small>' : fmt(Math.round(g.directTotal / 1e6)) + '<small>M</small>', 'gas to run it directly'],
     [fmt(Math.round((g.claim + g.finalize) / 1000)) + '<small>K</small>', 'gas when no one cheats'],
     [fmt(Math.round(g.resolveLeaf / 1000)) + '<small>K</small>', 'gas to prove the lie'],
   ];
@@ -1934,7 +1705,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     if (n > run.beats) { tag.className = 'tag bad'; tag.textContent = 'rejected; second job running'; }
     else if (diffs === 0) { tag.className = 'tag same'; tag.textContent = n > run.lie.beat ? 'matches again' : 'identical so far'; }
     else { tag.className = 'tag bad'; tag.textContent = `${diffs} cell${diffs > 1 ? 's' : ''} wrong`; }
-    $('jobTag').textContent = n > run.beats ? 'job 2 · posted by the circuit' : 'job 1';
+    const [j1, j2] = run.jobIds ?? [1, 2];
+    $('jobTag').textContent = n > run.beats ? `job ${j2} · posted by the circuit` : `job ${j1}`;
   }
   $('scrub').max = total;
   $('scrub').addEventListener('input', (e) => { stop(); show(Number(e.target.value)); });
@@ -1949,9 +1721,11 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   show(reduce ? total : run.lie.beat + 1);
 
   // TapeOut setup
+  if (run.mode === 'live') $('replayIntro').textContent = `The first Overclock job on X Layer mainnet: ${run.beats} generations of Conway's Game of Life on an ${W}×${H} board taped out on TapeOut. A cheating operator flipped one NAND in one cell. One transaction proved it.`;
+  if (run.mode === 'live') $('gasNote').textContent = `Gas on X Layer mainnet. Direct is ${run.directSource ?? 'running every gate'}, estimated; the rest are real transactions. Log scale.`;
   const short = (a) => a ? a.slice(0, 6) + '…' + a.slice(-4) : '';
   if (run.addresses) {
-    const where = run.realTapeOut ? `X Layer mainnet fork, chain ${run.chainId}, block ${fmt(run.startBlock)}, real TapeOut contracts` : 'local EVM with a TapeOut-shaped stand-in (fork run pending)';
+    const where = run.mode === 'live' ? `X Layer mainnet, chain ${run.chainId}, from block ${fmt(run.startBlock)}, real TapeOut contracts` : run.realTapeOut ? `X Layer mainnet fork, chain ${run.chainId}, block ${fmt(run.startBlock)}, real TapeOut contracts` : 'local EVM with a TapeOut-shaped stand-in (fork run pending)';
     $('modeLine').textContent = `${where} · processor ${short(run.addresses.circuits)} · cell #${run.addresses.cellId} · board #${run.addresses.boardId} · circuit account ${short(run.addresses.circuitAccount)}`;
     const rowsS = run.setup.filter((e) => !/^deploy (DirectEval|TapeOutFactoryLocal|OpenerLocal)/.test(e.what));
     const cont = run.log.find((e) => e.fn === 'continueJob');
@@ -2008,7 +1782,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   const lo = 4, hi = 10;
   const pct = (v) => (Math.log10(v) - lo) / (hi - lo) * 100;
   const bars = [
-    ['Direct evaluation', `${run.beats} generations, every gate`, g.directTotal, 'direct'],
+    [run.directSource ? 'Direct, TapeOut step()' : 'Direct evaluation', `${run.beats} generations, every gate`, g.directTotal, 'direct'],
     ['Direct, one generation', `${fmt(run.circuits.boardGates)} gates`, g.directOneGeneration, 'direct'],
     ['Overclock, honest', 'claim + finalize', g.claim + g.finalize, ''],
     ['Overclock, whole dispute', `${g.disputeTxs} transactions`, g.disputeTotal, 'dispute'],
