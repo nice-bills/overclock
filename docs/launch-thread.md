@@ -40,9 +40,10 @@ Every circuit ever taped out can now run at any size, with no ceremony and no re
 Machine builders pay per job, operators and watchers earn fees and bonds, and AI agents get it through an MCP server and a Claude Code plugin.
 
 **7/**
-Live on X Layer mainnet, every transaction public, all open source:
+Live on X Layer mainnet, every transaction public, all open source.
 
-github.com/nice-bills/overclock
+Watch the job board: overclock-board.onrender.com
+Code: github.com/nice-bills/overclock
 
 Built for TapeOut Accelerate. @XLayerOfficial
 
@@ -52,4 +53,4 @@ A 3,712-gate TapeOut circuit, 40 generations: 441M gas on-chain, over two blocks
 
 Overclock ran it on X Layer mainnet for 182K. When a cheat flipped 1 gate out of 181,840, a watcher caught it and the contract checked that one NAND.
 
-github.com/nice-bills/overclock
+overclock-board.onrender.com

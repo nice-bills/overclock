@@ -21,6 +21,7 @@ Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet cir
 | TapeOut processor | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
 | Circuit IDs | #4, the Life cell rule (57 gates); #5, the 8×8 board (64 REFs to #4) |
 | TapeOut features used | Processor factory, NAND and LATCH transistors, tapeout, `REF`, `step`, netlist reads, ERC-6551 circuit accounts |
+| Live job board | [overclock-board.onrender.com](https://overclock-board.onrender.com) |
 | Write-up, film script, launch thread | [docs/submission.md](docs/submission.md), [docs/demo-script.md](docs/demo-script.md), [docs/launch-thread.md](docs/launch-thread.md) |
 
 **Demo result (local EVM).** The demo runs Conway's Game of Life on a 16×16 board built from TapeOut circuits, for 100 generations. That is 14,848 gates per generation and 1,817,800 steps in all.
@@ -34,7 +35,7 @@ Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet cir
 
 The final board read back from `Overclock.result()` matches an independent Life simulation.
 
-Replay page: [`web/overclock.html`](web/overclock.html) is self-contained, so you can open it from disk or upload it as a DeWEB site.
+**Live job board: [overclock-board.onrender.com](https://overclock-board.onrender.com).** It reads the mainnet contract over public RPC and shows every job, claim and dispute, followed by a replay of the demo run. The same page is one self-contained file, [`web/overclock.html`](web/overclock.html), so it can also be opened from disk or published to DeWEB with `scripts/publish-deweb.js`.
 
 ## Why this needs TapeOut
 
@@ -130,7 +131,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 | `src/mcp.js`, `bin/overclock-mcp.js` | MCP server (stdio and HTTP) for AI agents |
 | `.claude-plugin/`, `.mcp.json`, `skills/overclock/` | Claude Code plugin: the MCP server plus a usage skill |
 | `scripts/demo.js` | The end-to-end demo; writes `web/demo-run.json` |
-| `web/` | Replay page |
+| `web/` | Job board and replay page |
 
 ## Run it
 

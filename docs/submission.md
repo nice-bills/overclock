@@ -19,7 +19,7 @@ lies about the result is caught by a one-gate check on X Layer and loses their b
 | Processor address | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
 | Circuit IDs | #4, Game of Life cell rule (57 gates) · #5, 8×8 board (64 REFs to #4, 3,712 gates per generation) |
 | Every mainnet transaction | [docs/mainnet-run.md](mainnet-run.md) |
-| Access link (replay page) | `web/overclock.html` in the repo; DeWEB address to be added once uploaded |
+| Access link (live job board) | https://overclock-board.onrender.com: every mainnet job, claim and dispute, read live from the contract, plus a replay of the demo run |
 | Agent access | `/plugin install overclock --marketplace nice-bills/overclock` (Claude Code), or the MCP server over stdio or HTTP |
 | Demo video | to be added |
 
@@ -115,7 +115,7 @@ large jobs carry large security.
 - **LATCH and `step`.** Multi-beat jobs carry state; LATCH reads and writes are disputable steps.
 - **ERC-6551 circuit accounts.** In the fork rehearsal the board circuit's own account pays for its next
   run with `continueJob`, so the machine keeps itself running.
-- **DeWEB.** The replay page is a single self-contained file built to be served from DeWEB.
+- **DeWEB.** The job board is a single self-contained file with no outside fonts or scripts, and `scripts/publish-deweb.js` stores it in the board circuit's own container (rehearsed on a mainnet fork). Until that upload is funded, the same page is hosted at https://overclock-board.onrender.com.
 
 ## What was built during the event
 
