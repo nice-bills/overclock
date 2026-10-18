@@ -27,15 +27,15 @@ import { layout, flatSize } from '../src/trace.js';
 import { cellCircuit, boardCircuit, lifeStep, board, PATTERNS, render } from '../src/life.js';
 import { Operator, Challenger } from '../src/agents.js';
 import { artifact } from '../src/chain.js';
-import { XLAYER, createCPU, mint, burnCost, tapeout, OPENER_ABI, ACCOUNT_ABI } from '../src/tapeout.js';
+import { XLAYER, createCPU, mint, burnCost, tapeout, OPENER_ABI, ACCOUNT_ABI, CIRCUITS_FULL_ABI, TRANSISTORS_ABI, FACTORY_ABI } from '../src/tapeout.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const W = Number(arg('w', 16)), H = Number(arg('h', 16)), BEATS = Number(arg('beats', 100)), MORE = Number(arg('more', 50));
 const LIVE = arg('live', null);
 const FORK = LIVE ?? arg('fork', null);
 const OUT = arg('out', LIVE ? 'web/live-run.json' : FORK ? 'web/fork-run.json' : 'web/demo-run.json');
-const BOND = parseEther(arg('bond', LIVE ? '0.01' : '1')), WINDOW = Number(arg('window', LIVE ? 600 : 3600));
-const FEE = parseEther(arg('fee', LIVE ? '0.001' : '0.1')), FEE_BPS = 200;
+const BOND = parseEther(arg('bond', LIVE ? '0.001' : '1')), WINDOW = Number(arg('window', LIVE ? 600 : 3600));
+const FEE = parseEther(arg('fee', LIVE ? '0.0002' : '0.1')), FEE_BPS = 200;
 
 const say = (s) => console.log(s);
 const log = [];
@@ -67,12 +67,22 @@ if (LIVE) {
   [deployer, honest, cheat, watcher] = await Promise.all([0, 1, 2, 3].map((i) => provider.getSigner(i)));
 }
 if (LIVE) {
-  const fund = BOND + parseEther('0.005');
+  // A bond plus 4M gas each: the watcher's whole dispute is about 1.3M, the cheat's about 1.2M.
+  const { maxFeePerGas, gasPrice } = await provider.getFeeData();
+  const fund = BOND + 4_000_000n * (maxFeePerGas ?? gasPrice);
   for (const w of [honest, cheat, watcher]) {
     const have = await provider.getBalance(w.address);
     if (have < fund) note(`fund ${w === honest ? 'operator' : w === cheat ? 'cheat' : 'watcher'} wallet`, await (await deployer.sendTransaction({ to: w.address, value: fund - have })).wait(), { account: w.address });
   }
 }
+// Public RPCs are load-balanced and a read right after a receipt can miss it: wait a block first.
+const settle = async (rc) => {
+  if (!LIVE) return;
+  while ((await provider.getBlockNumber()) < rc.blockNumber + 1) {
+    await provider.send('evm_mine', []).catch(() => {}); // a dev chain only makes blocks on demand
+    await new Promise((res) => setTimeout(res, 500));
+  }
+};
 // Let the challenge window pass: on a dev chain by moving time, on a live chain by waiting for it.
 const passWindow = async (from) => {
   if (!LIVE) { await provider.send('evm_increaseTime', [WINDOW + 1]); await provider.send('evm_mine', []); return; }
@@ -80,6 +90,7 @@ const passWindow = async (from) => {
   for (;;) {
     const ts = Number((await provider.getBlock('latest')).timestamp);
     if (ts >= from + WINDOW) break;
+    await provider.send('evm_mine', []).catch(() => {}); // a dev chain only makes blocks on demand
     await new Promise((res) => setTimeout(res, Math.min(30_000, (from + WINDOW - ts) * 1000 + 2000)));
   }
 };
@@ -103,9 +114,18 @@ if (factoryAddr && (await provider.getCode(factoryAddr)) === '0x') {
 }
 if (!factoryAddr) factoryAddr = await (await deploy('TapeOutFactoryLocal')).getAddress();
 const realTapeOut = factoryAddr.toLowerCase() === XLAYER.factory;
-const cpuSetup = await createCPU(deployer, factoryAddr, { name: 'Overclock Life', symbol: 'OCLIFE', story: 'Game of Life, run by Overclock.', supply: 1_000_000, mintPrice: parseEther('0.00001') });
-note('createCPU "Overclock Life"', cpuSetup.receipt);
-const { transistors, circuits } = cpuSetup;
+// --cpu tapes out onto an existing processor (anyone can mint its transistors) and skips the deploy fee.
+let transistors, circuits;
+if (arg('cpu', null)) {
+  circuits = new Contract(arg('cpu'), CIRCUITS_FULL_ABI, deployer);
+  transistors = new Contract(await circuits.transistors(), TRANSISTORS_ABI, deployer);
+  if (!(await new Contract(factoryAddr, FACTORY_ABI, provider).isCPU(arg('cpu')))) throw new Error(`${arg('cpu')} is not a TapeOut processor`);
+  say(`using processor ${arg('cpu')}`);
+} else {
+  const cpuSetup = await createCPU(deployer, factoryAddr, { name: 'Overclock Life', symbol: 'OCLIFE', story: 'Game of Life, run by Overclock.', supply: 1_000_000, mintPrice: parseEther('0.00001') });
+  note('createCPU "Overclock Life"', cpuSetup.receipt);
+  ({ transistors, circuits } = cpuSetup);
+}
 const cpuAddr = (await circuits.getAddress()).toLowerCase();
 
 // 2. Tape out the cell rule, then the board, which REFs the cell once per cell.
@@ -113,15 +133,26 @@ const cell = cellCircuit();
 const cellCost = burnCost(cell.netlist, cell.nIn);
 const probe = boardCircuit(W, H, cpuAddr, 1);
 const boardCost = burnCost(probe.netlist, 0);
-note(`mint ${cellCost.nand} NAND`, await mint(transistors, 0, cellCost.nand + boardCost.nand));
-note(`mint ${boardCost.latch} LATCH`, await mint(transistors, 1, cellCost.latch + boardCost.latch));
-const cellT = await tapeout(circuits, cell);
-note(`tapeout cell rule as circuit #${cellT.id}`, cellT.receipt, { circuit: Number(cellT.id), burned: cellCost });
+// --cell-id and --board-id resume with circuits already taped out by an earlier run that stopped.
+let cellId, boardId;
 const cellC = load(cell.netlist, cell.nIn, cell.nOut);
-const bd = boardCircuit(W, H, cpuAddr, Number(cellT.id));
-const boardT = await tapeout(circuits, bd);
-note(`tapeout ${W}x${H} board as circuit #${boardT.id} (${W * H} REFs)`, boardT.receipt, { circuit: Number(boardT.id), burned: boardCost });
-const cellId = Number(cellT.id), boardId = Number(boardT.id);
+if (arg('board-id', null)) {
+  [cellId, boardId] = [Number(arg('cell-id')), Number(arg('board-id'))];
+  // --setup-txs: that run's mint NAND, mint LATCH, cell tapeout and board tapeout, for the record
+  const labels = [[`mint ${cellCost.nand + boardCost.nand} NAND`], [`mint ${cellCost.latch + boardCost.latch} LATCH`], [`tapeout cell rule as circuit #${cellId}`, { circuit: cellId, burned: cellCost }], [`tapeout ${W}x${H} board as circuit #${boardId} (${W * H} REFs)`, { circuit: boardId, burned: boardCost }]];
+  const hashes = arg('setup-txs', '').split(',').filter(Boolean);
+  for (let k = 0; k < hashes.length; k++) note(labels[k][0], await provider.getTransactionReceipt(hashes[k]), labels[k][1]);
+} else {
+  note(`mint ${cellCost.nand} NAND`, await mint(transistors, 0, cellCost.nand + boardCost.nand));
+  note(`mint ${boardCost.latch} LATCH`, await mint(transistors, 1, cellCost.latch + boardCost.latch));
+  const cellT = await tapeout(circuits, cell);
+  note(`tapeout cell rule as circuit #${cellT.id}`, cellT.receipt, { circuit: Number(cellT.id), burned: cellCost });
+  const boardT = await tapeout(circuits, boardCircuit(W, H, cpuAddr, Number(cellT.id)));
+  note(`tapeout ${W}x${H} board as circuit #${boardT.id} (${W * H} REFs)`, boardT.receipt, { circuit: Number(boardT.id), burned: boardCost });
+  await settle(boardT.receipt);
+  [cellId, boardId] = [Number(cellT.id), Number(boardT.id)];
+}
+const bd = boardCircuit(W, H, cpuAddr, cellId);
 const bdC = load(bd.netlist, bd.nIn, bd.nOut, (a, i) => (a === cpuAddr && i === BigInt(cellId) ? cellC : null));
 
 // TapeOut's own view of the circuits must match ours.
@@ -172,6 +203,7 @@ const job0 = Number(await oc.jobCount()), game0 = Number(await oc.gameCount());
 
 // Post the job.
 const postRc = await (await oc.connect(deployer).postJob(cpuAddr, boardId, '0x', bytesToHex(pack(start)), BEATS, false, { value: FEE })).wait();
+await settle(postRc);
 record({ who: 'poster', what: `posts the job: ${BEATS} generations, fee ${formatEther(FEE)}`, fn: 'postJob', gas: Number(postRc.gasUsed), tx: postRc.hash });
 const L = layout(bdC, BEATS);
 const depth = Math.ceil(Math.log2(L.n));
@@ -194,9 +226,9 @@ const lie = { beat: lieBeat, generation: lieBeat + 1, cell: lieCell, x: lieCell 
 say(`the cheat corrupts one NAND: generation ${lie.generation}, cell (${lie.x}, ${lie.y}), trace leaf ${lieLeaf.toLocaleString()}\n`);
 
 let lied = false;
-const cheater = new Operator({ oc, signer: cheat, name: 'cheat', log: record, lie: () => (lied ? null : ((lied = true), lieLeaf)) });
-const op = new Operator({ oc, signer: honest, name: 'operator', log: record });
-const watch = new Challenger({ oc, signer: watcher, name: 'watcher', log: record });
+const cheater = new Operator({ oc, signer: cheat, name: 'cheat', log: record, settle, lie: () => (lied ? null : ((lied = true), lieLeaf)) });
+const op = new Operator({ oc, signer: honest, name: 'operator', log: record, settle });
+const watch = new Challenger({ oc, signer: watcher, name: 'watcher', log: record, settle });
 for (const a of [cheater, op, watch]) a.only = new Set([job0, job0 + 1]);
 
 say('round 1: the cheat claims');
@@ -220,26 +252,29 @@ const ok = finalBoard.every((v, i) => v === gens[BEATS][i]);
 say(`\nfinal board from Overclock.result() matches plain-JS Life: ${ok}`);
 say(render(finalBoard, W));
 
-// 4. Keep the machine running: the board circuit's own account continues from the final state.
-const openerAddr = realTapeOut ? XLAYER.opener : await (await deploy('OpenerLocal', factoryAddr)).getAddress();
-say(`\nround 3: the board circuit's own wallet pays for ${MORE} more generations`);
-const opener = new Contract(openerAddr, OPENER_ABI, deployer);
-note(`open circuit #${boardId}'s ERC-6551 account`, await (await opener.open(cpuAddr, boardId, { value: await opener.FEE() })).wait());
-const poster = await opener.accountOf(cpuAddr, boardId);
-note('fund the circuit account with the job fee', await (await deployer.sendTransaction({ to: poster, value: FEE })).wait(), { account: poster });
-const contData = oc.interface.encodeFunctionData('continueJob', [job0, '0x', MORE, false]);
-const contRc = await (await new Contract(poster, ACCOUNT_ABI, deployer).execute(ocAddr, FEE, contData, 0, { value: parseEther('0.002') })).wait();
-record({ who: 'circuit', what: `circuit #${boardId}'s own account calls continueJob(${job0}, ${MORE} generations)`, fn: 'continueJob', gas: Number(contRc.gasUsed), tx: contRc.hash });
-const job1 = await oc.jobs(job0 + 1);
-if (job1.poster.toLowerCase() !== poster.toLowerCase()) throw new Error('job 1 was not posted by the circuit account');
-await op.tick();
-await watch.tick();
-await passWindow(Number((await oc.jobs(job0 + 1)).claimedAt));
-await op.tick();
-const [, state2] = await oc.result(job0 + 1);
-const board2 = unpack(hexToBytes(state2), W * H);
-const ok2 = board2.every((v, i) => v === gens[BEATS + MORE][i]);
-say(`generation ${BEATS + MORE} from Overclock.result(${job0 + 1}) matches plain-JS Life: ${ok2}`);
+// 4. Keep the machine running: the board circuit's own account continues from the final state. --more 0 skips it.
+let poster = null, ok2 = true;
+if (MORE > 0) {
+  const openerAddr = realTapeOut ? XLAYER.opener : await (await deploy('OpenerLocal', factoryAddr)).getAddress();
+  say(`\nround 3: the board circuit's own wallet pays for ${MORE} more generations`);
+  const opener = new Contract(openerAddr, OPENER_ABI, deployer);
+  note(`open circuit #${boardId}'s ERC-6551 account`, await (await opener.open(cpuAddr, boardId, { value: await opener.FEE() })).wait());
+  poster = await opener.accountOf(cpuAddr, boardId);
+  note('fund the circuit account with the job fee', await (await deployer.sendTransaction({ to: poster, value: FEE })).wait(), { account: poster });
+  const contData = oc.interface.encodeFunctionData('continueJob', [job0, '0x', MORE, false]);
+  const contRc = await (await new Contract(poster, ACCOUNT_ABI, deployer).execute(ocAddr, FEE, contData, 0, { value: parseEther('0.002') })).wait();
+  record({ who: 'circuit', what: `circuit #${boardId}'s own account calls continueJob(${job0}, ${MORE} generations)`, fn: 'continueJob', gas: Number(contRc.gasUsed), tx: contRc.hash });
+  const job1 = await oc.jobs(job0 + 1);
+  if (job1.poster.toLowerCase() !== poster.toLowerCase()) throw new Error('job 1 was not posted by the circuit account');
+  await op.tick();
+  await watch.tick();
+  await passWindow(Number((await oc.jobs(job0 + 1)).claimedAt));
+  await op.tick();
+  const [, state2] = await oc.result(job0 + 1);
+  const board2 = unpack(hexToBytes(state2), W * H);
+  ok2 = board2.every((v, i) => v === gens[BEATS + MORE][i]);
+  say(`generation ${BEATS + MORE} from Overclock.result(${job0 + 1}) matches plain-JS Life: ${ok2}`);
+}
 
 const gasOf = (fn, who) => log.filter((e) => e.fn === fn && (!who || e.who === who)).reduce((s, e) => s + e.gas, 0);
 const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal', 'pick', 'resolveLeaf'].includes(e.fn));

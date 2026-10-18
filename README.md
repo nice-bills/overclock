@@ -4,6 +4,17 @@ Overclock is optimistic execution for TapeOut circuits on X Layer. It lets you r
 
 An operator runs the job off-chain and posts the result with a bond. Anyone can re-run it. If one gate in millions is wrong, a challenger can narrow the disagreement down to that single step. The contract then re-checks just that one NAND, LATCH or REF wire against the circuit's on-chain netlist, and the liar loses the bond.
 
+**Live on X Layer mainnet.** Overclock is deployed at [`0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`](https://www.oklink.com/x-layer/address/0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710) (bond 0.001 OKB, 10-minute challenge window). The live demo ran 40 generations of Life on an 8×8 board taped out on TapeOut (3,712 gates per generation, 181,840 steps). A cheating operator corrupted one NAND, a watcher caught it on-chain, and an honest result finalized. Every transaction is listed in [docs/mainnet-run.md](docs/mainnet-run.md).
+
+| Path, X Layer mainnet | Gas | Transaction |
+|---|---:|---|
+| Running it directly with TapeOut's own `step()` | 441,085,640 | not sent: 11.0M gas per generation (`eth_estimateGas`), more than two full 210M-gas blocks |
+| Overclock, nobody cheats: claim + finalize | 182,011 | [claim](https://www.oklink.com/x-layer/tx/0x75779e7f684c3fbe11cd3b68142e726149da990d283c438fb528e784abcd66c9), [finalize](https://www.oklink.com/x-layer/tx/0x2c45bc0c13bf1a3c2234c98d1fa1665482c6ece5cb55e8b2bc57e50035a863c6) |
+| Overclock, a cheat corrupts one NAND: the whole dispute (38 transactions) | 2,433,720 | [challenge](https://www.oklink.com/x-layer/tx/0x942b7927db797ff55d6d67dbc2a57b2a3fbe99616123c0bb704df9abac8550b5), then [all of them](docs/mainnet-run.md) |
+| The one-step check that proves the lie | 347,509 | [resolveLeaf](https://www.oklink.com/x-layer/tx/0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff) |
+
+Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet circuits, 688 of 688 samples ([docs/live-check.json](docs/live-check.json)).
+
 **Demo result (local EVM).** The demo runs Conway's Game of Life on a 16×16 board built from TapeOut circuits, for 100 generations. That is 14,848 gates per generation and 1,817,800 steps in all.
 
 | Path | Gas |
@@ -51,13 +62,17 @@ The demo goes through TapeOut's own flow end to end:
 
 `contracts/Machine.sol` shows how other contracts build on this. It is a stateful circuit that anyone can pay to advance, one job at a time. It moves forward through `onOverclockResult` callbacks and ignores stale branches.
 
-**Testing against the real contracts.** TapeOut has no testnet, so the "testnet" is a local fork of X Layer mainnet with the real TapeOut contracts at their real addresses. Nothing is broadcast. See [docs/tapeout-notes.md](docs/tapeout-notes.md).
+**Testing against the real contracts.** TapeOut has no testnet, so the rehearsal is a local fork of X Layer mainnet with the real TapeOut contracts at their real addresses; the full flow above, including the circuit account, passes there. The mainnet run then used an existing processor and skipped the circuit-account step to keep costs down. See [docs/tapeout-notes.md](docs/tapeout-notes.md).
 
 ```sh
 npm run fork                                  # Hardhat fork of X Layer mainnet, chain 196
 npm run demo:fork                             # same demo, real factory, transistors, circuits and opener
 RPC_URL=https://rpc.xlayer.tech node scripts/verify-live.js   # our evaluator vs live eval/step
+PRIVATE_KEY=0x... node scripts/demo.js --live https://rpc.xlayer.tech \
+  --overclock 0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710 --cpu <processor> --w 8 --h 8 --beats 40 --more 0
 ```
+
+The live run needs about 0.01 OKB: TapeOut's mint and tapeout fees (0.004), gas, and three 0.001 OKB bonds that come back. It funds an operator, a cheat and a watcher wallet derived from `PRIVATE_KEY` and sweeps them back at the end.
 
 Without network access to X Layer, `npm run demo` runs the identical flow against `contracts/TapeOutLocal.sol`, a stand-in that follows TapeOut's documented interface and rules.
 
@@ -96,8 +111,8 @@ To use the CLI against a chain (local ganache or X Layer):
 
 ```sh
 export RPC_URL=https://rpc.xlayer.tech PRIVATE_KEY=0x...
-node scripts/deploy.js --bond 0.05 --window 3600     # prints OVERCLOCK=0x...
-export OVERCLOCK=0x...
+# OVERCLOCK defaults to the mainnet deployment; to deploy your own:
+node scripts/deploy.js --bond 0.001 --window 600     # prints OVERCLOCK=0x..., writes deployments/<chainId>.json
 node bin/overclock.js post --cpu <processor> --id <circuit> --beats 1000 --state 0x... --fee 0.01
 node bin/overclock.js operator           # claims jobs and defends claims
 node bin/overclock.js watch              # re-runs every claim and challenges wrong ones
@@ -154,11 +169,8 @@ What the server offers depends on its configuration:
 
 ## Status and limits
 
-- **Not yet tried on X Layer mainnet.** This environment can't reach `rpc.xlayer.tech`, so these are still to do:
-  - deploying the contract;
-  - checking the evaluator against live `eval`/`step` results;
-  - measuring gas for netlist reads on the real factory.
-  The real processor's netlist read path is the one assumption the gas numbers depend on. The mock copies its SSTORE2 layout.
+- **Mainnet parameters are small.** The deployment's 0.001 OKB bond and 10-minute window suit a demo; a deployment for real value needs a bigger bond and a longer window.
+- **Measured on the real factory.** The one-step check reads the netlist from TapeOut's own processor: 347,509 gas on mainnet for an 8×8 board.
 - **Gas of the one-step check** grows with the number of records in the netlist before the disputed step. Big designs are built from REFs, which keeps each netlist small. A 512-record board costs 0.6M to 0.9M gas.
 - **One challenger at a time per claim.** A false challenge restarts the window, so a griefer can delay finalization but pays a bond each time. Bond sizing and multi-party games are future work.
 - **Not audited.**

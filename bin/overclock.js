@@ -2,7 +2,7 @@
 // Overclock command line. Network settings come from the environment:
 //   RPC_URL      JSON-RPC endpoint (X Layer mainnet: https://rpc.xlayer.tech, chain 196)
 //   PRIVATE_KEY  key for commands that send transactions
-//   OVERCLOCK    address of the Overclock contract
+//   OVERCLOCK    address of the Overclock contract (default: the X Layer mainnet deployment)
 //
 //   overclock operator [--lie-at LEAF]     claim open jobs and defend the claims
 //   overclock watch                        re-run every claim and challenge wrong ones
@@ -18,6 +18,7 @@ import { artifact, loadCircuit, readJob } from '../src/chain.js';
 import { traceJob, Tree } from '../src/trace.js';
 import { hexToBytes, bytesToHex, pack, unpack, load } from '../src/tap02.js';
 import { cellCircuit, boardCircuit } from '../src/life.js';
+import { XLAYER } from '../src/tapeout.js';
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flag = (k, d) => { const i = rest.indexOf(`--${k}`); return i < 0 ? d : rest[i + 1] ?? true; };
@@ -26,7 +27,7 @@ const env = (k) => { if (!process.env[k]) { console.error(`set ${k}`); process.e
 
 const provider = () => new JsonRpcProvider(env('RPC_URL'));
 const signer = () => new Wallet(env('PRIVATE_KEY'), provider());
-const overclock = (runner) => new Contract(env('OVERCLOCK'), artifact('Overclock').abi, runner);
+const overclock = (runner) => new Contract(process.env.OVERCLOCK || XLAYER.overclock, artifact('Overclock').abi, runner);
 const log = (e) => console.log(`${new Date().toISOString()} ${e.who} ${e.what}${e.gas ? ` (${e.gas} gas, ${e.tx})` : ''}`);
 
 async function loop(agent) {

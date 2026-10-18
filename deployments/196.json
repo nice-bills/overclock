@@ -1,0 +1,12 @@
+{
+ "chainId": 196,
+ "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+ "tx": "0x9233c8513265da20893b49a276dc744fde098ea8525175c3f5c6b2442037ea3a",
+ "block": 73578388,
+ "gas": 3654075,
+ "bond": "1000000000000000",
+ "window": 600,
+ "factory": "0x1f09daefa827f02cbb40967cc91b259763760761",
+ "treasury": "0xA9B480C2694aa3F16cd109FCD2C91aCbf3BC689F",
+ "feeBps": 200
+}

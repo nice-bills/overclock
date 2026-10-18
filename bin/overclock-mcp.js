@@ -4,7 +4,8 @@
 //   RPC_URL=https://rpc.xlayer.tech [OVERCLOCK=0x...] [PRIVATE_KEY=0x...] overclock-mcp          # stdio
 //   RPC_URL=... OVERCLOCK=0x... overclock-mcp --http [--port 3333] [--host 127.0.0.1]           # Streamable HTTP at /mcp
 //
-// Without OVERCLOCK only the TapeOut tools are offered; without PRIVATE_KEY only read-only ones.
+// OVERCLOCK defaults to the public deployment on X Layer mainnet; on other chains, without it only
+// the TapeOut tools are offered. Without PRIVATE_KEY only read-only tools are offered.
 // Anyone who can reach the HTTP endpoint can use the configured wallet, so keep it on localhost or
 // put it behind your own auth.
 
@@ -23,6 +24,7 @@ if (!existsSync(new URL('../build/Overclock.json', import.meta.url))) {
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 const { createServer } = await import('../src/mcp.js');
+const { XLAYER } = await import('../src/tapeout.js');
 
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const env = (k) => process.env[k] || undefined;
@@ -33,7 +35,9 @@ if (!RPC_URL) {
 }
 const provider = new JsonRpcProvider(RPC_URL, undefined, { cacheTimeout: -1 });
 const signer = PRIVATE_KEY ? new Wallet(PRIVATE_KEY, provider) : null;
-const ctx = { provider, signer, overclock: OVERCLOCK, factory: FACTORY };
+// On X Layer mainnet the job tools default to the public Overclock deployment.
+const chainId = await provider.getNetwork().then((n) => n.chainId, () => null);
+const ctx = { provider, signer, overclock: OVERCLOCK ?? (chainId === BigInt(XLAYER.chainId) ? XLAYER.overclock : undefined), factory: FACTORY };
 
 if (process.argv.includes('--http')) {
   const port = Number(arg('port', 3333)), host = arg('host', '127.0.0.1');

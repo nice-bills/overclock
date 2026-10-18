@@ -12,8 +12,8 @@ netlist TapeOut stores, and the liar loses the bond. Unchallenged claims finaliz
 challenge window and become readable by any contract.
 
 The `overclock` MCP server provides the tools. Configuration comes from the environment:
-`RPC_URL` (defaults to X Layer mainnet), `OVERCLOCK` (the deployed contract; without it only the
-TapeOut tools appear) and `PRIVATE_KEY` (without it only read-only tools appear).
+`RPC_URL` (defaults to X Layer mainnet), `OVERCLOCK` (the deployed contract; on X Layer mainnet it
+defaults to `0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`, elsewhere without it only the TapeOut tools appear) and `PRIVATE_KEY` (without it only read-only tools appear).
 
 ## Conventions
 

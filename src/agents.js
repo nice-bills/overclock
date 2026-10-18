@@ -12,7 +12,9 @@ import { pack, bytesToHex, hexToBytes, unpack } from './tap02.js';
 import { loadCircuit, readJob, readGame, Turn, CLOSED } from './chain.js';
 
 class Agent {
-  constructor({ oc, signer, name, log = () => {}, circuits = new Map() }) {
+  // settle(receipt): optional wait after each transaction, for RPCs whose reads can lag a block
+  constructor({ oc, signer, name, log = () => {}, circuits = new Map(), settle = null }) {
+    this.settle = settle;
     this.oc = oc.connect(signer);
     this.signer = signer;
     this.name = name;
@@ -47,6 +49,7 @@ class Agent {
     const value = args.at(-1)?.value !== undefined ? args.pop() : undefined;
     const tx = await this.oc[fn](...args, ...(value ? [value] : []));
     const rc = await tx.wait();
+    if (this.settle) await this.settle(rc);
     const events = rc.logs.map((l) => { try { return this.oc.interface.parseLog(l); } catch { return null; } }).filter(Boolean);
     this.log({ who: this.name, what, fn, gas: Number(rc.gasUsed), tx: rc.hash, events: events.map((e) => ({ name: e.name, args: plain(e.args) })) });
     return { rc, events };

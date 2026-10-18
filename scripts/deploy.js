@@ -1,7 +1,7 @@
 // Deploy Overclock to any EVM chain. Overclock reads circuits from whichever TapeOut processor a
 // job names, so one deployment serves every circuit on the chain.
 //
-//   RPC_URL=https://rpc.xlayer.tech PRIVATE_KEY=0x... node scripts/deploy.js [--bond 0.01] [--window 600]
+//   RPC_URL=https://rpc.xlayer.tech PRIVATE_KEY=0x... node scripts/deploy.js [--bond 0.001] [--window 600]
 //     [--factory 0x...] [--treasury 0x...] [--fee-bps 200]
 //
 // The treasury defaults to the deploying wallet. Prints the address and writes deployments/<chainId>.json.
@@ -16,9 +16,9 @@ const provider = new JsonRpcProvider(process.env.RPC_URL ?? 'https://rpc.xlayer.
 const wallet = new Wallet(process.env.PRIVATE_KEY, provider);
 const net = await provider.getNetwork();
 const a = artifact('Overclock');
-const bond = parseEther(arg('bond', '0.01')), window = Number(arg('window', 600));
+const bond = parseEther(arg('bond', '0.001')), window = Number(arg('window', 600));
 const factory = arg('factory', XLAYER.factory), treasury = arg('treasury', wallet.address), feeBps = Number(arg('fee-bps', 200));
-console.log(`deploying Overclock to chain ${net.chainId} from ${wallet.address} (bond ${arg('bond', '0.01')}, window ${window}s, factory ${factory}, fee ${feeBps} bps)`);
+console.log(`deploying Overclock to chain ${net.chainId} from ${wallet.address} (bond ${arg('bond', '0.001')}, window ${window}s, factory ${factory}, fee ${feeBps} bps)`);
 const c = await new ContractFactory(a.abi, a.bytecode, wallet).deploy(bond, window, factory, treasury, feeBps);
 await c.waitForDeployment();
 const rc = await c.deploymentTransaction().wait();

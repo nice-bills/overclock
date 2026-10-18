@@ -10,6 +10,7 @@ export const XLAYER = {
   rpc: 'https://rpc.xlayer.tech',
   factory: '0x1f09daefa827f02cbb40967cc91b259763760761',
   opener: '0x536add8f30f03b69f6fbf29d425a816a0dc50106',
+  overclock: '0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710', // deployments/196.json
 };
 
 export const FACTORY_ABI = [
