@@ -78,6 +78,8 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 | `src/agents.js` | Operator and watcher bots, written as poll-driven state machines |
 | `src/hdl.js`, `src/life.js` | A small netlist builder, plus the Game of Life cell (57 gates) and board circuits |
 | `bin/overclock.js` | CLI: `operator`, `watch`, `post`, `trace`, `job`, `life` |
+| `src/mcp.js`, `bin/overclock-mcp.js` | MCP server (stdio and HTTP) for AI agents |
+| `.claude-plugin/`, `.mcp.json`, `skills/overclock/` | Claude Code plugin: the MCP server plus a usage skill |
 | `scripts/demo.js` | The end-to-end demo; writes `web/demo-run.json` |
 | `web/` | Replay page |
 
@@ -85,7 +87,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 
 ```sh
 npm install
-npm test             # 36 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow
+npm test             # 42 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
 npm run demo         # 16x16 board, 100 generations (about 90 s); --w --h --beats to change
 node scripts/build-web.js   # inline the run into web/overclock.html
 ```
@@ -103,6 +105,52 @@ node bin/overclock.js operator --lie-at 91716   # demo: a cheat that corrupts on
 ```
 
 `node scripts/local-setup.js` deploys a mock processor and stores the Life circuits on a local chain. On X Layer, `node bin/overclock.js life --cpu <processor> --cell-id <id>` prints the netlists to tape out.
+
+## For AI agents (MCP server and Claude Code plugin)
+
+Most people will hand this to an agent, so Overclock ships as an MCP server. Claude, ChatGPT, Cursor or any other MCP client can use it to:
+
+- read jobs and check claims;
+- post work;
+- run as a bonded operator or watcher;
+- create a TapeOut processor and tape out netlists.
+
+**Claude Code plugin** (the MCP server plus a skill that teaches the workflows and asks before spending):
+
+```
+/plugin install overclock --marketplace nice-bills/overclock
+```
+
+**Any MCP client over stdio:**
+
+```json
+{ "mcpServers": { "overclock": {
+  "command": "node", "args": ["/path/to/overclock/bin/overclock-mcp.js"],
+  "env": { "RPC_URL": "https://rpc.xlayer.tech", "OVERCLOCK": "0x...", "PRIVATE_KEY": "0x..." } } } }
+```
+
+**Remote agents and ChatGPT connectors over HTTP:** `RPC_URL=... OVERCLOCK=0x... node bin/overclock-mcp.js --http --port 3333` serves Streamable HTTP at `/mcp`. Leave `PRIVATE_KEY` unset when anyone else can reach the endpoint.
+
+What the server offers depends on its configuration:
+
+- **Without `OVERCLOCK`:** only the TapeOut tools.
+- **Without `PRIVATE_KEY`:** only the read-only tools.
+
+| Tool | What it does |
+|---|---|
+| `overclock_info`, `list_jobs`, `get_job` | Deployment parameters; jobs with their status (open, claimed, disputed, ready to finalize, final) |
+| `describe_circuit` | Pins, state, flattened gates, REFs and estimated `step` gas for any TapeOut circuit |
+| `run_locally` | Runs beats off-chain for free: outputs, final state and the trace root an honest claim commits to |
+| `verify_claim` | Re-runs a claimed job and says whether to trust it |
+| `post_job`, `continue_job` | Posts a job, or more beats from a finalized job's final state |
+| `claim_job`, `challenge_claim`, `advance_disputes`, `finalize_job` | Operator and watcher: claim with a bond, bisect a wrong claim to one gate and prove it, settle |
+| `create_processor`, `tapeout_circuit`, `life_circuits` | TapeOut's own flow: new processor, mint transistors, tape out a netlist; example netlists |
+
+`test/mcp.test.js` drives the server through the official MCP client over both stdio and HTTP. In the test, the agent:
+
+1. creates a processor and tapes out circuits;
+2. posts, claims and finalizes a job;
+3. catches a cheating operator by bisecting to the corrupted gate and takes its bond.
 
 ## Status and limits
 

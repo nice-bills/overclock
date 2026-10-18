@@ -1,0 +1,10 @@
+{
+  "name": "overclock",
+  "version": "0.2.0",
+  "description": "Run TapeOut circuits on X Layer far past the block gas limit: post jobs, claim and verify results, and catch cheats down to one gate.",
+  "author": { "name": "nice-bills" },
+  "homepage": "https://github.com/nice-bills/overclock",
+  "repository": "https://github.com/nice-bills/overclock",
+  "license": "MIT",
+  "keywords": ["tapeout", "x-layer", "optimistic", "fraud-proof", "circuits", "okx"]
+}

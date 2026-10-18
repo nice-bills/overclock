@@ -1,0 +1,11 @@
+{
+  "name": "overclock",
+  "owner": { "name": "nice-bills" },
+  "plugins": [
+    {
+      "name": "overclock",
+      "source": "./",
+      "description": "Optimistic execution for TapeOut circuits on X Layer, as MCP tools plus a usage skill."
+    }
+  ]
+}

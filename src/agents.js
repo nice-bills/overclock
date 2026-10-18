@@ -18,6 +18,7 @@ class Agent {
     this.name = name;
     this.log = log;
     this.circuits = circuits;
+    this.only = null; // a Set of job ids to restrict this agent to, or null for every job
     this.traces = new Map(); // `${jobId}:${variant}` -> { t, tree, c }
   }
 
@@ -70,6 +71,7 @@ export class Operator extends Agent {
     const now = await this.now();
     const nJobs = Number(await this.oc.jobCount());
     for (let i = 0; i < nJobs; i++) {
+      if (this.only && !this.only.has(i)) continue;
       if (this.skip.has(i)) continue;
       const job = await readJob(this.oc, i);
       if (job.finalized) { this.skip.add(i); continue; }
@@ -112,6 +114,7 @@ export class Challenger extends Agent {
     const now = await this.now();
     const nJobs = Number(await this.oc.jobCount());
     for (let i = 0; i < nJobs; i++) {
+      if (this.only && !this.only.has(i)) continue;
       const job = await readJob(this.oc, i);
       if (job.finalized || job.challenged || job.claimant === '0x0000000000000000000000000000000000000000') continue;
       if (now >= job.claimedAt + window) continue;

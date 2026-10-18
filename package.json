@@ -1,11 +1,12 @@
 {
   "name": "overclock",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Optimistic execution for TapeOut circuits on X Layer",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "overclock": "bin/overclock.js"
+    "overclock": "bin/overclock.js",
+    "overclock-mcp": "bin/overclock-mcp.js"
   },
   "scripts": {
     "build": "node scripts/compile.js",
@@ -13,15 +14,18 @@
     "demo": "node scripts/compile.js && node scripts/demo.js",
     "deploy": "node scripts/deploy.js",
     "fork": "hardhat node --port 8545",
-    "demo:fork": "node scripts/compile.js && node scripts/demo.js --fork http://127.0.0.1:8545"
+    "demo:fork": "node scripts/compile.js && node scripts/demo.js --fork http://127.0.0.1:8545",
+    "mcp": "node bin/overclock-mcp.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@noble/hashes": "^1.3.2",
-    "ethers": "^6.17.0"
+    "ethers": "^6.17.0",
+    "solc": "^0.8.28",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "ganache": "^7.9.2",
-    "hardhat": "^2.22.17",
-    "solc": "^0.8.28"
+    "hardhat": "^2.22.17"
   }
 }

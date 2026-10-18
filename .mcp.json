@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "overclock": {
+      "command": "sh",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/mcp-launch.sh"],
+      "env": {
+        "RPC_URL": "${RPC_URL:-https://rpc.xlayer.tech}",
+        "OVERCLOCK": "${OVERCLOCK:-}",
+        "PRIVATE_KEY": "${PRIVATE_KEY:-}"
+      }
+    }
+  }
+}
