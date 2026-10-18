@@ -20,7 +20,7 @@
 // The direct eval of the digit net is too big for an X Layer block; scripts/measure-eval.js measures it.
 
 import { JsonRpcProvider, ContractFactory, Contract, Wallet, parseEther, formatEther, keccak256, concat, toUtf8Bytes } from 'ethers';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { load, pack, unpack, bytesToHex, hexToBytes, beat } from '../src/tap02.js';
 import { layout, traceJob, flatSize } from '../src/trace.js';
@@ -93,9 +93,10 @@ say(`\nOverclock headline demo: ${MACHINE}, chain ${net.chainId} at block ${star
 say(`Overclock ${ocAddr}: bond ${formatEther(BOND)} OKB, window ${WINDOW} s\n`);
 
 if (LIVE) {
-  // Bond plus gas: about 2.5M for the cheat's reveals, 3M for the watcher's dispute and claim.
+  // Bond plus gas: the cheat's claim and reveals take about 1.5M, the watcher's dispute, claim and
+  // finalize about 2.5M (CPU job; the digit net's are smaller). Priced at twice today's gas price.
   const { gasPrice } = await provider.getFeeData();
-  for (const [w, gas, name] of [[cheat, 2_500_000n, 'cheat'], [watcher, 4_000_000n, 'watcher']]) {
+  for (const [w, gas, name] of [[cheat, 2_000_000n, 'cheat'], [watcher, 3_500_000n, 'watcher']]) {
     const need = BOND + gas * gasPrice * 2n, have = await provider.getBalance(w.address);
     if (have < need) note(`fund ${name} wallet`, await (await deployer.sendTransaction({ to: w.address, value: need - have })).wait(), { account: w.address });
   }
@@ -285,7 +286,7 @@ writeFileSync(OUT, JSON.stringify({
   lie: { ...lie, provedLeaf: leafRow?.leaf },
   cheatClaim: bytesToHex(pack(cheatResult)), result: bytesToHex(pack(got)), matches: ok,
   setup, gas,
-  spent: LIVE ? formatEther(balance0 - (await provider.getBalance(deployer.address))) : null,
+  spent: null, // set after the sweep on a live run
   log: log.map(({ events, ...e }) => e),
 }, null, 1));
 say(`\nwrote ${OUT}`);
@@ -296,6 +297,9 @@ if (LIVE) {
     const bal = await provider.getBalance(w.address);
     if (bal > cost) await (await w.sendTransaction({ to: deployer.address, value: bal - cost, gasLimit: 21000n, gasPrice: gasPrice * 2n })).wait();
   }
-  say(`swept the helper wallets back; the deployer spent ${formatEther(balance0 - (await provider.getBalance(deployer.address)))} OKB in all`);
+  const spent = formatEther(balance0 - (await provider.getBalance(deployer.address)));
+  const saved = JSON.parse(readFileSync(OUT));
+  writeFileSync(OUT, JSON.stringify({ ...saved, spent }, null, 1));
+  say(`swept the helper wallets back; the deployer spent ${spent} OKB in all`);
 }
 process.exit(ok ? 0 : 1);
