@@ -15,6 +15,14 @@ An operator runs the job off-chain and posts the result with a bond. Anyone can 
 
 Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet circuits, 688 of 688 samples ([docs/live-check.json](docs/live-check.json)).
 
+| Submission at a glance | |
+|---|---|
+| Overclock contract (X Layer, chain 196) | [`0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`](https://www.oklink.com/x-layer/address/0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710) |
+| TapeOut processor | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
+| Circuit IDs | #4, the Life cell rule (57 gates); #5, the 8×8 board (64 REFs to #4) |
+| TapeOut features used | Processor factory, NAND and LATCH transistors, tapeout, `REF`, `step`, netlist reads, ERC-6551 circuit accounts |
+| Write-up, film script, launch thread | [docs/submission.md](docs/submission.md), [docs/demo-script.md](docs/demo-script.md), [docs/launch-thread.md](docs/launch-thread.md) |
+
 **Demo result (local EVM).** The demo runs Conway's Game of Life on a 16×16 board built from TapeOut circuits, for 100 generations. That is 14,848 gates per generation and 1,817,800 steps in all.
 
 | Path | Gas |
@@ -36,6 +44,32 @@ TapeOut circuits avoid that problem. They are NAND gates with exact, published s
 
 - **REF** gives nested calls for free: a dispute walks down into the sub-circuit where the mismatch is.
 - **LATCH** state chains beats together: stateful, multi-beat machines work too. That is the case ZK proving can't handle today.
+
+## Who it's for
+
+TapeOut's own limit is the market: `step()` costs about 2.5K gas per flattened gate and a block holds 210M, so one call tops out near 80,000 gates. Anything bigger, or anything that has to run for many beats, can't be run on-chain today. ZK coprocessors (AlephTape) cover big *stateless* circuits, but their compiler rejects LATCH and each circuit needs its own setup ceremony. Overclock is the route for everything else.
+
+| Who | What they need | What Overclock gives them |
+|---|---|---|
+| **Machine builders**: on-chain CPUs, games with memory, circuit-AI with state (Cerebr-, Behemoth- and FabX-class designs) | Their circuit runs, but not at the size or number of beats that makes it worth using | Any number of beats at the cost of two transactions, with no ceremony or recompiling. Their taped-out circuit works as it is |
+| **Contracts and apps that consume circuit results**: games, verdicts, scoring, settlement | A result they can trust without running a 400M-gas computation | `result(jobId)` or an `onOverclockResult` callback, backed by a bond and a public challenge window (`contracts/Machine.sol`) |
+| **Operators and watchers**: miners and node runners with idle machines | A way to earn from running circuits | Job fees for honest claims, and a liar's bond for catching one. Both bots ship in the CLI, and an AI agent can run either one through the MCP server |
+| **AI agents** | Exact, checkable computation they can buy and verify | The MCP server and Claude Code plugin: `verify_claim` before trusting a result, `post_job` to buy one |
+
+**How we reach them.** TapeOut is a small, concentrated ecosystem, so the first users are reachable by name: the teams whose designs outgrew a block (Cerebr, AlephTape, the on-chain CPU builders), FabX's Gate Challenge community, and the TapeOut and X Layer builder Telegram groups. After that come Demo Day, the X Layer pop-up at DevConnect, and the Claude Code plugin marketplace for agent users. Each circuit we run for a team becomes a public job on mainnet that the next team can look at.
+
+## Business model
+
+**Live today: a protocol fee on every job.** The poster pays a job fee, and when the result finalizes, `feeBps` of it goes to the protocol treasury and the rest to the operator (`Overclock.sol`, `finalize`). The mainnet deployment takes 2%, and the contract caps it at 10%. It's taken only on results that finalize, so the protocol earns when users get a correct result.
+
+**Why users pay.** For a 3,712-gate board running 40 beats, the alternative was 441M gas over more than two blocks, which can't be sent at all. Overclock's honest path cost 182K gas, about 2,400 times less, and the cost stays at two transactions however many beats the job runs. The fee only has to cover an operator's two transactions, the bond it locks for the challenge window, and a margin. Off-chain compute is cheap.
+
+**Why they keep paying.** Stateful machines don't run once. A game advances every turn, a CPU every program, and a circuit-AI every move. Each run is a new job, and `continueJob` starts the next one from the last final state, so usage repeats for as long as the machine is in use. A builder who has taped out a big circuit has nowhere else to run it at that size.
+
+**Next, on the same contract:**
+- **Hosted operator and watcher service.** A subscription for teams that want their jobs claimed and watched with uptime guarantees, instead of running the bots themselves.
+- **Verified-result API for agents.** Paid MCP-over-HTTP access to `verify_claim` and result reads, for agents that won't run a node.
+- **Bonds that scale with value at risk.** Tying the bond to the job fee (see [docs/security-audit.md](docs/security-audit.md), L-2) lets large jobs carry large bonds, so the fee grows with the value it secures.
 
 ## How it works
 
@@ -173,4 +207,4 @@ What the server offers depends on its configuration:
 - **Measured on the real factory.** The one-step check reads the netlist from TapeOut's own processor: 347,509 gas on mainnet for an 8×8 board.
 - **Gas of the one-step check** grows with the number of records in the netlist before the disputed step. Big designs are built from REFs, which keeps each netlist small. A 512-record board costs 0.6M to 0.9M gas.
 - **One challenger at a time per claim.** A false challenge restarts the window, so a griefer can delay finalization but pays a bond each time. Bond sizing and multi-party games are future work.
-- **Not audited.**
+- **Audited in-house, not independently.** [docs/security-audit.md](docs/security-audit.md) lists every finding with a proof-of-concept test. Two critical bugs in the dispute payouts are fixed in this repo; the mainnet contract above predates the fixes and can't be patched (no owner or upgrade path). It held 0 OKB when checked, so nothing is at risk today, and a redeploy of the fixed contract is the next step.
