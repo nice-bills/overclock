@@ -1,9 +1,10 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Overclock</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Optimistic execution for TapeOut circuits on X Layer">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: a datasheet. One wide column; the replay and the dispute ladder are the two figures. */
 :root {
@@ -124,6 +125,43 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
   .rung .where { grid-column: 2; }
   .gas-row { grid-template-columns: 1fr; gap: 4px; }
 }
+
+/* Live job board */
+.live { display: grid; gap: 16px; }
+.live-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font: 400 12px/1.4 var(--mono); color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; vertical-align: 0; }
+.dot.on { background: var(--mask); box-shadow: 0 0 0 3px var(--mask-soft); }
+.dot.err { background: var(--lie); }
+.live-bar button { padding: 6px 10px; font-size: 12px; }
+.live-bar .grow { flex: 1 1 auto; }
+.jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.ticket { background: var(--sheet); border: 1px solid var(--rule); border-top: 3px solid var(--muted); border-radius: 4px; padding: 14px 16px 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.ticket.s-open { border-top-color: var(--copper); }
+.ticket.s-claimed { border-top-color: var(--copper); }
+.ticket.s-dispute { border-top-color: var(--lie); }
+.ticket.s-final { border-top-color: var(--mask); }
+.ticket .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ticket h3 { font-size: 24px; }
+.tag.warn { background: var(--copper-soft); color: var(--copper); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font: 400 13px/1.4 var(--mono); margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.states { display: flex; flex-wrap: wrap; gap: 14px; }
+.states figure { margin: 0; display: grid; gap: 4px; }
+.states canvas { width: 96px; height: 96px; image-rendering: pixelated; border: 1px solid var(--rule); background: var(--cell-off); }
+.states figcaption { font: 400 11px/1.2 var(--mono); color: var(--muted); }
+.txs { display: flex; flex-wrap: wrap; gap: 6px; }
+.txs a { font: 400 12px/1 var(--mono); text-decoration: none; border: 1px solid var(--rule); border-radius: 3px; padding: 5px 7px; color: var(--ink); background: var(--paper); }
+.txs a:hover { border-color: var(--copper); color: var(--copper); }
+.txs a b { font-weight: 500; color: var(--copper); }
+.txs a.lie b { color: var(--lie); }
+.txs a.ok b { color: var(--mask); }
+.empty { color: var(--muted); font: 400 13px/1.5 var(--mono); padding: 12px 0; }
+.feed td:first-child { white-space: nowrap; color: var(--muted); }
+.feed a { font-family: var(--mono); }
+.howto { display: grid; gap: 8px; }
+.howto pre { margin: 0; background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; padding: 10px 12px; overflow-x: auto; font: 400 12px/1.5 var(--mono); }
+.divider { border-top: 2px solid var(--ink); padding-top: 14px; display: grid; gap: 6px; }
 </style>
 
 <div class="wrap">
@@ -132,6 +170,45 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
     <h1>Overclock</h1>
     <p class="lede">Run TapeOut circuits far too big to evaluate on-chain. An operator posts the result with a bond. If one gate in millions is wrong, anyone can prove it with a single transaction, and the liar loses the bond.</p>
   </header>
+
+  <section class="live" id="board" aria-live="polite">
+    <div class="sec-head">
+      <span class="label">Live · X Layer mainnet</span>
+      <h2>Job board</h2>
+      <p>Every job on the Overclock contract, read straight from X Layer by this page: who posted it, who claimed it, whether anyone disputed it, and how it settled. Each step links to its transaction on the explorer.</p>
+    </div>
+    <div class="live-bar">
+      <span><span class="dot" id="liveDot"></span><span id="liveStatus">Reading X Layer…</span></span>
+      <span class="grow"></span>
+      <a id="contractLink" href="https://www.oklink.com/x-layer/address/0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710">contract</a>
+      <button type="button" id="liveRefresh">Refresh</button>
+    </div>
+    <div class="specs" id="liveSpecs"></div>
+    <div class="jobs" id="jobs"><p class="empty">Loading jobs…</p></div>
+    <div class="fig">
+      <h3>Disputes</h3>
+      <div class="log"><table><thead><tr><th>Game</th><th>Job</th><th>Challenger</th><th>Where</th><th>Outcome</th><th>Transactions</th></tr></thead><tbody id="games"></tbody></table></div>
+    </div>
+    <div class="fig">
+      <h3>Activity</h3>
+      <div class="log feed"><table><thead><tr><th>When</th><th>Event</th><th>Detail</th><th>Tx</th></tr></thead><tbody id="feed"></tbody></table></div>
+      <p class="mono" id="feedNote" style="color: var(--muted); font-size: 12px"></p>
+    </div>
+    <div class="howto fig">
+      <h3>Post or work a job</h3>
+      <p>Anyone can post a job, run an operator that claims jobs for fees, or run a watcher that challenges wrong claims for bonds. From a checkout of the repository:</p>
+      <pre>export RPC_URL=https://rpc.xlayer.tech PRIVATE_KEY=0x…
+node bin/overclock.js post --cpu 0xb00f10bb4b2f32c561bf90e205e543d0a2395971 --id 5 --beats 40 --fee 0.0002
+node bin/overclock.js operator   # claim open jobs, defend the claims
+node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre>
+      <p>AI agents get the same actions as MCP tools through the Claude Code plugin in the repository.</p>
+    </div>
+  </section>
+
+  <div class="divider">
+    <span class="label">Replay · a recorded run</span>
+    <h2>How a cheat gets caught</h2>
+  </div>
 
   <div class="specs" id="specs"></div>
 
@@ -230,6 +307,8 @@ footer { border-top: 2px solid var(--ink); padding-top: 14px; display: flex; fle
 </div>
 
 <script id="run-data" type="application/json">null</script>
+<script id="board-data" type="application/json">null</script>
+<script src="board.js"></script>
 <script>
 (async function () {
   let run = JSON.parse(document.getElementById('run-data').textContent);
