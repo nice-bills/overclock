@@ -102,15 +102,21 @@ function hashPair(l, r) {
   return keccak_256(m);
 }
 
-// Level-1 nodes take only nine values; memoize them.
-const L1 = new Map();
-function level1(a, b) {
-  const key = a * 3 + b;
-  let h = L1.get(key);
+// A node up to level 3 covers at most 8 leaves of three kinds (0, 1, pad), so it takes at most
+// 3^8 values; memoize them. That cuts the hashing for a big trace by about 8x.
+const MEMO_LEVELS = 3;
+const SMALL = new Map();
+function small(level, digits) {
+  let key = level;
+  for (const d of digits) key = key * 3 + d;
+  let h = SMALL.get(key);
   if (!h) {
-    const leaf = (x) => (x === 2 ? PAD_B : LEAF_B[x]);
-    h = hashPair(leaf(a), leaf(b));
-    L1.set(key, h);
+    if (level === 0) h = digits[0] === 2 ? PAD_B : LEAF_B[digits[0]];
+    else {
+      const half = digits.length >> 1;
+      h = hashPair(small(level - 1, digits.slice(0, half)), small(level - 1, digits.slice(half)));
+    }
+    SMALL.set(key, h);
   }
   return h;
 }
@@ -146,7 +152,11 @@ export class Tree {
       const b = this._bit(index);
       return b === 2 ? PAD_B : LEAF_B[b];
     }
-    if (level === 1) return level1(this._bit(2 * index), this._bit(2 * index + 1));
+    if (level <= MEMO_LEVELS) {
+      const w = 1 << level, first = index * w, digits = new Array(w);
+      for (let i = 0; i < w; i++) digits[i] = this._bit(first + i);
+      return small(level, digits);
+    }
     const cached = this.levels[level];
     if (cached) return cached[index];
     if (index * 2 ** level >= this.n) return this._padNode(level);

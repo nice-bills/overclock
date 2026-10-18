@@ -70,7 +70,8 @@ export class Builder {
   // TAP-02 outputs are the last nOut signals; add NOT-NOT buffers unless they already are.
   build(outs) {
     const tail = Array.from({ length: outs.length }, (_, i) => this.next - outs.length + i);
-    if (!outs.every((s, i) => s === tail[i])) outs = outs.map((s) => this.not(this.not(s)));
+    // all first NOTs, then all second NOTs, so the second ones are the last signals
+    if (!outs.every((s, i) => s === tail[i])) outs = outs.map((s) => this.not(s)).map((s) => this.not(s));
     for (const r of this.records) if (r.op === LATCH && r.ins[0] === null) throw new Error(`latch ${r.sig} has no input`);
     return { netlist: encode(this.records), nIn: this.nIn, nOut: outs.length };
   }

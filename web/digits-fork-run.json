@@ -1,0 +1,398 @@
+{
+ "machine": "digits",
+ "mode": "fork",
+ "chainId": 196,
+ "startBlock": 73591363,
+ "beats": 1,
+ "bond": "0.001",
+ "window": 600,
+ "fee": "0.0001",
+ "addresses": {
+  "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+  "processor": "0xb00e17789f905234f1890c22e6c01015c10d2f54",
+  "circuitId": 11
+ },
+ "circuit": {
+  "gates": 161080,
+  "nIn": 64,
+  "nOut": 70,
+  "nState": 0
+ },
+ "trace": {
+  "leaves": 180640,
+  "perBeat": 180640,
+  "depth": 18
+ },
+ "jobId": 2,
+ "gameId": 2,
+ "machineInfo": {
+  "digit": 7,
+  "image": "0x7e60303018180c0c",
+  "scores": [
+   46,
+   57,
+   66,
+   69,
+   51,
+   57,
+   42,
+   84,
+   53,
+   58
+  ],
+  "read": 7
+ },
+ "checks": {
+  "alephFixture": true
+ },
+ "direct": {
+  "source": "TapeOut's eval(), measured by scripts/measure-eval.js on a fork with the gas limit raised (AlephTape measured 396,410,201)",
+  "perBeat": 388354847,
+  "total": 388354847
+ },
+ "lie": {
+  "beat": 0,
+  "leaf": 180562,
+  "what": "one NAND in the output layer, so the claimed scores read the 7 as a 9",
+  "claimedDigit": 9,
+  "provedLeaf": 180562
+ },
+ "cheatClaim": "0xae9cb038cba9a8353d",
+ "result": "0xae9cb038cba9a8351d",
+ "matches": true,
+ "setup": [],
+ "gas": {
+  "post": 2082094,
+  "claim": 105340,
+  "finalize": 59139,
+  "disputeTotal": 4157974,
+  "disputeTxs": 38,
+  "disputeMaxTx": 2065659,
+  "resolveLeaf": 2065659,
+  "directPerBeat": 388354847,
+  "directTotal": 388354847,
+  "honestPath": 2246573,
+  "ratio": 173
+ },
+ "spent": null,
+ "log": [
+  {
+   "who": "poster",
+   "what": "posts job 2: 1 beat of circuit #11, fee 0.0001",
+   "fn": "postJob",
+   "gas": 2082094,
+   "tx": "0x357fce6382e87a6b464ed27cbcb0a8b6091200eed889ebb4387c17f16c749429"
+  },
+  {
+   "who": "cheat",
+   "what": "computed 180640 leaves and corrupted leaf 180562",
+   "ms": 3196
+  },
+  {
+   "who": "cheat",
+   "what": "claims a wrong result",
+   "fn": "claim",
+   "gas": 122464,
+   "tx": "0xed1db0e0ae9a73e0a639d93b3f31a94e9292102e753562ffae8e3d806fc4018b"
+  },
+  {
+   "who": "watcher",
+   "what": "re-ran job 2: trace root differs, challenging"
+  },
+  {
+   "who": "watcher",
+   "what": "challenges",
+   "fn": "challenge",
+   "gas": 136711,
+   "tx": "0x13f5f0329138c63563ee31eccf8f4be3b62ce34ece2b2dab7613a8a3100db43a"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 18",
+   "fn": "reveal",
+   "gas": 90345,
+   "tx": "0xf877f66539df94fe2e41e63774a50fd184fd1d3a37ba7b1ba7c3324970299ada"
+  },
+  {
+   "who": "watcher",
+   "what": "picks right at level 18",
+   "fn": "pick",
+   "gas": 66745,
+   "tx": "0x321c6fe0d0e10b8d131a0a3db9c7df3c6f80fb74253f1797b27988942571ee92"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 17",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x0ed34039d1ec695e1df8bc14780a30eaa6107e1671253acebd14d4a764d4a92e"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 17",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0x484045e9639d4259abd3bf0ee4c31aeb2bbecf1c49e29dc4a17cdf3ba7db3b14"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 16",
+   "fn": "reveal",
+   "gas": 56133,
+   "tx": "0x2670b4aa7acc219f53189253c08d5cf14cdae8885a3be3ef6072ff4c3ee0a3cf"
+  },
+  {
+   "who": "watcher",
+   "what": "picks right at level 16",
+   "fn": "pick",
+   "gas": 49645,
+   "tx": "0xbe10faa925c51a52c767b0703c20b89b6400df0c6c6a35e7e9a4c03ce66d65e8"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 15",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0xade174ab7a3b8a1eaecd7df8aa092d582d89a89c84a414a38fca41fe27149c21"
+  },
+  {
+   "who": "watcher",
+   "what": "picks right at level 15",
+   "fn": "pick",
+   "gas": 49645,
+   "tx": "0xa9a5a6a72a37a0bcc8b468e3cdf4673644f96a8ee9cd16736c53a830086f0bca"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 14",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x4c4b0b0b3f4584a298932d04d29f24dcf9bd7c98fb38543d7ad4789dbe57de85"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 14",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0xe35b99001601196bfa080d26548e2a40bd8bf7ef29451a4f116e4e3cfeb56b9d"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 13",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x38a16fa0fcb5d5d41456ae51653d3b3bfb329d9efc7a906683c78bea5d9e5ea8"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 13",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0x24fc76417fe255bcbfd6770c9ca5b28a391761c46a92c73252b8cdda533d014f"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 12",
+   "fn": "reveal",
+   "gas": 56133,
+   "tx": "0x7dd751c35e2bef493f1c306adfb601c7aa6bc62604e864c344e8b5bb4ded1633"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 12",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0x362d284194f8dfcb9ec3c4eaa10b82b9aeafe38c2de013b7f334519b3a88b6cb"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 11",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x0e1950ba04e21274a78eb0170501fa6b2cf0fe1a9167d07d8185bc34195d858e"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 11",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0x0b8ea9bc1ca00cc720d11fef0c873854d764f230ed88464d137f8b51642d5ce6"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 10",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0xf2b03b4cb9cdf69689581b900cbfd7b42452f5f450eece211a75c355b84700e1"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 10",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0xe2da69da49ed5ee91be61da0ca3abf44c241c1e067130e3c5ec993885d43ac83"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 9",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0xad0dbd1e1928e1e14eb7f635decd41db926aa612e394f86593697b6cf06efb8c"
+  },
+  {
+   "who": "watcher",
+   "what": "picks right at level 9",
+   "fn": "pick",
+   "gas": 49645,
+   "tx": "0x74fb48d6ff498c8aa82d2ed71d15a58a44e7e0e6285fb3e88e3d75c750da65f6"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 8",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0xc2e50dd2e473f4eb7c9d42ae7d89f9422d3216a41323eeceda3c6748ebd21716"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 8",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0x3a0c9ec88b2d3b972b0b4853f9f05859dbd48daa6031cfb80a0e59b41b8d9438"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 7",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x4a2747553fc2f75c9f1dc5dcf301bb9d2fb5aa3fb7917097b04296e25ded014c"
+  },
+  {
+   "who": "watcher",
+   "what": "picks right at level 7",
+   "fn": "pick",
+   "gas": 49645,
+   "tx": "0x35542b6d769fced2c3109695e62346f31a40bae6fd1e6094baf148d4e426534c"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 6",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x5ea2f8c1877658221d956371951f808f3961f18b31afe70e109d27cb7d348eb6"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 6",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0xcb0f1ad55a4f98c57cb93ee6f8342ca64cea05fb5847bef85a0bd368d258fd14"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 5",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x6f7f34355547b6ac4057a968fe6df6ee258c343874afe92eeca49fd45cc6fbe7"
+  },
+  {
+   "who": "watcher",
+   "what": "picks right at level 5",
+   "fn": "pick",
+   "gas": 49645,
+   "tx": "0x5c4ac8a44a4640f6f543e6cac5c5f910073cee35afb8a09dfa2e5bc559b59e9c"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 4",
+   "fn": "reveal",
+   "gas": 56133,
+   "tx": "0x629010b06ddd79e367f0006a390b1c99bf1fc92ba440e2ad7ddc35af79c0f031"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 4",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0x481cdb1ce56a1c89467ed971cd2351f58a7df5a94656f186be9406f69f5747dd"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 3",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0xf450fd07a7d5107f5a60833885b4b88cef1f73a2a474344b12440af1083bfc20"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 3",
+   "fn": "pick",
+   "gas": 49657,
+   "tx": "0x6e900eaab8772b4f60101437ff2f847ce8b738a2b3fe810ec2937bbd43e2e496"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 2",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0x2e43587b803bf409705ed717f4186b29099871ef2ff311515d946770bf447df5"
+  },
+  {
+   "who": "watcher",
+   "what": "picks right at level 2",
+   "fn": "pick",
+   "gas": 49645,
+   "tx": "0x129e2e9b4dc6a3ee818d9f4f58310e32cc688068784cbc9d240e582f6eb1e3a9"
+  },
+  {
+   "who": "cheat",
+   "what": "reveals level 1",
+   "fn": "reveal",
+   "gas": 56145,
+   "tx": "0xdeb4d150a7a4b851011a549fbe0865916d19ed4f93d4fe8bbcffd209b6e14d06"
+  },
+  {
+   "who": "watcher",
+   "what": "picks left at level 1",
+   "fn": "pick",
+   "gas": 49645,
+   "tx": "0x9faa90433f505f95227b133a769d117c287e0d25552d1c52a6d43fbf20615410"
+  },
+  {
+   "who": "watcher",
+   "what": "narrowed the dispute to leaf 180562",
+   "leaf": 180562,
+   "deps": 2
+  },
+  {
+   "who": "watcher",
+   "what": "proves the wrong step",
+   "fn": "resolveLeaf",
+   "gas": 2065659,
+   "tx": "0xcf24ff29584dd6a7b7010cace185047a9d0844098da8a6306d6b3b3e37f8bbe2"
+  },
+  {
+   "who": "operator",
+   "what": "computed 180640 leaves",
+   "ms": 2964
+  },
+  {
+   "who": "operator",
+   "what": "claims the result",
+   "fn": "claim",
+   "gas": 105340,
+   "tx": "0x647f7b457deb01402aaffa17b9c9e521bd5275c4acab72ce29c2ec886dfa7722"
+  },
+  {
+   "who": "watcher",
+   "what": "re-ran job 2: claim is correct"
+  },
+  {
+   "who": "operator",
+   "what": "finalizes",
+   "fn": "finalize",
+   "gas": 59139,
+   "tx": "0x3ec5ebca8ae8f1e04ffd63b39d0c23c60080969cfcc4ce8ec5365121046173e6"
+  }
+ ]
+}
