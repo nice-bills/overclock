@@ -186,7 +186,7 @@
     return s + ' OKB';
   };
   const aLink = (a) => `<a href="${EXPLORER}/address/${a}" title="${a}">${short(a)}</a>`;
-  const txLink = (tx, label, cls = '') => `<a class="${cls}" href="${EXPLORER}/tx/${tx}" title="${tx}"><b>${label}</b> ${tx.slice(0, 8)}</a>`;
+  const txLink = (tx, label, cls = '') => `<a class="${cls}" href="${EXPLORER}/tx/${tx}" title="${tx}"><b>${label}</b> <span>${tx.slice(0, 8)}</span></a>`;
   const dur = (s) => {
     s = Math.max(0, Math.round(s));
     if (s < 60) return `${s}s`;
@@ -234,9 +234,7 @@
     $('liveSpecs').innerHTML = [
       [fmt(jobs.length), 'jobs posted'],
       [fmt(finals.length), 'finalized'],
-      [fmt(jobs.length - finals.length), 'open or in window'],
-      [fmt(games.length), live.length ? `disputes · ${live.length} live` : 'disputes'],
-      [fmt(caught.length), 'cheats caught'],
+      [fmt(caught.length), live.length ? `cheats caught · ${live.length} dispute${live.length > 1 ? 's' : ''} live` : 'cheats caught'],
       [okb(paid).replace(' OKB', '<small> OKB</small>'), 'fees paid out'],
     ].map(([v, k]) => `<div class="spec"><span class="v">${v}</span><span class="label">${k}</span></div>`).join('');
 
@@ -272,13 +270,10 @@
         <div class="top"><h3>Job ${j.jobId}</h3>${tag}</div>
         <dl class="kv">
           <dt>Circuit</dt><dd>#${j.id} on ${aLink(j.cpu)}</dd>
-          <dt>Run</dt><dd>${fmt(j.beats)} beat${j.beats === 1 ? '' : 's'} · ${fmt(j.beats * (j.flat + j.nState))} trace steps</dd>
-          <dt>Pins</dt><dd>${j.nIn} in · ${j.nOut} out · ${fmt(j.nState)} state bits${j.perBeat ? ' · inputs per beat' : ''}</dd>
+          <dt>Run</dt><dd>${fmt(j.beats)} beat${j.beats === 1 ? '' : 's'} · ${fmt(j.beats * (j.flat + j.nState))} steps</dd>
           <dt>Fee</dt><dd>${okb(j.fee)}</dd>
-          <dt>Poster</dt><dd>${aLink(j.poster)}</dd>
           ${j.parent ? `<dt>Continues</dt><dd>job ${j.parent - 1}</dd>` : ''}
-          <dt>Claimant</dt><dd>${j.claimant !== ZERO ? aLink(j.claimant) : 'none yet'}</dd>
-          ${j.claimant !== ZERO ? `<dt>Outputs</dt><dd>${esc(j.outputs)}</dd>` : ''}
+          <dt>Operator</dt><dd>${j.claimant !== ZERO ? aLink(j.claimant) : 'none yet'}</dd>
           ${until}
         </dl>
         ${states}
@@ -325,13 +320,14 @@
       if (move && prev && prev.moves && prev.gameId === e.gameId) { prev.moves++; prev.last = e; continue; }
       rows.push(move ? { moves: 1, gameId: e.gameId, last: e } : { last: e });
     }
-    $('feed').innerHTML = rows.slice(-15).reverse().map((r) => {
+    $('feedNote').title = gapNote;
+    $('feed').innerHTML = rows.slice(-8).reverse().map((r) => {
       const e = r.last, t = store.times[e.block];
       const what = r.moves ? (r.moves === 1 ? LABEL[e.name] : 'bisection') : LABEL[e.name];
       const info = r.moves && r.moves > 1 ? `game ${e.gameId} · ${r.moves} moves, down to level ${e.level}` : detail(e);
-      return `<tr><td title="${t ? new Date(t * 1000).toISOString() : ''}">${t ? ago(t) : 'block ' + fmt(e.block)}</td><td>${what}</td><td>${info}</td><td><a href="${EXPLORER}/tx/${e.tx}" title="${e.tx}">${e.tx.slice(0, 10)}</a></td></tr>`;
+      return `<tr><td title="${t ? new Date(t * 1000).toISOString() : ''}">${t ? ago(t) : 'block ' + fmt(e.block)}</td><td><a class="ev" href="${EXPLORER}/tx/${e.tx}">${what}</a></td><td>${info}</td><td><a href="${EXPLORER}/tx/${e.tx}" title="${e.tx}">${e.tx.slice(0, 10)}</a></td></tr>`;
     }).join('') || '<tr><td colspan="4" class="empty">No events found yet.</td></tr>';
-    $('feedNote').textContent = `${events.length} events · bond ${okb(bond)} · ${dur(win)} challenge window · ${(feeBps / 100).toFixed(feeBps % 100 ? 1 : 0)}% protocol fee${gapNote ? ' · ' + gapNote : ''}`;
+    $('feedNote').textContent = `Bond ${okb(bond)} · ${dur(win)} challenge window · ${(feeBps / 100).toFixed(feeBps % 100 ? 1 : 0)}% protocol fee`;
   }
 
   setInterval(() => {
@@ -377,7 +373,7 @@
       save();
       render(d);
       $('liveDot').className = 'dot on';
-      $('liveStatus').textContent = `Live · block ${fmt(head.n)} · refreshes every ${REFRESH / 1000}s`;
+      $('liveStatus').textContent = `Live · block ${fmt(head.n)}`;
     } catch (e) {
       $('liveDot').className = 'dot err';
       $('liveStatus').textContent = `Could not reach X Layer nodes (${e && e.message ? e.message : e}). Retrying.`;
