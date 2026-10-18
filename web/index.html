@@ -200,9 +200,9 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .btn.primary:hover { opacity: .86; }
 #home .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
-.chipwrap { display: grid; gap: 14px; justify-self: end; width: 100%; max-width: 440px; }
+.chipwrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; justify-self: end; width: 100%; max-width: 440px; }
 .chip { width: 100%; aspect-ratio: 1; display: block; }
-.chipcap { white-space: nowrap; display: flex; justify-content: space-between; gap: 12px; font: 400 11px/1.5 var(--mono); color: var(--muted); letter-spacing: 0.02em; }
+.chipcap { white-space: nowrap; display: flex; flex-wrap: wrap; row-gap: 2px; justify-content: space-between; gap: 12px; font: 400 11px/1.5 var(--mono); color: var(--muted); letter-spacing: 0.02em; }
 .chipcap b { font-weight: 400; color: var(--ink); }
 .chipcap .lie { color: var(--lie); }
 #home .sheet { border-top: 1px solid var(--ink); }
@@ -216,20 +216,54 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 #home .row .v.win { color: var(--accent); }
 #home .row .k { display: none; }
 #home .sheet-foot { padding: 14px 0 0; font-size: 13px; color: var(--muted); max-width: none; }
-#home .how { padding: 120px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; }
 #home h2 { font-size: clamp(26px, 3vw, 32px); line-height: 1.15; letter-spacing: -0.025em; }
-#home .how .lead p { color: var(--muted); margin-top: 16px; max-width: 24em; font-size: 16px; }
-#home ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 40px; font-size: 16px; }
-#home ol.steps li { display: grid; grid-template-columns: 40px 1fr; }
-#home ol.steps .n { font: 400 13px/28px var(--mono); color: var(--faint); }
-#home ol.steps h3 { font-size: 18px; line-height: 28px; letter-spacing: -0.01em; }
-#home ol.steps p { margin-top: 6px; color: var(--muted); max-width: 32em; }
+.sec-label { font: 500 11px/1.4 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.sec-label b { color: var(--accent); font-weight: 500; margin-right: 10px; }
+#home .app { padding: 120px 0 0; display: grid; gap: 28px; }
+#home .app .lead p { color: var(--muted); margin-top: 12px; max-width: 34em; font-size: 16px; }
+.diagram { width: 100%; height: auto; display: block; overflow: visible; }
+.diagram text { font-family: var(--mono); fill: var(--ink); }
+.diagram .m { fill: var(--muted); }
+.diagram .box { fill: var(--bg); stroke: var(--line); stroke-width: 1.25; transition: stroke .3s; }
+.diagram .box.on { stroke: var(--ink); }
+.diagram .pkg { fill: var(--pkg); stroke: var(--pkg-edge); }
+.diagram .pkg-t { fill: #ecebe8; }
+.diagram .pins rect { fill: var(--pin); transition: fill .2s; }
+.diagram .pins.on rect { fill: var(--accent); }
+.diagram .ln { stroke: var(--line); stroke-width: 1.5; fill: none; transition: stroke .3s; }
+.diagram .ln.on { stroke: var(--ink); }
+.diagram .ln.on.lie { stroke: var(--lie); }
+.diagram .lbl { transition: fill .3s; }
+.diagram .lbl.on { fill: var(--ink); }
+.diagram .lbl.on.lie { fill: var(--lie); }
+.diagram .dot { fill: var(--ink); }
+.diagram .dot.lie { fill: var(--lie); }
+.pinout { display: grid; border-top: 1px solid var(--ink); }
+.pinout .pr { display: grid; grid-template-columns: 48px 130px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); align-items: baseline; transition: background .3s; }
+.pinout .pr span { font: 400 13px/1.5 var(--mono); color: var(--faint); transition: color .3s; }
+.pinout .pr b { font: 500 13px/1.5 var(--mono); letter-spacing: 0.04em; transition: color .3s; }
+.pinout .pr p { margin: 0; color: var(--muted); max-width: none; }
+.pinout .pr.on span, .pinout .pr.on b { color: var(--accent); }
+.pinout .pr.on.lie span, .pinout .pr.on.lie b { color: var(--lie); }
+/* motion */
+.rise { opacity: 0; transform: translateY(10px); animation: rise .8s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: var(--d, 0s); }
+@keyframes rise { to { opacity: 1; transform: none; } }
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
+.reveal.in { opacity: 1; transform: none; }
+#home .row.reveal { transition-delay: var(--d, 0s); }
+@media (prefers-reduced-motion: reduce) {
+  .rise, .reveal { opacity: 1; transform: none; animation: none; transition: none; }
+}
+#home .close { padding-top: 120px; }
 #home .closer { border-top: 1px solid var(--line); padding-top: 64px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 32px; }
 #home .closer p { color: var(--muted); margin-top: 12px; max-width: 28em; font-size: 16px; }
 @media (max-width: 820px) {
   #home .hero { grid-template-columns: 1fr; gap: 48px; padding: 48px 0 72px; }
   .chipwrap { justify-self: start; max-width: 360px; }
-  #home .how { grid-template-columns: 1fr; gap: 40px; padding: 80px 0; }
+  #home .app { padding-top: 80px; }
+  .pinout .pr { grid-template-columns: 28px 1fr; gap: 4px 12px; }
+  .diagram { display: none; }
+  .pinout .pr p { grid-column: 2; }
 }
 @media (max-width: 640px) {
   #home .row { grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; }
@@ -269,43 +303,65 @@ footer a:hover { color: var(--ink); }
   <main class="view" id="home">
     <header class="hero">
       <div>
-        <span class="eyebrow"><i></i>Live on X Layer · built on TapeOut</span>
-        <h1>Run circuits too big for the chain.</h1>
-        <p class="lede">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If a single gate in millions is wrong, anyone can prove it in one transaction and take the bond.</p>
-        <div class="cta">
+        <span class="eyebrow rise"><i></i>OVC-1 · live on X Layer · built on TapeOut</span>
+        <h1 class="rise" style="--d:.08s">Run circuits too big for the chain.</h1>
+        <p class="lede rise" style="--d:.16s">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If a single gate in millions is wrong, anyone can prove it in one transaction and take the bond.</p>
+        <div class="cta rise" style="--d:.24s">
           <a class="btn primary" href="#board">Open the job board</a>
           <a class="btn" href="#replay">Watch a cheat get caught</a>
         </div>
       </div>
-      <figure class="chipwrap" style="margin:0">
+      <figure class="chipwrap rise" style="margin:0;--d:.3s">
         <canvas class="chip" id="chip" role="img" aria-label="Circuit #5, the 8 by 8 Life board taped out on TapeOut, drawn as a chip. A dispute halves the gates until one wrong NAND is left."></canvas>
-        <figcaption class="chipcap"><span>TapeOut circuit #5 · 3,648 NAND</span><span id="chipState">&nbsp;</span></figcaption>
+        <figcaption class="chipcap"><span>TapeOut circuit #5</span><span id="chipState">&nbsp;</span></figcaption>
       </figure>
     </header>
 
     <div class="sheet">
-      <div class="sheet-head"><span>Measured on X Layer mainnet</span><span>Gas per job</span></div>
+      <div class="sheet-head"><span class="sec-label"><b>01</b>Electrical characteristics</span><span>Measured on X Layer mainnet · gas per job</span></div>
       <div class="row th"><span>Machine</span><span>Run directly on TapeOut</span><span>Overclock, honest</span><span>Prove one wrong gate</span></div>
-      <div class="row"><span class="m">Game of Life board<small>Circuit #5 · 3,712 gates × 40 beats</small></span><span class="v"><i class="k">Direct</i>441M<small>2.1 blocks</small></span><span class="v win"><i class="k">Overclock</i>182K<small>2 txs</small></span><span class="v"><i class="k">Proof</i>348K<small>1 tx</small></span></div>
-      <div class="row"><span class="m">4-bit CPU<small>Circuit #6 · 1,437 gates × 10,000 beats</small></span><span class="v"><i class="k">Direct</i>34.3B<small>163 blocks</small></span><span class="v win"><i class="k">Overclock</i>182K<small>2 txs</small></span><span class="v"><i class="k">Proof</i>887K<small>1 tx</small></span></div>
-      <div class="row"><span class="m">Digit-recognition net<small>AlephTape's circuit #11 · 161,080 gates</small></span><span class="v"><i class="k">Direct</i>388M<small>1.85 blocks</small></span><span class="v win"><i class="k">Overclock</i>162K<small>2 txs</small></span><span class="v"><i class="k">Proof</i>2.07M<small>1 tx</small></span></div>
+      <div class="row reveal" style="--d:0.00s"><span class="m">Game of Life board<small>Circuit #5 · 3,712 gates × 40 beats</small></span><span class="v"><i class="k">Direct</i><span data-n="441085640">441M</span><small>2.1 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182011">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="347509">348K</span><small>1 tx</small></span></div>
+      <div class="row reveal" style="--d:0.12s"><span class="m">4-bit CPU<small>Circuit #6 · 1,437 gates × 10,000 beats</small></span><span class="v"><i class="k">Direct</i><span data-n="34277810000">34.3B</span><small>163 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182227">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="887491">887K</span><small>1 tx</small></span></div>
+      <div class="row reveal" style="--d:0.24s"><span class="m">Digit-recognition net<small>AlephTape's circuit #11 · 161,080 gates</small></span><span class="v"><i class="k">Direct</i><span data-n="388354847">388M</span><small>1.85 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="161979">162K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="2065659">2.07M</span><small>1 tx</small></span></div>
       <p class="sheet-foot">The honest cost stays flat however big the circuit gets: one claim, one finalize. A block holds 210M gas.</p>
     </div>
 
-    <section class="how">
+    <section class="app reveal">
       <div class="lead">
-        <h2>Optimistic execution, one gate at a time.</h2>
+        <span class="sec-label"><b>02</b>Typical application</span>
+        <h2 style="margin-top:14px">Nobody pays to check a result unless someone disagrees.</h2>
         <p>A TapeOut circuit is NAND and LATCH transistors burned into a netlist that lives on-chain and never changes. So any single gate of any circuit, at any size, is a step a contract can re-check.</p>
       </div>
-      <ol class="steps">
-        <li><span class="n">01</span><div><h3>Post a job</h3><p>Name any taped-out circuit, give it a starting state, choose how many beats to run, and attach a fee.</p></div></li>
-        <li><span class="n">02</span><div><h3>Claim with a bond</h3><p>An operator runs it off-chain and posts the result with a Merkle root over every wire value.</p></div></li>
-        <li><span class="n">03</span><div><h3>Anyone can challenge</h3><p>A watcher re-runs the job for free. If the roots differ, the two sides halve the trace until one gate is left.</p></div></li>
-        <li><span class="n">04</span><div><h3>The contract checks one step</h3><p>It recomputes that single NAND, LATCH or REF wire from the circuit's on-chain netlist. The liar loses the bond.</p></div></li>
-      </ol>
+      <svg class="diagram" id="diagram" viewBox="0 0 920 300" role="img" aria-label="A poster posts a job to the Overclock contract, an operator claims it with a bond, a watcher challenges a wrong claim, and the contract reads one gate from the TapeOut circuit and slashes the liar.">
+        <g class="pins" id="dpins">
+          <rect x="378" y="62" width="6" height="12"/><rect x="398" y="62" width="6" height="12"/><rect x="418" y="62" width="6" height="12"/><rect x="438" y="62" width="6" height="12"/><rect x="458" y="62" width="6" height="12"/><rect x="478" y="62" width="6" height="12"/><rect x="498" y="62" width="6" height="12"/><rect x="518" y="62" width="6" height="12"/><rect x="538" y="62" width="6" height="12"/>
+          <rect x="378" y="206" width="6" height="12"/><rect x="398" y="206" width="6" height="12"/><rect x="418" y="206" width="6" height="12"/><rect x="438" y="206" width="6" height="12"/><rect x="458" y="206" width="6" height="12"/><rect x="478" y="206" width="6" height="12"/><rect x="498" y="206" width="6" height="12"/><rect x="518" y="206" width="6" height="12"/><rect x="538" y="206" width="6" height="12"/>
+        </g>
+        <rect class="pkg" x="360" y="74" width="200" height="132" rx="8"/>
+        <circle cx="377" cy="91" r="4" fill="#3a3a38"/>
+        <text class="pkg-t" x="460" y="134" text-anchor="middle" font-size="18" font-weight="600">OVC-1</text>
+        <text class="pkg-t" x="460" y="156" text-anchor="middle" font-size="11" opacity=".55">0xe29F…E710</text>
+        <rect class="box" id="b-poster" x="20" y="40" width="180" height="56" rx="6"/><text x="110" y="66" text-anchor="middle" font-size="13">Poster</text><text class="m" x="110" y="84" text-anchor="middle" font-size="11">app, agent, circuit</text>
+        <rect class="box" id="b-operator" x="20" y="184" width="180" height="56" rx="6"/><text x="110" y="210" text-anchor="middle" font-size="13">Operator</text><text class="m" x="110" y="228" text-anchor="middle" font-size="11">runs it off-chain</text>
+        <rect class="box" id="b-watcher" x="720" y="40" width="180" height="56" rx="6"/><text x="810" y="66" text-anchor="middle" font-size="13">Watcher</text><text class="m" x="810" y="84" text-anchor="middle" font-size="11">re-runs every claim</text>
+        <rect class="box" id="b-circuit" x="720" y="184" width="180" height="56" rx="6"/><text x="810" y="210" text-anchor="middle" font-size="13">TapeOut circuit</text><text class="m" x="810" y="228" text-anchor="middle" font-size="11">netlist on-chain</text>
+        <path class="ln" id="w0" d="M200 68 H300 V112 H360"/><text class="m lbl" id="l0" x="256" y="60" text-anchor="middle" font-size="11">POST job, fee</text>
+        <path class="ln" id="w1" d="M200 212 H300 V168 H360"/><text class="m lbl" id="l1" x="262" y="232" text-anchor="middle" font-size="11">CLAIM result, bond</text>
+        <path class="ln lie" id="w2" d="M720 68 H620 V112 H560"/><text class="m lbl lie" id="l2" x="670" y="60" text-anchor="middle" font-size="11">CHALLENGE</text>
+        <path class="ln" id="w3" d="M560 168 H620 V212 H720"/><text class="m lbl" id="l3" x="664" y="232" text-anchor="middle" font-size="11">read one gate</text>
+        <path class="ln lie" id="w4" d="M460 218 V286"/><text class="m lbl lie" id="l4" x="474" y="280" font-size="11">RESOLVE: liar loses bond</text>
+        <circle class="dot" id="sig" r="4" cx="-20" cy="-20"/>
+      </svg>
+      <div class="pinout" id="pinout">
+        <div class="pr" data-step="0"><span>1</span><b>POST</b><p>Name any taped-out circuit, a starting state and a number of beats. Attach a fee.</p></div>
+        <div class="pr" data-step="1"><span>2</span><b>CLAIM</b><p>An operator runs it off-chain and posts the result with a Merkle root over every wire value, plus a bond.</p></div>
+        <div class="pr lie" data-step="2"><span>3</span><b>CHALLENGE</b><p>A watcher re-runs it for free. If the roots differ, both sides halve the trace until one step is left.</p></div>
+        <div class="pr lie" data-step="4"><span>4</span><b>RESOLVE</b><p>The contract recomputes that NAND, LATCH or REF wire from the circuit's on-chain netlist. The liar loses the bond.</p></div>
+        <div class="pr" data-step="5"><span>5</span><b>FINALIZE</b><p>Nobody challenged in the window: the result is final and the operator is paid.</p></div>
+      </div>
     </section>
 
-    <section class="close">
+    <section class="close reveal">
       <div class="closer">
         <div>
           <h2>Every job, claim and dispute, live.</h2>
@@ -453,7 +509,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 </script>
 <script>
 // The hero chip: circuit #5 (the 8x8 Life board) drawn as a package, gate by gate. 64 cells of 57 NANDs and a
-// LATCH each. A dispute halves the gates still in question until one wrong NAND is left, then starts over.
+// LATCH each. The operator runs it beat by beat and posts a claim; a watcher challenges, and the dispute halves
+// the gates still in question until one wrong NAND is left. Then it starts over.
 (function () {
   const cv = document.getElementById('chip'), ctx = cv.getContext('2d'), label = document.getElementById('chipState');
   const G = 64, CELL = 8, NAND = 57, LATCH = 63;
@@ -468,7 +525,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     if (r.w >= r.h) { const w = r.w / 2; return target.x < r.x + w ? { ...r, w } : { ...r, x: r.x + w, w }; }
     const h = r.h / 2; return target.y < r.y + h ? { ...r, h } : { ...r, y: r.y + h, h };
   }
-  function reset() { target = pick(); sel = from = to = { x: 0, y: 0, w: G, h: G }; level = 12; phase = 'idle'; }
+  function reset() { target = pick(); sel = from = to = { x: 0, y: 0, w: G, h: G }; level = 12; phase = 'run'; t0 = performance.now(); }
+  const RUN = 3600, BEATS = 40;
   const ease = (k) => 1 - Math.pow(1 - k, 3);
   const lerp = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, w: a.w + (b.w - a.w) * k, h: a.h + (b.h - a.h) * k });
 
@@ -481,11 +539,14 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     const css = getComputedStyle(document.documentElement), v = (k) => css.getPropertyValue(k).trim();
     // pins
     const pl = S * 0.04, n = 14, span = S - pl * 2, pitch = span / n, pw = pitch * 0.42;
-    ctx.fillStyle = v('--pin');
+    const pin = v('--pin'), hot = v('--accent');
+    const beat = phase === 'run' ? Math.floor((now - t0) / (RUN / BEATS)) : -1;
     for (let i = 0; i < n; i++) {
       const c = pl + pitch * (i + 0.5) - pw / 2;
-      ctx.fillRect(c, 0, pw, pl + 2); ctx.fillRect(c, S - pl - 2, pw, pl + 2);
-      ctx.fillRect(0, c, pl + 2, pw); ctx.fillRect(S - pl - 2, c, pl + 2, pw);
+      ctx.fillStyle = beat >= 0 && (i * 5 + beat * 3) % 11 === 0 ? hot : pin;
+      ctx.fillRect(c, 0, pw, pl + 2); ctx.fillRect(S - pl - 2, c, pl + 2, pw);
+      ctx.fillStyle = beat >= 0 && (i * 7 + beat * 5) % 13 === 0 ? hot : pin;
+      ctx.fillRect(c, S - pl - 2, pw, pl + 2); ctx.fillRect(0, c, pl + 2, pw);
     }
     // package
     ctx.fillStyle = v('--pkg'); ctx.strokeStyle = v('--pkg-edge'); ctx.lineWidth = 1;
@@ -509,12 +570,17 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
       const k = kind(x, y); if (!k) continue;
       const on = inR(x, y);
-      if (k === 2) { ctx.fillStyle = on ? '#6cc19c' : '#2f4a3e'; const q = step * 0.5; ctx.fillRect(px(x) - q / 2, px(y) - q / 2, q, q); continue; }
-      ctx.fillStyle = on ? '#efeeea' : '#474745';
+      if (k === 2) { ctx.fillStyle = on || phase === 'run' && beat % 2 ? '#6cc19c' : '#2f4a3e'; const q = step * 0.5; ctx.fillRect(px(x) - q / 2, px(y) - q / 2, q, q); continue; }
+      let col = on ? '#efeeea' : '#474745';
+      if (phase === 'run' || phase === 'claim') {
+        const ci = Math.floor(y / CELL) * CELL + Math.floor(x / CELL), sweep = phase === 'claim' ? 64 : ((now - t0) / RUN * 64 * 4) % 64;
+        col = ci < Math.floor(sweep) ? '#9a9995' : ci === Math.floor(sweep) ? '#ffffff' : '#474745';
+      }
+      ctx.fillStyle = col;
       ctx.beginPath(); ctx.arc(px(x), px(y), on && r.w * r.h <= 64 ? rad * 1.35 : rad, 0, Math.PI * 2); ctx.fill();
     }
     // selection frame
-    if (!(r.w === G && r.h === G) || phase === 'move') {
+    if (phase === 'move' || phase === 'found' || level < 12) {
       const fx = px(r.x) - step * 0.6, fy = px(r.y) - step * 0.6;
       const fw = px(r.x + r.w - 1) - px(r.x) + step * 1.2, fh = px(r.y + r.h - 1) - px(r.y) + step * 1.2;
       ctx.strokeStyle = done ? 'rgba(255,107,107,.9)' : 'rgba(239,238,234,.7)'; ctx.lineWidth = 1.25;
@@ -532,20 +598,23 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     if (phase === 'found') {
       const cx = Math.floor(target.x / CELL), cy = Math.floor(target.y / CELL), g = (target.y % CELL) * CELL + (target.x % CELL) + 1;
       label.innerHTML = `<span class="lie">wrong gate: cell ${cx},${cy} NAND ${g}</span>`;
-    } else if (level === 12) label.innerHTML = 'claim challenged';
+    } else if (phase === 'run') label.innerHTML = `operator running · beat <b>${Math.min(BEATS, Math.floor((performance.now() - t0) / (RUN / BEATS)) + 1)}</b> of ${BEATS}`;
+    else if (phase === 'claim') label.innerHTML = 'claim posted with a bond';
+    else if (level === 12) label.innerHTML = '<span class="lie">claim challenged</span>';
     else label.innerHTML = `<b>${fmt(nandsIn(to))}</b> gates in dispute`;
   }
   function tick() {
+    if (phase === 'run') { phase = 'claim'; caption(); timer = setTimeout(() => { phase = 'challenged'; caption(); timer = setTimeout(tick, 1000); }, 1300); return; }
     if (level > 0) {
       from = sel; to = halve(sel); sel = to; level--; phase = 'move'; t0 = performance.now();
       caption();
       timer = setTimeout(tick, level === 0 ? 700 : 820);
     } else if (phase !== 'found') {
       phase = 'found'; t0 = performance.now(); caption();
-      timer = setTimeout(() => { reset(); caption(); timer = setTimeout(tick, 1400); }, 3200);
+      timer = setTimeout(() => { reset(); timer = setTimeout(tick, RUN); }, 3200);
     }
   }
-  function loop(now) { if (!document.hidden) draw(now); requestAnimationFrame(loop); }
+  function loop(now) { if (!document.hidden) { draw(now); if (phase === 'run') caption(); } requestAnimationFrame(loop); }
   reset();
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
     while (level > 0) { sel = to = halve(sel); level--; }
@@ -557,7 +626,69 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   }
   caption();
   requestAnimationFrame(loop);
-  timer = setTimeout(tick, 1200);
+  timer = setTimeout(tick, RUN);
+})();
+</script>
+<script>
+// Landing motion: sections rise in as they scroll into view, the datasheet numbers count up, and a signal walks
+// the application diagram step by step with the matching pin lit below it.
+(function () {
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const short = (n) => n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e8 ? 0 : 2) + 'M' : Math.round(n / 1e3) + 'K';
+  function countUp(el) {
+    const end = Number(el.dataset.n), t0 = performance.now(), dur = 1400;
+    const f = (now) => { const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 4); el.textContent = short(Math.max(1000, end * e)); if (k < 1) requestAnimationFrame(f); else el.textContent = el.dataset.final; };
+    requestAnimationFrame(f);
+  }
+  document.querySelectorAll('[data-n]').forEach((el) => { el.dataset.final = el.textContent; });
+  const io = 'IntersectionObserver' in window && !still ? new IntersectionObserver((es) => {
+    for (const e of es) if (e.isIntersecting) {
+      e.target.classList.add('in');
+      e.target.querySelectorAll('[data-n]').forEach(countUp);
+      if (e.target.id === 'diagram') walk();
+      io.unobserve(e.target);
+    }
+  }, { threshold: 0.2 }) : null;
+  const targets = [...document.querySelectorAll('#home .reveal'), document.getElementById('diagram')];
+  if (io) targets.forEach((el) => io.observe(el)); else targets.forEach((el) => el.classList.add('in'));
+
+  // diagram walk: POST, CLAIM, CHALLENGE, read gate, RESOLVE
+  const svg = document.getElementById('diagram'), dot = document.getElementById('sig'), pins = document.getElementById('dpins');
+  const rows = [...document.querySelectorAll('#pinout .pr')];
+  const STEPS = [
+    { w: 0, box: 'b-poster', pin: 0 }, { w: 1, box: 'b-operator', pin: 1 }, { w: 2, box: 'b-watcher', pin: 2, lie: true },
+    { w: 3, box: 'b-circuit', pin: 4 }, { w: 4, pin: 4, lie: true },
+  ];
+  const clear = () => {
+    svg.querySelectorAll('.on').forEach((n) => n.classList.remove('on'));
+    rows.forEach((r) => r.classList.remove('on'));
+  };
+  let walking = false;
+  function walk() {
+    if (walking || still) return;
+    walking = true;
+    let i = 0;
+    const next = () => {
+      if (i === STEPS.length) { setTimeout(() => { clear(); dot.setAttribute('cx', -20); i = 0; setTimeout(next, 900); }, 2200); return; }
+      const st = STEPS[i++], path = document.getElementById('w' + st.w), len = path.getTotalLength();
+      if (i === 1) clear();
+      path.classList.add('on'); document.getElementById('l' + st.w).classList.add('on');
+      if (st.box) document.getElementById(st.box).classList.add('on');
+      rows.forEach((r) => r.classList.toggle('on', Number(r.dataset.step) === st.pin));
+      dot.classList.toggle('lie', !!st.lie);
+      const back = st.w === 3, t0 = performance.now(), dur = 900;
+      const f = (now) => {
+        const k = Math.min(1, (now - t0) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        const p = path.getPointAtLength((back ? e : e) * len);
+        dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y);
+        if (k < 1) requestAnimationFrame(f);
+        else { pins.classList.add('on'); setTimeout(() => pins.classList.remove('on'), 260); setTimeout(next, 700); }
+      };
+      requestAnimationFrame(f);
+    };
+    next();
+  }
+  if (still) { STEPS.forEach((st) => { document.getElementById('w' + st.w).classList.add('on'); document.getElementById('l' + st.w).classList.add('on'); }); }
 })();
 </script>
 <script id="run-data" type="application/json">null</script>
