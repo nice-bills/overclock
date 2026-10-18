@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overclock · Mock 3 · Trace</title>
+<style>
+:root {
+  --bg: #0a0a0a; --ink: #f2f1ee; --muted: #8b8a86; --faint: #3a3a38; --line: #1f1f1e; --lie: #ff5d5d;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px 64px; }
+nav { display: flex; justify-content: space-between; align-items: center; height: 76px; font-size: 14px; }
+nav b { font-weight: 600; letter-spacing: -0.01em; }
+nav div { display: flex; gap: 28px; }
+nav div a { color: var(--muted); text-decoration: none; }
+nav div a:hover { color: var(--ink); }
+.hero { padding: 96px 0 56px; }
+h1 { margin: 0; font-weight: 600; font-size: clamp(44px, 8.4vw, 104px); line-height: 0.98; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
+h1 .dim { color: var(--faint); }
+h1 .lie { color: var(--lie); }
+.lede { margin: 32px 0 0; max-width: 32em; font-size: 19px; color: var(--muted); }
+.cta { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-top: 36px; font-size: 15px; }
+.btn { background: var(--ink); color: var(--bg); text-decoration: none; padding: 13px 22px; border-radius: 999px; font-weight: 500; }
+.btn:hover { opacity: .88; }
+.link { color: var(--muted); text-decoration: none; }
+.link:hover { color: var(--ink); }
+
+.ladder { margin-top: 64px; display: grid; gap: 7px; }
+.rung { display: grid; grid-template-columns: 48px 1fr 220px; gap: 16px; align-items: center; font: 400 11px/1 var(--mono); color: var(--muted); opacity: 0; transform: translateY(4px); transition: opacity .4s, transform .4s; }
+.rung.in { opacity: 1; transform: none; }
+.rung .bar { position: relative; height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.rung .bar i { position: absolute; top: 0; bottom: 0; background: var(--ink); border-radius: 999px; }
+.rung .w { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rung.leaf { color: var(--lie); }
+.rung.leaf .bar i { background: var(--lie); }
+.verdict { margin-top: 28px; min-height: 24px; font: 400 13px/1.5 var(--mono); color: var(--muted); }
+.verdict b { color: var(--lie); font-weight: 400; }
+
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; padding: 72px 0; margin-top: 72px; border-top: 1px solid var(--line); }
+.facts div { display: grid; gap: 10px; align-content: start; }
+.facts span { font: 400 11px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.facts p { margin: 0; color: var(--muted); max-width: 22em; }
+.facts p b { color: var(--ink); font-weight: 500; }
+.end { border-top: 1px solid var(--line); padding-top: 40px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-size: 13px; color: var(--muted); }
+.end .mono { font-family: var(--mono); }
+@media (max-width: 720px) {
+  .hero { padding-top: 48px; }
+  .rung { grid-template-columns: 36px 1fr; }
+  .rung .w { display: none; }
+  .facts { grid-template-columns: 1fr; padding: 48px 0; }
+  nav div a.opt { display: none; }
+}
+</style>
+
+<div class="wrap">
+  <nav><b>Overclock</b><div><a href="../#board">Job board</a><a class="opt" href="../#replay">Replay</a><a class="opt" href="https://github.com/nice-bills/overclock">GitHub</a></div></nav>
+
+  <header class="hero">
+    <h1>1,817,800 steps.<br><span class="dim">One is </span><span class="lie">wrong.</span></h1>
+    <p class="lede">Overclock runs TapeOut circuits off-chain and settles them on X Layer. When an operator lies, anyone can halve the trace down to the one bad gate and prove it in a single transaction.</p>
+    <div class="cta"><a class="btn" href="../#board">Open the job board</a><a class="link" href="../#replay">Watch the full replay</a></div>
+
+    <div class="ladder" id="ladder" aria-hidden="true"></div>
+    <p class="verdict" id="verdict">&nbsp;</p>
+  </header>
+
+  <div class="facts">
+    <div><span>Built on TapeOut</span><p>Every TapeOut circuit is NAND and LATCH gates burned into a netlist on-chain. <b>Any single gate is a step a contract can check.</b></p></div>
+    <div><span>Cheap when honest</span><p>A 10,000-beat CPU run would take 163 blocks directly. Through Overclock it costs <b>two transactions</b>.</p></div>
+    <div><span>Live on mainnet</span><p>Three machines, three cheats caught, three honest results finalized on <b>X Layer</b>.</p></div>
+  </div>
+
+  <div class="end"><span>Overclock · optimistic execution for TapeOut circuits</span><span class="mono">0xe29F…E710 · chain 196</span></div>
+</div>
+
+<script>
+// The real dispute from the demo run: 21 halvings from 1,817,800 steps to the one wrong NAND.
+(function () {
+  const total = 2 ** 21, leaf = 1104253, leaves = 1817800, el = document.getElementById('ladder');
+  const fmt = (n) => Math.round(n).toLocaleString('en-US');
+  const rows = [];
+  let lo = 0, size = total;
+  for (let level = 20; level >= 0; level--) {
+    const half = size / 2, left = leaf < lo + half;
+    const pLo = lo, pSize = size;
+    if (!left) lo += half;
+    size = half;
+    const r = document.createElement('div');
+    r.className = 'rung' + (level === 0 ? ' leaf' : '');
+    const x = (lo - pLo) / pSize * 100;
+    const left2 = Math.max(0, lo), right2 = Math.min(lo + size, leaves);
+    r.innerHTML = `<span>${level === 0 ? 'leaf' : 'L' + level}</span><div class="bar"><i style="left:${x}%;width:50%"></i></div><span class="w">${level === 0 ? 'NAND 57 · cell (0, 12)' : fmt(Math.max(1, right2 - left2)) + ' steps'}</span>`;
+    el.appendChild(r); rows.push(r);
+  }
+  const verdict = document.getElementById('verdict');
+  const done = () => { verdict.innerHTML = 'Generation 61, cell (0, 12), NAND 57 of 57. <b>Checked on-chain for 876,691 gas. The cheat loses its bond.</b>'; };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { rows.forEach((r) => r.classList.add('in')); done(); return; }
+  let i = 0;
+  const run = () => {
+    if (i < rows.length) { rows[i++].classList.add('in'); setTimeout(run, i === rows.length ? 500 : 140); }
+    else done();
+  };
+  setTimeout(run, 600);
+})();
+</script>
