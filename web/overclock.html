@@ -21,6 +21,9 @@
   --warn-soft: #f3ebdd;
   --cell: #141414;
   --cell-off: #e9e8e4;
+  --pkg: #161616;
+  --pkg-edge: #161616;
+  --pin: #b8b7b1;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
 }
@@ -28,13 +31,13 @@
   :root:not([data-theme="light"]) {
     --bg: #0f0f0f; --sheet: #161616; --ink: #ecebe8; --muted: #9b9a96; --faint: #5f5e5b; --line: #252524;
     --accent: #7fc4a6; --accent-soft: #17291f; --lie: #f0838d; --lie-soft: #351a1d; --warn: #e0b072; --warn-soft: #2e2416;
-    --cell: #ecebe8; --cell-off: #262625; color-scheme: dark;
+    --cell: #ecebe8; --cell-off: #262625; --pkg: #1b1b1b; --pkg-edge: #2c2c2b; --pin: #4b4b49; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f0f0f; --sheet: #161616; --ink: #ecebe8; --muted: #9b9a96; --faint: #5f5e5b; --line: #252524;
   --accent: #7fc4a6; --accent-soft: #17291f; --lie: #f0838d; --lie-soft: #351a1d; --warn: #e0b072; --warn-soft: #2e2416;
-  --cell: #ecebe8; --cell-off: #262625; color-scheme: dark;
+  --cell: #ecebe8; --cell-off: #262625; --pkg: #1b1b1b; --pkg-edge: #2c2c2b; --pin: #4b4b49; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -196,13 +199,23 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 .btn:hover { border-color: var(--faint); }
 .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .btn.primary:hover { opacity: .86; }
-#home .field { width: 100%; aspect-ratio: 1; display: block; }
-#home .numbers { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
-#home .num { padding: 40px 32px 48px 0; }
-#home .num + .num { padding-left: 32px; border-left: 1px solid var(--line); }
-#home .num b { display: block; font-size: clamp(32px, 4.4vw, 44px); font-weight: 500; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
-#home .num span { display: block; margin-top: 12px; color: var(--muted); font-size: 15px; max-width: 18em; }
-#home .num.win b { color: var(--accent); }
+#home .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
+.chipwrap { display: grid; gap: 14px; justify-self: end; width: 100%; max-width: 440px; }
+.chip { width: 100%; aspect-ratio: 1; display: block; }
+.chipcap { white-space: nowrap; display: flex; justify-content: space-between; gap: 12px; font: 400 11px/1.5 var(--mono); color: var(--muted); letter-spacing: 0.02em; }
+.chipcap b { font-weight: 400; color: var(--ink); }
+.chipcap .lie { color: var(--lie); }
+#home .sheet { border-top: 1px solid var(--ink); }
+#home .sheet-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 14px 0; border-bottom: 1px solid var(--line); font: 400 11px/1.5 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+#home .row { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+#home .row.th { padding: 12px 0; font-size: 12px; color: var(--muted); }
+#home .row .m { font-weight: 500; }
+#home .row .m small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+#home .row .v { font: 400 22px/1.2 var(--sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+#home .row .v small { display: block; font-size: 12px; letter-spacing: 0; color: var(--muted); margin-top: 4px; }
+#home .row .v.win { color: var(--accent); }
+#home .row .k { display: none; }
+#home .sheet-foot { padding: 14px 0 0; font-size: 13px; color: var(--muted); max-width: none; }
 #home .how { padding: 120px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; }
 #home h2 { font-size: clamp(26px, 3vw, 32px); line-height: 1.15; letter-spacing: -0.025em; }
 #home .how .lead p { color: var(--muted); margin-top: 16px; max-width: 24em; font-size: 16px; }
@@ -215,13 +228,15 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 #home .closer p { color: var(--muted); margin-top: 12px; max-width: 28em; font-size: 16px; }
 @media (max-width: 820px) {
   #home .hero { grid-template-columns: 1fr; gap: 48px; padding: 48px 0 72px; }
-  #home .field { max-width: 320px; }
+  .chipwrap { justify-self: start; max-width: 360px; }
   #home .how { grid-template-columns: 1fr; gap: 40px; padding: 80px 0; }
 }
 @media (max-width: 640px) {
-  #home .numbers { grid-template-columns: 1fr; }
-  #home .num, #home .num + .num { padding: 28px 0; border-left: 0; }
-  #home .num + .num { border-top: 1px solid var(--line); }
+  #home .row { grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; }
+  #home .row.th { display: none; }
+  #home .row .m { grid-column: 1 / -1; margin-bottom: 6px; }
+  #home .row .v { font-size: 18px; }
+  #home .row .k { display: block; font-size: 11px; color: var(--muted); }
 }
 
 footer { border-top: 1px solid var(--line); margin-top: 72px; padding-top: 24px; display: flex; flex-wrap: wrap; gap: 8px 32px; justify-content: space-between; color: var(--muted); font-size: 13px; }
@@ -254,7 +269,7 @@ footer a:hover { color: var(--ink); }
   <main class="view" id="home">
     <header class="hero">
       <div>
-        <span class="eyebrow"><i></i>Live on X Layer mainnet</span>
+        <span class="eyebrow"><i></i>Live on X Layer · built on TapeOut</span>
         <h1>Run circuits too big for the chain.</h1>
         <p class="lede">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If a single gate in millions is wrong, anyone can prove it in one transaction and take the bond.</p>
         <div class="cta">
@@ -262,19 +277,25 @@ footer a:hover { color: var(--ink); }
           <a class="btn" href="#replay">Watch a cheat get caught</a>
         </div>
       </div>
-      <canvas class="field" id="field" aria-hidden="true"></canvas>
+      <figure class="chipwrap" style="margin:0">
+        <canvas class="chip" id="chip" role="img" aria-label="Circuit #5, the 8 by 8 Life board taped out on TapeOut, drawn as a chip. A dispute halves the gates until one wrong NAND is left."></canvas>
+        <figcaption class="chipcap"><span>TapeOut circuit #5 · 3,648 NAND</span><span id="chipState">&nbsp;</span></figcaption>
+      </figure>
     </header>
 
-    <div class="numbers">
-      <div class="num"><b>441M</b><span>gas to run a 40-generation Life board directly. More than two full blocks.</span></div>
-      <div class="num win"><b>182K</b><span>gas to run the same job through Overclock when nobody cheats.</span></div>
-      <div class="num"><b>1 step</b><span>re-checked on-chain to prove a lie, out of 181,840.</span></div>
+    <div class="sheet">
+      <div class="sheet-head"><span>Measured on X Layer mainnet</span><span>Gas per job</span></div>
+      <div class="row th"><span>Machine</span><span>Run directly on TapeOut</span><span>Overclock, honest</span><span>Prove one wrong gate</span></div>
+      <div class="row"><span class="m">Game of Life board<small>Circuit #5 · 3,712 gates × 40 beats</small></span><span class="v"><i class="k">Direct</i>441M<small>2.1 blocks</small></span><span class="v win"><i class="k">Overclock</i>182K<small>2 txs</small></span><span class="v"><i class="k">Proof</i>348K<small>1 tx</small></span></div>
+      <div class="row"><span class="m">4-bit CPU<small>Circuit #6 · 1,437 gates × 10,000 beats</small></span><span class="v"><i class="k">Direct</i>34.3B<small>163 blocks</small></span><span class="v win"><i class="k">Overclock</i>182K<small>2 txs</small></span><span class="v"><i class="k">Proof</i>887K<small>1 tx</small></span></div>
+      <div class="row"><span class="m">Digit-recognition net<small>AlephTape's circuit #11 · 161,080 gates</small></span><span class="v"><i class="k">Direct</i>388M<small>1.85 blocks</small></span><span class="v win"><i class="k">Overclock</i>162K<small>2 txs</small></span><span class="v"><i class="k">Proof</i>2.07M<small>1 tx</small></span></div>
+      <p class="sheet-foot">The honest cost stays flat however big the circuit gets: one claim, one finalize. A block holds 210M gas.</p>
     </div>
 
     <section class="how">
       <div class="lead">
         <h2>Optimistic execution, one gate at a time.</h2>
-        <p>TapeOut circuits are NAND gates with exact, public semantics, stored on-chain and never changed. That makes every single step of any circuit checkable by a contract.</p>
+        <p>A TapeOut circuit is NAND and LATCH transistors burned into a netlist that lives on-chain and never changes. So any single gate of any circuit, at any size, is a step a contract can re-check.</p>
       </div>
       <ol class="steps">
         <li><span class="n">01</span><div><h3>Post a job</h3><p>Name any taped-out circuit, give it a starting state, choose how many beats to run, and attach a fee.</p></div></li>
@@ -431,47 +452,112 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 })();
 </script>
 <script>
-// A slow Game of Life field: the kind of machine Overclock runs, drawn as dots.
+// The hero chip: circuit #5 (the 8x8 Life board) drawn as a package, gate by gate. 64 cells of 57 NANDs and a
+// LATCH each. A dispute halves the gates still in question until one wrong NAND is left, then starts over.
 (function () {
-  const cv = document.getElementById('field');
-  const ctx = cv.getContext('2d');
-  const W = 24, H = 24, N = W * H;
-  let cells = new Uint8Array(N), seen = [];
-  const seed = () => { for (let i = 0; i < N; i++) cells[i] = Math.random() < 0.3 ? 1 : 0; seen = []; };
-  const step = () => {
-    const o = new Uint8Array(N);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      let n = 0;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) n += cells[((y + dy + H) % H) * W + ((x + dx + W) % W)];
-      o[y * W + x] = n === 3 || (n === 2 && cells[y * W + x]) ? 1 : 0;
-    }
-    cells = o;
-    const key = cells.join('');
-    if (seen.includes(key)) seed(); else { seen.push(key); if (seen.length > 12) seen.shift(); }
-  };
-  function draw() {
-    if (!cv.clientWidth) return;
-    const css = getComputedStyle(document.documentElement);
-    const on = css.getPropertyValue('--cell').trim(), off = css.getPropertyValue('--cell-off').trim();
-    const size = cv.clientWidth, dpr = window.devicePixelRatio || 1;
-    if (cv.width !== Math.round(size * dpr)) { cv.width = cv.height = Math.round(size * dpr); }
+  const cv = document.getElementById('chip'), ctx = cv.getContext('2d'), label = document.getElementById('chipState');
+  const G = 64, CELL = 8, NAND = 57, LATCH = 63;
+  const kind = (x, y) => { const g = (y % CELL) * CELL + (x % CELL); return g < NAND ? 1 : g === LATCH ? 2 : 0; };
+  const fmt = (n) => n.toLocaleString('en-US');
+  let target, sel, from, to, level, t0, phase, timer;
+  const nandsIn = (r) => { let n = 0; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) n += kind(x, y) === 1; return n; };
+  function pick() {
+    for (;;) { const x = Math.floor(Math.random() * G), y = Math.floor(Math.random() * G); if (kind(x, y) === 1) return { x, y }; }
+  }
+  function halve(r) {
+    if (r.w >= r.h) { const w = r.w / 2; return target.x < r.x + w ? { ...r, w } : { ...r, x: r.x + w, w }; }
+    const h = r.h / 2; return target.y < r.y + h ? { ...r, h } : { ...r, y: r.y + h, h };
+  }
+  function reset() { target = pick(); sel = from = to = { x: 0, y: 0, w: G, h: G }; level = 12; phase = 'idle'; }
+  const ease = (k) => 1 - Math.pow(1 - k, 3);
+  const lerp = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, w: a.w + (b.w - a.w) * k, h: a.h + (b.h - a.h) * k });
+
+  function draw(now) {
+    const S = cv.clientWidth; if (!S) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (cv.width !== Math.round(S * dpr)) cv.width = cv.height = Math.round(S * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, size, size);
-    const g = size / W, r = g * 0.16, R = g * 0.32;
-    for (let i = 0; i < N; i++) {
-      const x = (i % W + 0.5) * g, y = (Math.floor(i / W) + 0.5) * g;
-      ctx.fillStyle = cells[i] ? on : off;
-      ctx.beginPath(); ctx.arc(x, y, cells[i] ? R : r, 0, Math.PI * 2); ctx.fill();
+    ctx.clearRect(0, 0, S, S);
+    const css = getComputedStyle(document.documentElement), v = (k) => css.getPropertyValue(k).trim();
+    // pins
+    const pl = S * 0.04, n = 14, span = S - pl * 2, pitch = span / n, pw = pitch * 0.42;
+    ctx.fillStyle = v('--pin');
+    for (let i = 0; i < n; i++) {
+      const c = pl + pitch * (i + 0.5) - pw / 2;
+      ctx.fillRect(c, 0, pw, pl + 2); ctx.fillRect(c, S - pl - 2, pw, pl + 2);
+      ctx.fillRect(0, c, pl + 2, pw); ctx.fillRect(S - pl - 2, c, pl + 2, pw);
+    }
+    // package
+    ctx.fillStyle = v('--pkg'); ctx.strokeStyle = v('--pkg-edge'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(pl, pl, span, span, S * 0.025); ctx.fill(); ctx.stroke();
+    // pin-1 mark and laser marking
+    ctx.fillStyle = '#2e2e2c'; ctx.beginPath(); ctx.arc(pl + S * 0.05, pl + S * 0.05, S * 0.013, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#6d6d69'; ctx.font = `${Math.max(8, S * 0.022)}px ui-monospace, Menlo, monospace`;
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+    ctx.fillText('OVERCLOCK  OVC-1', pl + S * 0.085, pl + S * 0.06);
+    ctx.textAlign = 'right'; ctx.fillText('TAP-02 · XL196', pl + span - S * 0.04, pl + span - S * 0.035);
+    // die: 64x64 gates in 8x8 cells
+    const d0 = pl + span * 0.13, ds = span * 0.74, gap = 1.1;
+    const step = ds / (G + (CELL - 1) * gap);
+    const px = (x) => d0 + (x + Math.floor(x / CELL) * gap + 0.5) * step;
+    // selection
+    let r = sel;
+    if (phase === 'move') { const k = Math.min(1, (now - t0) / 520); r = lerp(from, to, ease(k)); }
+    const inR = (x, y) => x >= r.x - 1e-6 && x < r.x + r.w - 1e-6 && y >= r.y - 1e-6 && y < r.y + r.h - 1e-6;
+    const done = phase === 'found';
+    const rad = step * 0.3;
+    for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
+      const k = kind(x, y); if (!k) continue;
+      const on = inR(x, y);
+      if (k === 2) { ctx.fillStyle = on ? '#6cc19c' : '#2f4a3e'; const q = step * 0.5; ctx.fillRect(px(x) - q / 2, px(y) - q / 2, q, q); continue; }
+      ctx.fillStyle = on ? '#efeeea' : '#474745';
+      ctx.beginPath(); ctx.arc(px(x), px(y), on && r.w * r.h <= 64 ? rad * 1.35 : rad, 0, Math.PI * 2); ctx.fill();
+    }
+    // selection frame
+    if (!(r.w === G && r.h === G) || phase === 'move') {
+      const fx = px(r.x) - step * 0.6, fy = px(r.y) - step * 0.6;
+      const fw = px(r.x + r.w - 1) - px(r.x) + step * 1.2, fh = px(r.y + r.h - 1) - px(r.y) + step * 1.2;
+      ctx.strokeStyle = done ? 'rgba(255,107,107,.9)' : 'rgba(239,238,234,.7)'; ctx.lineWidth = 1.25;
+      ctx.strokeRect(fx, fy, fw, fh);
+    }
+    if (done) {
+      const x = px(target.x), y = px(target.y);
+      ctx.fillStyle = '#ff6b6b'; ctx.beginPath(); ctx.arc(x, y, rad * 1.6, 0, Math.PI * 2); ctx.fill();
+      const k = Math.min(1, (now - t0) / 900);
+      ctx.strokeStyle = `rgba(255,107,107,${0.8 * (1 - k)})`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, y, rad * 1.6 + k * step * 3, 0, Math.PI * 2); ctx.stroke();
     }
   }
-  seed();
-  for (let k = 0; k < 8; k++) step();
-  draw();
-  addEventListener('resize', draw);
-  addEventListener('hashchange', draw);
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  setInterval(() => { if (!document.hidden) { step(); draw(); } }, 700);
+  function caption() {
+    if (phase === 'found') {
+      const cx = Math.floor(target.x / CELL), cy = Math.floor(target.y / CELL), g = (target.y % CELL) * CELL + (target.x % CELL) + 1;
+      label.innerHTML = `<span class="lie">wrong gate: cell ${cx},${cy} NAND ${g}</span>`;
+    } else if (level === 12) label.innerHTML = 'claim challenged';
+    else label.innerHTML = `<b>${fmt(nandsIn(to))}</b> gates in dispute`;
+  }
+  function tick() {
+    if (level > 0) {
+      from = sel; to = halve(sel); sel = to; level--; phase = 'move'; t0 = performance.now();
+      caption();
+      timer = setTimeout(tick, level === 0 ? 700 : 820);
+    } else if (phase !== 'found') {
+      phase = 'found'; t0 = performance.now(); caption();
+      timer = setTimeout(() => { reset(); caption(); timer = setTimeout(tick, 1400); }, 3200);
+    }
+  }
+  function loop(now) { if (!document.hidden) draw(now); requestAnimationFrame(loop); }
+  reset();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    while (level > 0) { sel = to = halve(sel); level--; }
+    phase = 'found'; t0 = -1e9; caption();
+    const still = () => draw(performance.now());
+    still(); addEventListener('resize', still); addEventListener('hashchange', still);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', still);
+    return;
+  }
+  caption();
+  requestAnimationFrame(loop);
+  timer = setTimeout(tick, 1200);
 })();
 </script>
 <script id="run-data" type="application/json">{
