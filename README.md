@@ -13,13 +13,22 @@ An operator runs the job off-chain and posts the result with a bond. Anyone can 
 | Overclock, a cheat corrupts one NAND: the whole dispute (38 transactions) | 2,433,720 | [challenge](https://www.oklink.com/x-layer/tx/0x942b7927db797ff55d6d67dbc2a57b2a3fbe99616123c0bb704df9abac8550b5), then [all of them](docs/mainnet-run.md) |
 | The one-step check that proves the lie | 347,509 | [resolveLeaf](https://www.oklink.com/x-layer/tx/0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff) |
 
+**The headline machines, also live on mainnet** ([docs/headline-demos.md](docs/headline-demos.md)). In each run a cheat corrupted one NAND, the watcher proved that gate wrong on-chain and took the bond, and an honest result finalized.
+
+| | Running it directly through TapeOut | Overclock, honest path | Result |
+|---|---:|---:|---|
+| **A 4-bit CPU running a program for 10,000 beats** (circuit #6, 1,437 gates, 205 LATCH bits) | 34.3B gas, 163 blocks of `step()` | [816,083 gas](https://www.oklink.com/x-layer/tx/0xf9e3738e5cc9ce905197526b755579d2da0d416b6ba07d5cdbe0a717bfd2ea6d), **42,003× less** | 8-bit Fibonacci: F(625) mod 256 = 161, F(626) mod 256 = 225 |
+| **AlephTape's 161K-gate digit net**, run as is (circuit #11 on their processor) | 388M gas, 1.85 blocks of `eval()` | [2,244,073 gas](https://www.oklink.com/x-layer/tx/0xcf992d6a5af2c575b2efa5c205bcae232413121a6e1ecc02230025a2d4021848), **173× less** | Reads the drawing as a 7; the cheat's claim said 9 |
+
+For the digit net, AlephTape's own ZK check is cheaper still (297K gas), because someone already ran a setup ceremony for that circuit. Overclock's case is everything else: any circuit the moment it's taped out, with no ceremony, and stateful machines like the CPU, which the ZK route can't handle.
+
 Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet circuits, 688 of 688 samples ([docs/live-check.json](docs/live-check.json)).
 
 | Submission at a glance | |
 |---|---|
 | Overclock contract (X Layer, chain 196) | [`0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`](https://www.oklink.com/x-layer/address/0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710) |
 | TapeOut processor | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
-| Circuit IDs | #4, the Life cell rule (57 gates); #5, the 8×8 board (64 REFs to #4) |
+| Circuit IDs | On the processor above: #4, the Life cell rule (57 gates); #5, the 8×8 board (64 REFs to #4); #6, the 4-bit CPU (1,437 gates). On AlephTape's processor [`0xb00e17789f905234f1890c22e6c01015c10d2f54`](https://www.oklink.com/x-layer/address/0xb00e17789f905234f1890c22e6c01015c10d2f54): #11, the digit net (161,080 gates) |
 | TapeOut features used | Processor factory, NAND and LATCH transistors, tapeout, `REF`, `step`, netlist reads, ERC-6551 circuit accounts |
 | Live job board | [overclock-board.onrender.com](https://overclock-board.onrender.com) |
 | Write-up, film script, launch thread | [docs/submission.md](docs/submission.md), [docs/demo-script.md](docs/demo-script.md), [docs/launch-thread.md](docs/launch-thread.md) |
@@ -63,7 +72,7 @@ TapeOut's own limit is the market: `step()` costs about 2.5K gas per flattened g
 
 **Live today: a protocol fee on every job.** The poster pays a job fee, and when the result finalizes, `feeBps` of it goes to the protocol treasury and the rest to the operator (`Overclock.sol`, `finalize`). The mainnet deployment takes 2%, and the contract caps it at 10%. It's taken only on results that finalize, so the protocol earns when users get a correct result.
 
-**Why users pay.** For a 3,712-gate board running 40 beats, the alternative was 441M gas over more than two blocks, which can't be sent at all. Overclock's honest path cost 182K gas, about 2,400 times less, and the cost stays at two transactions however many beats the job runs. The fee only has to cover an operator's two transactions, the bond it locks for the challenge window, and a margin. Off-chain compute is cheap.
+**Why users pay.** For a 3,712-gate board running 40 beats, the alternative was 441M gas over more than two blocks, which can't be sent at all. Overclock's honest path cost 182K gas, about 2,400 times less. For 10,000 beats of the 4-bit CPU it was 42,000 times less, because the cost stays at a few transactions however many beats the job runs. The fee only has to cover an operator's two transactions, the bond it locks for the challenge window, and a margin. Off-chain compute is cheap.
 
 **Why they keep paying.** Stateful machines don't run once. A game advances every turn, a CPU every program, and a circuit-AI every move. Each run is a new job, and `continueJob` starts the next one from the last final state, so usage repeats for as long as the machine is in use. A builder who has taped out a big circuit has nowhere else to run it at that size.
 
@@ -127,6 +136,8 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 | `src/game.js` | Challenger side: which leaves a step depends on, and proofs against the claimant's tree |
 | `src/agents.js` | Operator and watcher bots, written as poll-driven state machines |
 | `src/hdl.js`, `src/life.js` | A small netlist builder, plus the Game of Life cell (57 gates) and board circuits |
+| `src/cpu4.js`, `src/digits.js` | The 4-bit CPU circuit with its reference emulator; the digit-net drawings |
+| `scripts/headline.js` | The CPU and digit-net runs (`npm run cpu`, `npm run digits`) |
 | `bin/overclock.js` | CLI: `operator`, `watch`, `post`, `trace`, `job`, `life` |
 | `src/mcp.js`, `bin/overclock-mcp.js` | MCP server (stdio and HTTP) for AI agents |
 | `.claude-plugin/`, `.mcp.json`, `skills/overclock/` | Claude Code plugin: the MCP server plus a usage skill |

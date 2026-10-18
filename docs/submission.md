@@ -17,8 +17,8 @@ lies about the result is caught by a one-gate check on X Layer and loses their b
 | Repository | https://github.com/nice-bills/overclock |
 | Overclock contract (X Layer, chain 196) | [`0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`](https://www.oklink.com/x-layer/address/0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710) |
 | Processor address | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
-| Circuit IDs | #4, Game of Life cell rule (57 gates) · #5, 8×8 board (64 REFs to #4, 3,712 gates per generation) |
-| Every mainnet transaction | [docs/mainnet-run.md](mainnet-run.md) |
+| Circuit IDs | On the processor above: #4, Game of Life cell rule (57 gates) · #5, 8×8 board (64 REFs to #4, 3,712 gates per generation) · #6, 4-bit CPU (1,437 gates, 205 LATCH bits). On AlephTape's processor [`0xb00e17789f905234f1890c22e6c01015c10d2f54`](https://www.oklink.com/x-layer/address/0xb00e17789f905234f1890c22e6c01015c10d2f54): #11, their digit net (161,080 gates) |
+| Every mainnet transaction | [docs/mainnet-run.md](mainnet-run.md) (Game of Life), [docs/headline-demos.md](headline-demos.md) (CPU and digit net) |
 | Access link (live job board) | https://overclock-board.onrender.com: every mainnet job, claim and dispute, read live from the contract, plus a replay of the demo run |
 | Agent access | `/plugin install overclock --marketplace nice-bills/overclock` (Claude Code), or the MCP server over stdio or HTTP |
 | Demo video | to be added |
@@ -52,7 +52,20 @@ Overclock runs it anyway, the way optimistic rollups run transactions:
 | A cheat corrupts one NAND out of 181,840 steps: the whole dispute, 38 transactions | 2,433,720 | [challenge](https://www.oklink.com/x-layer/tx/0x942b7927db797ff55d6d67dbc2a57b2a3fbe99616123c0bb704df9abac8550b5) onward |
 | The one-step check that proves the lie | 347,509 | [resolveLeaf](https://www.oklink.com/x-layer/tx/0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff) |
 
-The final board read back from `Overclock.result(0)` matches an independent simulation. Our evaluator
+The final board read back from `Overclock.result(0)` matches an independent simulation.
+
+**The two headline machines ran the same way on mainnet**, each with a cheat caught on one NAND and an
+honest result finalized ([docs/headline-demos.md](headline-demos.md)):
+
+| | Directly through TapeOut | Overclock, honest path | Result |
+|---|---:|---:|---|
+| A 4-bit CPU running an 8-bit Fibonacci program for 10,000 beats (job 2) | 34.3B gas, 163 blocks | [816,083 gas](https://www.oklink.com/x-layer/tx/0xf9e3738e5cc9ce905197526b755579d2da0d416b6ba07d5cdbe0a717bfd2ea6d), 42,003× less | F(625) mod 256 = 161, F(626) mod 256 = 225, matching a reference emulator |
+| AlephTape's 161K-gate digit net, an earlier hackathon winner's circuit run without changes (job 1) | 388M gas, 1.85 blocks | [2,244,073 gas](https://www.oklink.com/x-layer/tx/0xcf992d6a5af2c575b2efa5c205bcae232413121a6e1ecc02230025a2d4021848), 173× less | reads the drawing as a 7 (the cheat claimed 9) |
+
+The CPU keeps its program in LATCH state, so new code is a new job, not a new tapeout. For the
+digit net, AlephTape's ZK check is cheaper (297K gas) because a setup ceremony was already run for it.
+Overclock needs no ceremony for any circuit, and it covers stateful machines like the CPU, which the
+ZK route rejects. Our evaluator
 also matches TapeOut's live `eval`/`step` on 86 mainnet circuits, 688 of 688 samples
 ([docs/live-check.json](live-check.json)).
 
@@ -80,8 +93,8 @@ slashing on X Layer are what make that safe.
    on it, buy computation, or run as a bonded operator or watcher.
 
 **Reaching them.** The TapeOut ecosystem is small and concentrated, so the first users can be contacted
-by name: the teams with designs too big for a block (Cerebr, AlephTape's 161K-gate digit net, the
-on-chain CPU builders), FabX's Gate Challenge community, and the TapeOut and X Layer builder Telegram
+by name: the teams with designs too big for a block (Cerebr, AlephTape, whose digit net we already
+ran on mainnet, and the on-chain CPU builders), FabX's Gate Challenge community, and the TapeOut and X Layer builder Telegram
 groups. Then Demo Day, the X Layer pop-up at DevConnect on Nov 18, and the Claude Code plugin
 marketplace for agent users. Every job we run for a team is a public mainnet example for the next one.
 
@@ -93,8 +106,9 @@ Nothing is taken from a job that doesn't finalize, so the protocol earns only wh
 result.
 
 **Why users pay.** The alternative isn't a more expensive transaction; for a machine this size there is
-no alternative. Against running it directly, the honest path cost about 2,400 times less gas (182K
-against 441M), and it stays at two transactions however many beats a job runs. The fee only has to
+no alternative. Against running it directly, the honest path cost 2,400 times less gas for the Life
+board and 42,000 times less for 10,000 beats of the CPU, and it stays at a few transactions however
+many beats a job runs. The fee only has to
 cover an operator's two transactions, the bond it locks for the challenge window, and a margin.
 
 **Why they keep paying.** Stateful machines don't run once. A game advances every turn and a CPU every
@@ -121,7 +135,8 @@ large jobs carry large security.
 
 All of it. The first commit is from Oct 17, 2026: the TAP-02 evaluator (passing every official TAP-02
 vector), the trace commitment, the dispute contract with its one-gate check, multi-beat LATCH disputes,
-the operator and watcher bots, the CLI, the Game of Life circuits, the MCP server and Claude Code
+the operator and watcher bots, the CLI, the Game of Life circuits, a 4-bit CPU, the mainnet runs of
+the CPU and AlephTape's digit net, the MCP server and Claude Code
 plugin, a fork rehearsal against the real TapeOut contracts, the mainnet deployment and live run, and a
 security review with a proof-of-concept test for every finding ([docs/security-audit.md](security-audit.md)).
 

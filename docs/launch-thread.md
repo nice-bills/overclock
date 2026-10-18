@@ -1,6 +1,6 @@
 # Launch thread draft
 
-For X. Seven posts, each under 280 characters. Attach the film to post 1 and the resolveLeaf OKLink
+For X. Eight posts, each under 280 characters. Attach the film to post 1 and the resolveLeaf OKLink
 screenshot to post 4. Tag @XLayerOfficial and TapeOut's account (check the handle) in the last post only.
 
 **1/**
@@ -35,11 +35,18 @@ Why only TapeOut makes this possible: a fraud proof needs one step a contract ca
 For the EVM, that took rollups years. A TapeOut circuit is NAND gates with exact, fixed semantics, so one gate is the step. LATCH state works too, which ZK can't do yet.
 
 **6/**
+Then the big ones, also on mainnet:
+
+A 4-bit CPU ran a Fibonacci program for 10,000 beats. Directly: 34.3B gas, 163 blocks. With Overclock: 816K, 42,000x less.
+
+AlephTape's 161K-gate digit net, run as they taped it out, read a 7. The cheat said 9.
+
+**7/**
 Every circuit ever taped out can now run at any size, with no ceremony and no recompiling.
 
 Machine builders pay per job, operators and watchers earn fees and bonds, and AI agents get it through an MCP server and a Claude Code plugin.
 
-**7/**
+**8/**
 Live on X Layer mainnet, every transaction public, all open source.
 
 Watch the job board: overclock-board.onrender.com
@@ -49,8 +56,8 @@ Built for TapeOut Accelerate. @XLayerOfficial
 
 ## Short version (one post)
 
-A 3,712-gate TapeOut circuit, 40 generations: 441M gas on-chain, over two blocks.
+A 4-bit CPU taped out on TapeOut ran 10,000 beats on X Layer mainnet: 816K gas, where running it directly takes 34.3B, 163 blocks.
 
-Overclock ran it on X Layer mainnet for 182K. When a cheat flipped 1 gate out of 181,840, a watcher caught it and the contract checked that one NAND.
+A cheat flipped one gate out of 16.4M steps. A watcher caught it and the contract checked that one NAND.
 
 overclock-board.onrender.com
