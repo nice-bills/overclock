@@ -16,7 +16,8 @@
     "fork": "hardhat node --port 8545",
     "demo:fork": "node scripts/compile.js && node scripts/demo.js --fork http://127.0.0.1:8545",
     "mcp": "node bin/overclock-mcp.js",
-    "web": "node scripts/snapshot-board.js && node scripts/build-web.js"
+    "web": "node scripts/snapshot-board.js && node scripts/build-web.js",
+    "deweb": "node scripts/publish-deweb.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
