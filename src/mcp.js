@@ -260,7 +260,7 @@ export function createServer(ctx) {
     const games = [];
     for (const g of ctx.watcher?.games.keys() ?? []) {
       const s = await readGame(oc, g);
-      games.push({ gameId: g, jobId: Number(s.jobId), level: s.level, waitingFor: ['claimant', 'us (challenger)', 'leaf check'][s.turn] });
+      games.push({ gameId: g, jobId: Number(s.jobId), level: s.level, waitingFor: ['claimant', 'us (challenger)', 'leaf check', 'nobody (settled)'][s.turn] });
     }
     return { actions: (ctx.log ?? []).slice(before), openDisputes: games };
   }

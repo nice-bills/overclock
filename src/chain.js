@@ -69,5 +69,5 @@ export async function readGame(oc, gameId) {
   return { gameId: BigInt(gameId), jobId: g.jobId, challenger: g.challenger, level: Number(g.level), index: Number(g.index), node: g.node, turn: Number(g.turn), deadline: Number(g.deadline) };
 }
 
-export const Turn = { Claimant: 0, Challenger: 1, Leaf: 2 };
+export const Turn = { Claimant: 0, Challenger: 1, Leaf: 2, Done: 3 };
 export const CLOSED = 255;

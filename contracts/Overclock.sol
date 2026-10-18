@@ -65,7 +65,7 @@ contract Overclock {
         bool finalized;
     }
 
-    enum Turn { Claimant, Challenger, Leaf }
+    enum Turn { Claimant, Challenger, Leaf, Done }
 
     struct Game {
         uint256 jobId;
@@ -152,6 +152,8 @@ contract Overclock {
         require(j.claimant == address(0) && !j.finalized, "claimed");
         require(msg.value == bond, "bond");
         require(outputs.length == _bytes(j.nOut) && newState.length == _bytes(j.nState), "result length");
+        // bits past nOut / nState are out of reach of any dispute, so they must be zero
+        require(_padded(outputs, j.nOut) && _padded(newState, j.nState), "result padding");
         (j.claimant, j.traceRoot, j.outputs, j.newState, j.claimedAt) = (msg.sender, traceRoot, outputs, newState, uint64(block.timestamp));
         emit Claimed(jobId, msg.sender, traceRoot, outputs);
     }
@@ -166,7 +168,9 @@ contract Overclock {
         _pay(j.claimant, bond + j.fee - cut);
         emit Finalized(jobId, j.outputs);
         if (j.poster.code.length > 0) {
-            // best effort: a receiver that reverts or runs out of gas does not block finalization
+            // best effort: a receiver that reverts or runs out of gas does not block finalization,
+            // but whoever calls finalize must leave it the full CALLBACK_GAS (63/64 rule)
+            require(gasleft() >= CALLBACK_GAS * 64 / 63 + 20_000, "callback gas");
             try IOverclockReceiver(j.poster).onOverclockResult{gas: CALLBACK_GAS}(jobId, j.outputs, j.newState) {} catch {}
         }
     }
@@ -284,21 +288,24 @@ contract Overclock {
         Game storage g = games[gameId];
         Job storage j = jobs[g.jobId];
         g.deadline = 0;
-        g.turn = Turn.Leaf;
+        g.turn = Turn.Done; // a settled game takes no more moves
         address winner;
+        uint256 prize;
         if (claimantWrong) {
-            winner = g.challenger;
+            // the challenger gets its bond back plus the claimant's
+            (winner, prize) = (g.challenger, 2 * bond);
             // reopen the job for an honest claim
             (j.claimant, j.traceRoot, j.challenged) = (address(0), bytes32(0), false);
             delete j.outputs;
             delete j.newState;
         } else {
-            winner = j.claimant;
+            // the claimant gets the challenger's bond; its own stays staked on the claim until finalize
+            (winner, prize) = (j.claimant, bond);
             j.challenged = false;
             j.claimedAt = uint64(block.timestamp); // a fresh window for other watchers
         }
         g.level = 255; // closed
-        _pay(winner, 2 * bond);
+        _pay(winner, prize);
         emit Resolved(g.jobId, gameId, winner, reason);
     }
 
@@ -510,6 +517,7 @@ contract Overclock {
             }
         }
         require(off == nl.length, "truncated");
+        require(n <= type(uint64).max, "too big"); // Job.flat is a uint64
         _flat[cpu][id] = n + 1;
         return n;
     }
@@ -575,6 +583,12 @@ contract Overclock {
     function _bit(bytes memory v, uint256 i) internal pure returns (uint8) {
         if (i >> 3 >= v.length) return 0;
         return (uint8(v[i >> 3]) >> (i & 7)) & 1;
+    }
+
+    /// True if every bit of v from bit n on is zero.
+    function _padded(bytes calldata v, uint256 n) internal pure returns (bool) {
+        if (n & 7 == 0) return true;
+        return uint8(v[n >> 3]) >> (n & 7) == 0;
     }
 
     function _bytes(uint256 bits) internal pure returns (uint256) {

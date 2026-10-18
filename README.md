@@ -49,7 +49,7 @@ TapeOut circuits avoid that problem. They are NAND gates with exact, published s
 4. **Check one step.** `resolveLeaf` reads the gate's record from the netlist, takes the leaves it depends on (with Merkle proofs against the claimant's root) and recomputes it.
    - It covers NAND, LATCH reads, LATCH writes, constants, inputs, REF input wires and REF output wires.
    - The challenger builds every proof from its own trace plus the nodes the claimant revealed, so nobody has to publish the trace.
-5. **Settle.** The winner takes both bonds. A wrong claim reopens the job. A false challenge restarts the window, so other watchers still get their chance. A party that stops responding loses on `timeout`. Unchallenged claims `finalize`, and then any contract can read the result.
+5. **Settle.** A watcher who proves a claim wrong takes both bonds, and the job reopens. A false challenge loses its bond to the claimant, whose own bond stays staked on the claim, and restarts the window, so other watchers still get their chance. A party that stops responding loses on `timeout`. Unchallenged claims `finalize`, and then any contract can read the result.
 
 ## On TapeOut
 
