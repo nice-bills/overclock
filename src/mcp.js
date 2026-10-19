@@ -31,7 +31,7 @@ const bitString = (bits) => bits.join('');
 // Long-lived helpers (circuit cache, the watcher's open games) live on ctx so HTTP mode, which
 // builds a server per request, keeps them between calls.
 export function createServer(ctx) {
-  const server = new McpServer({ name: 'overclock', version: '0.2.0' }, {
+  const server = new McpServer({ name: 'overclock', version: '0.3.0' }, {
     instructions: [
       'Overclock runs TapeOut circuits on X Layer far beyond what fits in a block: an operator runs the job off-chain and posts the result with a bond; anyone can re-run it and, if it is wrong, prove the one wrong gate on-chain and take the bond.',
       'Bit vectors (inputs, state, outputs) are TAP-02 packed hex: bit i is (byte[i>>3] >> (i&7)) & 1. Amounts are in OKB (decimal strings).',
