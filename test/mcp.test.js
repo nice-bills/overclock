@@ -28,7 +28,7 @@ function fakePage(url, address) {
     await post('/connect', { address, wallet: 'Test Wallet' });
     while (!p.stop) {
       const s = await (await fetch(url + '/state')).json();
-      for (const r of s.pending) {
+      for (const r of p.mode === 'hold' ? [] : s.pending) {
         p.seen.push(r);
         await post('/picked', { id: r.id });
         if (p.mode === 'reject') { await post('/result', { id: r.id, error: 'User rejected the request.' }); continue; }
@@ -82,7 +82,7 @@ before(async () => {
   await client.connect(new StdioClientTransport({
     command: process.execPath,
     args: [new URL('../bin/overclock-mcp.js', import.meta.url).pathname, '--no-open'],
-    env: { ...process.env, RPC_URL: url, OVERCLOCK: await oc.getAddress(), FACTORY: factoryAddr },
+    env: { ...process.env, RPC_URL: url, OVERCLOCK: await oc.getAddress(), FACTORY: factoryAddr, OVERCLOCK_APPROVAL_WAIT_MS: '2000' },
     stderr: process.env.MCP_DEBUG ? 'inherit' : 'ignore',
   }));
 });
@@ -103,10 +103,13 @@ test('transactions wait for a connected wallet; no private key needed', async ()
   assert.equal(info.challengeWindowSeconds, WINDOW);
   assert.equal(info.wallet.connected, false);
 
-  // read-only tools work with no wallet; a transaction tool answers with the link instead of signing
-  await assert.rejects(call('finalize_job', { jobId: 0 }), /No wallet connected\. Ask the user to open http:\/\/127\.0\.0\.1:\d+\/wallet\//);
+  // read-only tools work with no wallet; a transaction tool hands back the approval link and waits
+  const w = await call('finalize_job', { jobId: 0 });
+  assert.equal(w.status, 'waiting for approval');
+  assert.match(w.approve, /^http:\/\/127\.0\.0\.1:\d+\/wallet\/[0-9a-f]{32}$/);
   const { approvalPage, connected } = await call('connect_wallet', { waitSeconds: 0 });
   assert.equal(connected, false);
+  assert.equal(approvalPage, w.approve);
   const html = await (await fetch(approvalPage)).text();
   assert.match(html, /Overclock wallet/);
   assert.equal((await fetch(approvalPage.replace(/[0-9a-f]{32}$/, '0'.repeat(32)))).status, 404, 'the page needs the token');
@@ -116,8 +119,21 @@ test('transactions wait for a connected wallet; no private key needed', async ()
   const c = await call('connect_wallet', { waitSeconds: 10 });
   assert.equal(c.connected, true);
   assert.equal(c.address, me);
+  // the waiting transaction carries on once a wallet connects (here it reverts: there is no job 0)
+  await assert.rejects(call('transaction_status', { requestId: w.requestId }), /revert/i);
+  await assert.rejects(call('transaction_status', { requestId: w.requestId }), /No transaction request/);
   info = await call('overclock_info');
   assert.equal(info.wallet.address, me);
+});
+
+test('a transaction left in the wallet returns a request id, and transaction_status finishes it', async () => {
+  page.mode = 'hold';
+  const w = await call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' });
+  assert.equal(w.status, 'waiting for approval');
+  page.mode = 'approve';
+  const r = await call('transaction_status', { requestId: w.requestId, waitSeconds: 30 });
+  assert.equal(r.jobId, 0);
+  assert.match(r.tx, /^0x[0-9a-f]{64}$/);
 });
 
 test('a rejected or swapped transaction fails the tool and sends nothing else', async () => {
@@ -127,7 +143,7 @@ test('a rejected or swapped transaction fails the tool and sends nothing else', 
   await assert.rejects(call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' }), /not the one that was requested/);
   page.mode = 'approve';
   assert.match(page.seen.at(-1).label, /^post_job · 0\.05 OKB to 0x/);
-  assert.equal(Number(await oc.jobCount()), 0);
+  assert.equal(Number(await oc.jobCount()), 1);
 });
 
 test('describes a taped-out circuit and runs it locally', async () => {

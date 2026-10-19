@@ -54,7 +54,7 @@ const chainId = await provider.getNetwork().then((n) => n.chainId, () => null);
 const walletOn = !signer && !readOnly && chainId !== null;
 const newBridge = () => new WalletBridge({ provider, chainId, rpcUrl: RPC_URL, log: (e) => console.error('overclock-mcp: wallet', JSON.stringify(e)) });
 const wallet = walletOn && !http ? newBridge() : null;
-const ctx = { provider, signer, wallet, readOnly, overclock: OVERCLOCK ?? (chainId === BigInt(XLAYER.chainId) ? XLAYER.overclock : undefined), factory: FACTORY };
+const ctx = { provider, signer, wallet, readOnly, approvalWaitMs: env('OVERCLOCK_APPROVAL_WAIT_MS') && Number(env('OVERCLOCK_APPROVAL_WAIT_MS')), overclock: OVERCLOCK ?? (chainId === BigInt(XLAYER.chainId) ? XLAYER.overclock : undefined), factory: FACTORY };
 
 // stdio: the approval page gets its own localhost server, started (and opened) the first time it is needed
 if (wallet && !http) {

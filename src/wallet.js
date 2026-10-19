@@ -15,7 +15,8 @@ import { createServer } from 'node:http';
 import { AbstractSigner, getAddress, toQuantity, formatEther } from 'ethers';
 
 const SEEN_MS = 15_000; // a page that has not polled for this long counts as closed
-const PICKUP_MS = 5 * 60_000; // how long a request may wait for the page to hand it to the wallet
+const CONNECT_MS = 15 * 60_000; // how long a transaction may wait for the user to connect a wallet
+const PICKUP_MS = 15 * 60_000; // how long a request may wait for the page to hand it to the wallet
 const APPROVE_MS = 15 * 60_000; // how long the wallet prompt may stay open
 
 // The tool that is sending, so the approval page can say what each transaction is for.
@@ -29,7 +30,7 @@ const XLAYER_CHAIN = {
 
 export class NotConnected extends Error {
   constructor(url) {
-    super(`No wallet connected. Ask the user to open ${url} and connect their wallet (OKX Wallet or MetaMask), keep that page open, then try again. Every transaction is approved in their wallet; no private key is needed.`);
+    super(`No wallet connected. Ask the user to open ${url} and connect their wallet (OKX Wallet or MetaMask), then try again. Every transaction is approved in their wallet; no private key is needed.`);
     this.url = url;
   }
 }
@@ -57,18 +58,32 @@ export class WalletBridge {
   setBase(base) { this.base = base.replace(/\/$/, ''); }
   get connected() { return Boolean(this.address) && Date.now() - this.lastSeen < SEEN_MS; }
 
+  // Links that open the approval page: in any browser with a wallet extension, or straight inside
+  // the OKX Wallet or MetaMask phone app (whose built-in browsers provide the wallet).
+  links() {
+    const url = this.url;
+    if (!url) return null;
+    return {
+      link: url,
+      openInOkxWalletApp: `https://www.okx.com/download?deeplink=${encodeURIComponent(`okx://wallet/dapp/url?dappUrl=${encodeURIComponent(url)}`)}`,
+      openInMetaMaskApp: `https://metamask.app.link/dapp/${url.replace(/^https?:\/\//, '')}`,
+    };
+  }
+
   status() {
-    return this.connected
-      ? { mode: 'browser wallet', connected: true, address: this.address, wallet: this.walletName, approvalPage: this.url }
-      : { mode: 'browser wallet', connected: false, approvalPage: this.url };
+    const base = { mode: 'browser wallet', connected: Boolean(this.address), approvalPage: this.url, ...(this.base?.startsWith('https:') ? { phone: this.links() } : {}) };
+    return this.address ? { ...base, address: this.address, wallet: this.walletName, pageOpen: this.connected } : base;
   }
 
   // Resolves once a page reports a connected wallet, or after ms.
-  async waitConnected(ms) {
-    if (this.connected || ms <= 0) return this.connected;
+  waitConnected(ms) { return this.waitFor(() => this.address, ms); }
+
+  async waitFor(ok, ms) {
+    if (ok() || ms <= 0) return Boolean(ok());
     return new Promise((resolve) => {
-      const done = () => { clearTimeout(t); this.waiters.delete(done); resolve(this.connected); };
-      const t = setTimeout(done, ms);
+      const done = () => { if (!ok() && Date.now() < end) return; clearTimeout(t); this.waiters.delete(done); resolve(Boolean(ok())); };
+      const end = Date.now() + ms;
+      const t = setTimeout(() => { this.waiters.delete(done); resolve(Boolean(ok())); }, ms);
       this.waiters.add(done);
     });
   }
@@ -85,13 +100,13 @@ export class WalletBridge {
   close() { this.server?.close(); }
 
   // Queue a transaction for the page and wait for the wallet's answer: a transaction hash.
+  // The page need not be open now: it picks the request up whenever it is next opened.
   request(tx, label) {
-    if (!this.connected) return Promise.reject(new NotConnected(this.url));
     return new Promise((resolve, reject) => {
       const id = this.nextId++;
       const p = { id, tx, label, picked: false, resolve, reject };
       const expire = (why) => { if (this.pending.delete(id)) reject(new Error(why)); };
-      p.timer = setTimeout(() => expire(`The approval page did not pick up the transaction within ${PICKUP_MS / 1000}s. Is ${this.url} still open?`), PICKUP_MS);
+      p.timer = setTimeout(() => expire(`Nobody opened ${this.url} to approve the transaction within ${PICKUP_MS / 60_000} minutes, so it was dropped.`), PICKUP_MS);
       p.expire = expire;
       this.pending.set(id, p);
       this.log({ what: 'awaiting approval', id, label });
@@ -166,8 +181,10 @@ class BridgeSigner extends AbstractSigner {
 
   connect(provider) { return new BridgeSigner(this.bridge, provider); }
 
+  // Waits for the user to connect a wallet on the approval page, the first time.
   async getAddress() {
-    if (!this.bridge.connected) throw new NotConnected(this.bridge.url);
+    if (!this.bridge.address) await this.bridge.waitFor(() => this.bridge.address, CONNECT_MS);
+    if (!this.bridge.address) throw new NotConnected(this.bridge.url);
     return this.bridge.address;
   }
 
@@ -239,7 +256,8 @@ code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
 ul{list-style:none;padding:0;margin:0}li{padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}li:first-child{border-top:0}
 </style></head><body><main>
 <h1>Overclock wallet</h1>
-<p>Your agent sends Overclock transactions through this page. Each one opens in your wallet for you to approve or reject. Keep this tab open while the agent works.</p>
+<p>Claude sends Overclock transactions through this page. Each one opens in your wallet for you to approve or reject. When it is approved, go back to Claude.</p>
+<div class="card ok" id="doneMsg" hidden></div>
 <div class="card" id="conn"><div id="wallets" class="mute">Looking for wallets…</div></div>
 <div class="card"><strong>Requests</strong><ul id="reqs"><li class="mute">Nothing waiting.</li></ul></div>
 <div class="card"><strong>History</strong><ul id="hist"><li class="mute">No transactions yet.</li></ul></div>
@@ -250,13 +268,18 @@ const esc=(s)=>String(s).replace(/[&<>"']/g,(c)=>'&#'+c.charCodeAt(0)+';');
 const found=new Map();let wallet=null,name=null,account=null,busy=false,current=null;const done=new Set(),hist=[];
 window.addEventListener('eip6963:announceProvider',(e)=>{found.set(e.detail.info.uuid,e.detail);drawWallets();});
 window.dispatchEvent(new Event('eip6963:requestProvider'));
-setTimeout(()=>{if(!found.size){
+setTimeout(async()=>{if(!found.size){
   if(window.okxwallet)found.set('okx',{info:{name:'OKX Wallet',icon:''},provider:window.okxwallet});
   else if(window.ethereum)found.set('injected',{info:{name:'Browser wallet',icon:''},provider:window.ethereum});
-}drawWallets();},400);
+}drawWallets();
+  // reconnect a wallet that already allowed this page, or ask the only wallet there is
+  for(const d of found.values()){try{const [a]=await d.provider.request({method:'eth_accounts'});if(a&&!account){await connect(d);return;}}catch{}}
+  if(found.size===1&&!account)connect([...found.values()][0]);
+},400);
 function drawWallets(){
   if(account){$('conn').innerHTML='<span class="ok">Connected</span> '+esc(name)+' <code>'+esc(account)+'</code><br><button id="dis">Disconnect</button>';$('dis').onclick=disconnect;return;}
-  if(!found.size){$('wallets').innerHTML='No wallet found in this browser. Install <a href="https://www.okx.com/web3">OKX Wallet</a> or MetaMask, then reload.';return;}
+  if(!found.size){const u=location.href,okx='https://www.okx.com/download?deeplink='+encodeURIComponent('okx://wallet/dapp/url?dappUrl='+encodeURIComponent(u)),mm='https://metamask.app.link/dapp/'+u.replace(/^https?:\\/\\//,'');
+    $('conn').innerHTML='<p>No wallet in this browser. Open this page in your wallet app:</p><a href="'+okx+'"><button>Open in OKX Wallet</button></a><a href="'+mm+'"><button>Open in MetaMask</button></a><p class="mute">On a computer, install the OKX Wallet or MetaMask extension and reload.</p>';return;}
   const el=document.createElement('div');el.id='wallets';el.innerHTML='<p>Connect a wallet:</p>';
   for(const [k,d] of found){const b=document.createElement('button');b.innerHTML=(d.info.icon?'<img alt="" src="'+esc(d.info.icon)+'">':'')+esc(d.info.name);b.onclick=()=>connect(d);el.appendChild(b);}
   $('conn').replaceChildren(el);
@@ -281,7 +304,8 @@ async function disconnect(){account=null;await post('/connect',{address:null});d
 async function approve(r){
   busy=true;current=r.id;drawReqs([r]);await post('/picked',{id:r.id});
   try{await ensureChain();const hash=await wallet.request({method:'eth_sendTransaction',params:[{from:r.tx.from,to:r.tx.to,data:r.tx.data,value:r.tx.value,gas:r.tx.gas}]});
-    done.add(r.id);await post('/result',{id:r.id,hash});hist.unshift({label:r.label,hash});}
+    done.add(r.id);await post('/result',{id:r.id,hash});hist.unshift({label:r.label,hash});
+    $('doneMsg').hidden=false;$('doneMsg').textContent='Approved. Go back to Claude to see the result.';}
   catch(e){done.add(r.id);await post('/result',{id:r.id,error:e.message||String(e)});hist.unshift({label:r.label,error:e.message||String(e)});}
   busy=false;drawHist();drawReqs([]);
 }

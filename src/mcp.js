@@ -2,9 +2,12 @@
 // run as an operator or a watcher, and tape out circuits on TapeOut.
 //
 // Read-only tools always work, with no wallet. Tools that send transactions go through the user's
-// own wallet: connect_wallet gives a local approval page where they connect OKX Wallet or MetaMask
-// and approve each transaction (see wallet.js). A private key (OVERCLOCK_PRIVATE_KEY) is an opt-in
-// fallback for unattended use.
+// own wallet: the tool hands back a link to an approval page where they connect OKX Wallet or
+// MetaMask and approve (see wallet.js), and transaction_status picks up the result. A private key
+// (OVERCLOCK_PRIVATE_KEY) is an opt-in fallback for unattended use.
+//
+// Ready-made machines (the 8x8 Game of Life board and the 4-bit CPU on X Layer) let people ask in
+// plain words ("run a glider for 10 generations") without addresses or hex.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -14,7 +17,8 @@ import { traceJob, Tree, layout } from './trace.js';
 import { pack, unpack, bytesToHex, hexToBytes, NAND, LATCH, REF } from './tap02.js';
 import { Operator, Challenger } from './agents.js';
 import { createCPU, mint, burnCost, tapeout, CIRCUITS_FULL_ABI, TRANSISTORS_ABI, XLAYER } from './tapeout.js';
-import { cellCircuit, boardCircuit } from './life.js';
+import { cellCircuit, boardCircuit, board, PATTERNS, render } from './life.js';
+import { toState, fromState, fibonacciMachine } from './cpu4.js';
 import { labelled } from './wallet.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
@@ -25,18 +29,37 @@ const fail = (e) => ({ isError: true, content: [{ type: 'text', text: e.shortMes
 const safe = (fn) => async (args) => { try { return ok(await fn(args ?? {})); } catch (e) { return fail(e); } };
 const bitsOf = (h, n) => unpack(hexToBytes(h), n);
 const bitString = (bits) => bits.join('');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Circuits already taped out on X Layer mainnet that anyone can run by name.
+export const MACHINES = {
+  life: {
+    processor: '0xb00f10bb4b2f32c561bf90e205e543d0a2395971', circuitId: 5, w: 8, h: 8,
+    about: 'Conway\'s Game of Life on an 8x8 wrap-around board. One beat is one generation. Start from a named pattern.',
+    state: ({ pattern = 'glider' }) => board(8, 8, [[PATTERNS[pattern], 1, 1]]),
+    show: (bits) => ({ picture: render(bits, 8) }),
+  },
+  cpu: {
+    processor: '0xb00f10bb4b2f32c561bf90e205e543d0a2395971', circuitId: 6,
+    about: 'A 4-bit CPU running an 8-bit Fibonacci program. 16 beats compute the next Fibonacci number (mod 256).',
+    state: () => toState(fibonacciMachine()),
+    show: (bits) => { const m = fromState(bits); return { fibonacci: { previous: m.ram[0] | (m.ram[1] << 4), latest: m.ram[2] | (m.ram[3] << 4), note: 'mod 256' } }; },
+  },
+};
+const machineOf = (processor, id) => Object.entries(MACHINES).find(([, m]) => m.processor === String(processor).toLowerCase() && m.circuitId === Number(id));
 
 // ctx: { provider, overclock (address), factory (optional address),
 //        wallet (a WalletBridge, or null), signer (a key-backed Signer, or null), readOnly }
 // Long-lived helpers (circuit cache, the watcher's open games) live on ctx so HTTP mode, which
 // builds a server per request, keeps them between calls.
 export function createServer(ctx) {
-  const server = new McpServer({ name: 'overclock', version: '0.3.0' }, {
+  const server = new McpServer({ name: 'overclock', version: '0.4.0' }, {
     instructions: [
-      'Overclock runs TapeOut circuits on X Layer far beyond what fits in a block: an operator runs the job off-chain and posts the result with a bond; anyone can re-run it and, if it is wrong, prove the one wrong gate on-chain and take the bond.',
-      'Bit vectors (inputs, state, outputs) are TAP-02 packed hex: bit i is (byte[i>>3] >> (i&7)) & 1. Amounts are in OKB (decimal strings).',
-      'Typical flows: inspect with overclock_info, list_jobs, get_job, describe_circuit; check someone else\'s result with verify_claim before relying on it; preview a job for free with run_locally; then post_job / claim_job / challenge_claim / finalize_job.',
-      'Transactions are approved by the user in their own wallet. If a transaction tool says no wallet is connected, call connect_wallet and give the user the link it returns; they open it once, connect OKX Wallet or MetaMask, and keep it open. Never ask the user for a private key.',
+      'Overclock runs circuits on X Layer that are far too big for one block: someone runs the job off-chain and posts the result with a bond, and anyone who finds it wrong can prove the one wrong gate on-chain and take the bond.',
+      'Users speak plainly. Ready-made machines need no addresses or hex: machine "life" (8x8 Game of Life; pattern glider, blinker, toad, lwss or rpentomino; beats = generations) and machine "cpu" (Fibonacci on a 4-bit CPU). For "show me", "try it" or "what would happen", use run_locally: it is free and instant. Use post_job only when they want it done on-chain.',
+      'Transactions: call the tool directly, with no setup step. Within seconds it either returns the result or returns status "waiting for approval" with an approve link. Show that link to the user as one tappable link, say it opens their wallet (OKX Wallet or MetaMask) to approve, and that on a phone they can use phone.openInOkxWalletApp instead. When they say they approved (or after a short while), call transaction_status with the requestId. Never ask for a private key or seed phrase.',
+      'Before a paid action, say in one line what it costs (post_job: the fee, default 0.0001 OKB, plus a little gas).',
+      'Amounts are OKB as decimal strings. Raw bit vectors are TAP-02 packed hex (bit i is (byte[i>>3] >> (i&7)) & 1); only needed for circuits other than the ready-made machines.',
     ].join('\n'),
   });
   ctx.circuitCache ??= new Map();
@@ -44,6 +67,19 @@ export function createServer(ctx) {
   const oc = ctx.overclock ? new Contract(ctx.overclock, artifact('Overclock').abi, ctx.provider) : null;
   const ocTool = oc ? server.registerTool.bind(server) : () => {};
   const circuit = (cpu, id) => loadCircuit(ctx.provider, cpu, BigInt(id), ctx.circuitCache);
+  const machine = (j) => machineOf(j.cpu, j.id);
+  // A ready-made machine by name, or an explicit processor and circuit id.
+  const MACHINE_ARGS = {
+    machine: z.enum(['life', 'cpu']).optional().describe('a ready-made machine; leave processor and circuitId out when using one'),
+    pattern: z.enum(Object.keys(PATTERNS)).optional().describe('starting pattern for machine "life" (default glider)'),
+    processor: address.optional().describe('the TapeOut circuits contract, for circuits other than the ready-made machines'),
+    circuitId: z.number().int().min(1).optional(),
+  };
+  const pick = (a) => {
+    if (a.processor && a.circuitId) return { processor: a.processor, circuitId: a.circuitId, state: a.state ?? '0x', m: machineOf(a.processor, a.circuitId)?.[1] };
+    const m = MACHINES[a.machine ?? 'life'];
+    return { processor: m.processor, circuitId: m.circuitId, state: a.state ?? bytesToHex(pack(m.state(a))), m };
+  };
   const now = async () => Number((await ctx.provider.send('eth_getBlockByNumber', ['latest', false])).timestamp);
   const params = async () => (ctx.params ??= {
     bond: await oc.bond(), window: Number(await oc.window()), feeBps: Number(await oc.feeBps()), factory: await oc.factory(),
@@ -113,6 +149,7 @@ export function createServer(ctx) {
       traceLeaves: j.beats * (j.flat + j.nState), traceRoot: j.claimant === ZERO ? null : j.traceRoot,
       claimedOutputs: j.claimant === ZERO ? null : { hex: j.outputs, bits: bitString(bitsOf(j.outputs, j.nOut)) },
       claimedFinalState: j.claimant === ZERO ? null : { hex: j.newState, bits: bitString(bitsOf(j.newState, j.nState)) },
+      ...(machine(j) && j.claimant !== ZERO ? { machine: machine(j)[0], claimedResult: machine(j)[1].show(bitsOf(j.newState, j.nState)) } : {}),
     };
   }));
 
@@ -135,14 +172,16 @@ export function createServer(ctx) {
   }));
 
   server.registerTool('run_locally', {
-    title: 'Run a circuit locally',
-    description: 'Run beats of a circuit off-chain with the TAP-02 evaluator, for free. Returns the outputs of the last beat, the final state and the trace root an honest claim would commit to.',
+    title: 'Run a machine (free)',
+    description: 'Run a machine or circuit right now, off-chain and for free, and show the result. With no arguments it runs one generation of a glider on the Game of Life board. Use this whenever the user wants to see or try something; it costs nothing and needs no wallet.',
     inputSchema: {
-      processor: address, circuitId: z.number().int().min(1), beats: z.number().int().min(1).max(100000).default(1),
-      state: hex.default('0x').describe('starting state, packed'), inputs: hex.default('0x').describe('one beat of inputs, or every beat\'s when perBeat'),
+      ...MACHINE_ARGS, beats: z.number().int().min(1).max(100000).default(1).describe('how many steps (generations for life)'),
+      state: hex.optional().describe('starting state, packed hex; ready-made machines fill this in'), inputs: hex.default('0x').describe('one beat of inputs, or every beat\'s when perBeat'),
       perBeat: z.boolean().default(false),
     },
-  }, safe(async ({ processor, circuitId, beats = 1, state = '0x', inputs = '0x', perBeat = false }) => {
+  }, safe(async (a) => {
+    const { beats = 1, inputs = '0x', perBeat = false } = a;
+    const { processor, circuitId, state, m } = pick(a);
     const c = await circuit(processor, circuitId);
     const started = Date.now();
     const t = traceJob(c, { state: bitsOf(state, c.nState), inputs: bitsOf(inputs, perBeat ? beats * c.nIn : c.nIn), beats, perBeat });
@@ -151,6 +190,7 @@ export function createServer(ctx) {
       outputs: { hex: bytesToHex(pack(t.outputs)), bits: bitString(t.outputs) },
       finalState: { hex: bytesToHex(pack(t.newState)), bits: bitString(t.newState) },
       traceRoot: tree.root, traceLeaves: t.n, ms: Date.now() - started,
+      ...(m ? { start: m.show(bitsOf(state, c.nState)), result: m.show(t.newState) } : {}),
     };
   }));
 
@@ -200,28 +240,74 @@ export function createServer(ctx) {
   if (ctx.wallet && !ctx.signer) {
     server.registerTool('connect_wallet', {
       title: 'Connect the user\'s wallet',
-      description: 'Returns a link to a local approval page. The user opens it, connects OKX Wallet or MetaMask, and keeps it open; every transaction a tool sends then pops up in their wallet to approve or reject. No private key is shared. Call with waitSeconds 0 to get the link, show it to the user, then call again with a wait to know when they have connected.',
+      description: 'Optional: transaction tools hand out the approval link themselves. Returns the link to the user\'s approval page, where they connect OKX Wallet or MetaMask, and whether a wallet is connected. Use it when the user asks to connect or which wallet is connected.',
       inputSchema: { waitSeconds: z.number().int().min(0).max(600).default(0) },
     }, safe(async ({ waitSeconds = 0 }) => {
       await ctx.ensureWallet?.();
       await ctx.wallet.waitConnected(waitSeconds * 1000);
       const s = ctx.wallet.status();
-      return s.connected ? s : { ...s, next: `Ask the user to open ${s.approvalPage}, connect their wallet and keep the page open.` };
+      return s.connected ? s : { ...s, next: `Give the user ${s.approvalPage} to open and connect their wallet.` };
+    }));
+
+    server.registerTool('transaction_status', {
+      title: 'Check a transaction waiting for approval',
+      description: 'The result of a transaction tool that returned "waiting for approval": call it with that requestId once the user says they approved (it waits up to waitSeconds). Returns the finished result, an error if they rejected it, or still waiting.',
+      inputSchema: { requestId: z.string(), waitSeconds: z.number().int().min(0).max(120).default(20) },
+    }, safe(async ({ requestId, waitSeconds = 20 }) => {
+      const run = ctx.runs?.get(requestId);
+      if (!run) throw new Error(`No transaction request ${requestId}. It may have finished and been read already, or the server restarted; run the tool again.`);
+      await follow(run, waitSeconds * 1000);
+      return settle(run);
     }));
   }
 
   // ------------------------------------------------------------------ transactions
 
-  // The signer for a transaction: the opt-in key, or the user's connected wallet.
+  // The signer for a transaction: the opt-in key, or the user's wallet (waiting for them to connect).
   const signer = async () => {
     if (ctx.signer) return ctx.signer;
-    await ctx.ensureWallet?.();
-    await ctx.wallet.signer.getAddress(); // throws NotConnected, with the link, when nobody is connected
+    await ctx.wallet.signer.getAddress();
     return ctx.wallet.signer;
   };
   const ocw = async () => oc.connect(await signer());
-  // Check for a wallet first, so an agent without one gets the connect link rather than an unrelated error.
-  const tx = (name, fn) => safe((args) => labelled(name, async () => { await signer(); return fn(args); }));
+
+  // With the user's wallet, a transaction tool runs in the background: if it has not finished
+  // within a few seconds (the user still has to approve), it returns an approve link and a
+  // requestId for transaction_status, so the chat never hangs on a phone switching apps.
+  ctx.runs ??= new Map();
+  ctx.nextRun ??= 1;
+  const WAIT = ctx.approvalWaitMs ?? 15_000;
+  // Wait for the run to finish, but give up once it has been waiting on the user (no wallet yet,
+  // or a transaction sitting in their wallet) for `patience` ms. A merely slow tool keeps going.
+  async function follow(run, patience) {
+    let stuck = 0;
+    while (!run.done && stuck < patience) {
+      const t = Date.now();
+      await Promise.race([run.promise, sleep(250)]);
+      const onUser = !ctx.wallet.address ? 4 : ctx.wallet.pending.size ? 1 : 0; // no wallet yet: hand out the link sooner
+      stuck = onUser ? stuck + (Date.now() - t) * onUser : 0;
+    }
+  }
+  function settle(run) {
+    if (!run.done) {
+      return {
+        status: 'waiting for approval', requestId: run.id, approve: ctx.wallet.url, phone: ctx.wallet.links(),
+        next: 'Show the user the approve link (on a phone, phone.openInOkxWalletApp opens it in OKX Wallet). They connect their wallet if asked and approve. Then call transaction_status with this requestId.',
+      };
+    }
+    ctx.runs.delete(run.id);
+    if (run.error) throw run.error;
+    return run.result;
+  }
+  const tx = (name, fn) => safe(async (args) => {
+    if (ctx.signer) return labelled(name, () => fn(args));
+    await ctx.ensureWallet?.();
+    const run = { id: String(ctx.nextRun++), tool: name, done: false };
+    run.promise = labelled(name, () => fn(args)).then((r) => { run.result = r; }, (e) => { run.error = e; }).finally(() => { run.done = true; });
+    ctx.runs.set(run.id, run);
+    await follow(run, WAIT);
+    return settle(run);
+  });
 
   const send = async (p) => {
     const rc = await (await p).wait();
@@ -230,25 +316,28 @@ export function createServer(ctx) {
   const evArg = (rc, name, key) => rc.logs.map((l) => { try { return oc.interface.parseLog(l); } catch { return null; } }).find((e) => e?.name === name)?.args[key];
 
   ocTool('post_job', {
-    title: 'Post a job',
-    description: 'Ask the network to run a circuit for some beats. Pays `fee` OKB, which goes to whoever\'s claim finalizes (minus the protocol fee). Sends a transaction.',
+    title: 'Run a machine on-chain',
+    description: 'Post a job to X Layer so an operator runs it and the result is settled on-chain, checkable by anyone. With no arguments: one generation of a glider on the Game of Life board. Pays `fee` OKB (default 0.0001) to whoever\'s result finalizes, plus gas. The user approves it in their wallet.',
     inputSchema: {
-      processor: address, circuitId: z.number().int().min(1), beats: z.number().int().min(1).max(1_000_000),
-      state: hex.default('0x'), inputs: hex.default('0x'), perBeat: z.boolean().default(false), fee: z.string().default('0.01'),
+      ...MACHINE_ARGS, beats: z.number().int().min(1).max(1_000_000).default(1).describe('how many steps (generations for life)'),
+      state: hex.optional().describe('starting state, packed hex; ready-made machines fill this in'), inputs: hex.default('0x'), perBeat: z.boolean().default(false),
+      fee: z.string().default('0.0001').describe('OKB paid to the operator'),
     },
-  }, tx('post_job', async ({ processor, circuitId, beats, state = '0x', inputs = '0x', perBeat = false, fee = '0.01' }) => {
+  }, tx('post_job', async (a) => {
+    const { beats = 1, inputs = '0x', perBeat = false, fee = '0.0001' } = a;
+    const { processor, circuitId, state } = pick(a);
     const c = await circuit(processor, circuitId);
     const st = bytesToHex(pack(bitsOf(state, c.nState)));
     const ins = bytesToHex(pack(bitsOf(inputs, perBeat ? beats * c.nIn : c.nIn)));
     const r = await send((await ocw()).postJob(processor, circuitId, ins, st, beats, perBeat, { value: parseEther(fee) }));
-    return { jobId: Number(evArg(r.rc, 'JobPosted', 'jobId')), tx: r.tx, gas: r.gas };
+    return { jobId: Number(evArg(r.rc, 'JobPosted', 'jobId')), tx: r.tx, gas: r.gas, explorer: `https://www.oklink.com/x-layer/tx/${r.tx}`, next: 'An operator claims it and the result becomes final after the challenge window; get_job shows its status and result.' };
   }));
 
   ocTool('continue_job', {
     title: 'Continue a job',
     description: 'Run more beats of the same circuit starting from a finalized job\'s final state, so a stateful machine keeps going. Pays `fee` OKB. Sends a transaction.',
-    inputSchema: { parentJobId: z.number().int().min(0), beats: z.number().int().min(1).max(1_000_000), inputs: hex.default('0x'), perBeat: z.boolean().default(false), fee: z.string().default('0.01') },
-  }, tx('continue_job', async ({ parentJobId, beats, inputs = '0x', perBeat = false, fee = '0.01' }) => {
+    inputSchema: { parentJobId: z.number().int().min(0), beats: z.number().int().min(1).max(1_000_000), inputs: hex.default('0x'), perBeat: z.boolean().default(false), fee: z.string().default('0.0001') },
+  }, tx('continue_job', async ({ parentJobId, beats, inputs = '0x', perBeat = false, fee = '0.0001' }) => {
     const pj = await readJob(oc, parentJobId);
     const ins = bytesToHex(pack(bitsOf(inputs, perBeat ? beats * pj.nIn : pj.nIn)));
     const r = await send((await ocw()).continueJob(parentJobId, ins, beats, perBeat, { value: parseEther(fee) }));

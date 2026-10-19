@@ -15,25 +15,34 @@ The `overclock` MCP server provides the tools. Configuration comes from the envi
 `RPC_URL` (defaults to X Layer mainnet), `OVERCLOCK` (the deployed contract; on X Layer mainnet it
 defaults to `0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`, elsewhere without it only the TapeOut tools appear).
 
+## Ready-made machines
+
+People should never need an address or hex. Two machines are already on X Layer mainnet:
+
+- `machine: "life"`: Game of Life on an 8x8 board. `pattern` is glider (default), blinker, toad,
+  lwss or rpentomino; `beats` is the number of generations. Results come back as a `picture`.
+- `machine: "cpu"`: a 4-bit CPU running Fibonacci. 16 beats make the next number (mod 256).
+
+"Show me", "try" or "what happens if" means `run_locally`: free, instant, no wallet. Only use
+`post_job` when the user wants it run and settled on-chain.
+
 ## Wallet
 
-Never ask the user for a private key or seed phrase. Transactions are approved in the user's own
-wallet:
+Never ask the user for a private key or seed phrase, and there is no setup step. Call the
+transaction tool directly:
 
-1. The first time a write tool is needed (or when one answers "No wallet connected"), call
-   `connect_wallet` with `waitSeconds: 0`. It returns `approvalPage`, a localhost link (in a local
-   setup it also opens in the browser).
-2. Give the user that link: they open it, connect OKX Wallet or MetaMask (the page adds X Layer to
-   the wallet if needed) and keep the tab open.
-3. Call `connect_wallet` again with `waitSeconds: 120` to learn when they are connected.
+1. If it finishes, it returns the result.
+2. If it needs the user, it returns `status: "waiting for approval"`, an `approve` link and a
+   `requestId`. Show the link as one tappable link: it opens a page that connects OKX Wallet or
+   MetaMask and shows the transaction to approve. On a phone, `phone.openInOkxWalletApp` opens the
+   page inside the OKX Wallet app.
+3. When they say they approved (or after a short wait), call `transaction_status` with the
+   `requestId` to get the result.
 
-From then on every transaction pops up in their wallet. The tool waits for their answer and
-returns the transaction hash; a rejection comes back as an error starting `Wallet:`, which means
-the user said no, so do not retry it unasked. Tools that send several transactions
-(`tapeout_circuit`, `challenge_claim`) ask once per transaction; say how many to expect.
-
-If the server was started with `OVERCLOCK_PRIVATE_KEY` it signs without asking and has no
-`connect_wallet`; the cost rules below matter even more then.
+A rejection comes back as an error starting `Wallet:`: the user said no, so do not retry unasked.
+Tools that send several transactions (`tapeout_circuit`, `challenge_claim`) ask once per
+transaction; say how many to expect. If the server was started with `OVERCLOCK_PRIVATE_KEY` it
+signs without asking; the cost rules below matter even more then.
 
 ## Conventions
 
@@ -50,7 +59,7 @@ but they should not be surprised by it:
 
 | Tool | Cost |
 |---|---|
-| `post_job`, `continue_job` | the `fee` you set, paid to whoever's claim finalizes |
+| `post_job`, `continue_job` | the `fee` (default 0.0001 OKB), paid to whoever's claim finalizes |
 | `claim_job`, `challenge_claim` | locks the bond from `overclock_info`; returned with winnings if you are right |
 | `finalize_job` | gas only |
 | `create_processor` | TapeOut deploy fee (0.0066 OKB on X Layer) |

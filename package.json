@@ -1,6 +1,6 @@
 {
   "name": "overclock",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Optimistic execution for TapeOut circuits on X Layer",
   "type": "module",
   "license": "MIT",

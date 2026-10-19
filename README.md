@@ -149,7 +149,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 
 ```sh
 npm install
-npm test             # 58 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
+npm test             # 59 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
 npm run demo         # 16x16 board, 100 generations (about 90 s); --w --h --beats to change
 node scripts/build-web.js   # inline the run into web/overclock.html
 ```
@@ -199,9 +199,11 @@ Most people will hand this to an agent, so Overclock ships as an MCP server. Cla
 
 The agent never sees a private key. Transactions are approved in your own wallet:
 
-1. When the agent first needs to send something, it calls `connect_wallet`, which returns a link to an approval page on localhost (and, in a local setup, opens it in your browser).
-2. You connect **OKX Wallet** or **MetaMask** there. The page switches the wallet to X Layer, adding the network if it is missing. Keep the tab open.
-3. Every transaction the agent sends opens in your wallet with its amount and target. Approve it and the tool returns the hash; reject it and the tool fails with nothing sent.
+1. When the agent needs to send something, the tool comes back within seconds with a link to your approval page (and, in a local setup, opens it in your browser). On a phone, a second link opens the page inside the OKX Wallet app.
+2. On that page you connect **OKX Wallet** or **MetaMask**. The page switches the wallet to X Layer, adding the network if it is missing.
+3. The transaction opens in your wallet with its amount and target. Approve it and go back to the chat: the agent picks up the result with `transaction_status`. Reject it and nothing is sent.
+
+Ready-made machines need no addresses or hex: ask for "a glider for 10 generations" (`machine: "life"`) or "the Fibonacci CPU for 160 beats" (`machine: "cpu"`). `run_locally` shows the result for free; `post_job` runs it on-chain for a 0.0001 OKB fee by default.
 
 The server checks on-chain that the transaction your wallet sent is exactly the one it asked for, and the page only answers same-origin requests that carry its random token. Read-only tools need no wallet at all.
 
@@ -215,7 +217,7 @@ What the server offers depends on its configuration:
 | Tool | What it does |
 |---|---|
 | `overclock_info`, `list_jobs`, `get_job` | Deployment parameters and wallet status; jobs with their status (open, claimed, disputed, ready to finalize, final) |
-| `connect_wallet` | Link to the approval page where you connect OKX Wallet or MetaMask; waits until you have |
+| `connect_wallet`, `transaction_status` | The approval page link and wallet status; the result of a transaction that waited for your approval |
 | `describe_circuit` | Pins, state, flattened gates, REFs and estimated `step` gas for any TapeOut circuit |
 | `run_locally` | Runs beats off-chain for free: outputs, final state and the trace root an honest claim commits to |
 | `verify_claim` | Re-runs a claimed job and says whether to trust it |
