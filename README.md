@@ -44,7 +44,7 @@ Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet cir
 
 The final board read back from `Overclock.result()` matches an independent Life simulation.
 
-**Live job board: [overclock-board.onrender.com](https://overclock-board.onrender.com).** The landing page animates one job from claim to the wrong gate; the [job board](https://overclock-board.onrender.com/#board) reads the mainnet contract over public RPC and shows every job, claim and dispute; and the [replay](https://overclock-board.onrender.com/#replay) steps through the mainnet run, from the lie to the one gate that proved it. The same page is one self-contained file, [`web/overclock.html`](web/overclock.html), so it can also be opened from disk or published to DeWEB with `scripts/publish-deweb.js`.
+**Live site: [overclock-board.onrender.com](https://overclock-board.onrender.com).** The landing page animates one job from claim to the wrong gate; the [job board](https://overclock-board.onrender.com/#board) reads the mainnet contract over public RPC and shows every job, claim and dispute; and the [replay](https://overclock-board.onrender.com/#replay) steps through the mainnet run, from the lie to the one gate that proved it. The same page is one self-contained file, [`web/overclock.html`](web/overclock.html), so it can also be opened from disk or published to DeWEB with `scripts/publish-deweb.js`.
 
 ## Why this needs TapeOut
 
