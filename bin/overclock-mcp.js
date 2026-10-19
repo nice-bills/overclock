@@ -92,7 +92,8 @@ if (http) {
       if (!b?.handle(req, res)) res.writeHead(404).end();
       return;
     }
-    if (req.url === '/' || req.url === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }).end('overclock-mcp: MCP endpoint at /mcp\n'); return; }
+    if (req.url === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }).end('overclock-mcp: MCP endpoint at /mcp\n'); return; }
+    if (req.url === '/') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(landing(origin(req))); return; }
     if (!req.url.startsWith('/mcp')) { res.writeHead(404).end(); return; }
     let body;
     if (req.method === 'POST') {
@@ -104,6 +105,7 @@ if (http) {
     let s = sid ? sessions.get(sid) : null;
     if (sid && !s) { json(res, 404, { code: -32001, message: 'Session not found; initialize a new one' }); return; }
     if (!s) {
+      if (req.method === 'GET' && /text\/html/.test(req.headers.accept ?? '')) { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(landing(origin(req))); return; }
       if (req.method !== 'POST') { json(res, 400, { code: -32000, message: 'No session; send initialize first' }); return; }
       const sctx = { ...base };
       if (walletOn) {
@@ -136,4 +138,18 @@ if (http) {
 } else {
   await createServer(ctx).connect(new StdioServerTransport());
   console.error(`overclock-mcp: stdio (${mode})`);
+}
+
+// What a person sees opening the server in a browser: how to add it to Claude.
+function landing(base) {
+  const url = `${base}/mcp`.replace(/[<>&"]/g, '');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Overclock for Claude</title><link rel="icon" href="data:,">
+<style>:root{--bg:#f6f5f1;--fg:#16150f;--mute:#6b6a63;--line:#dedcd3;--card:#fff}@media (prefers-color-scheme:dark){:root{--bg:#111110;--fg:#eceae3;--mute:#9a988f;--line:#2a2926;--card:#1a1918}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}main{max-width:560px;margin:0 auto;padding:40px 16px}
+h1{font-size:22px;margin:0 0 6px}p,li{color:var(--mute)}code{font:14px ui-monospace,Menlo,monospace;word-break:break-all;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:block;color:var(--fg)}
+button{font:inherit;margin-top:10px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}</style></head><body><main>
+<h1>Overclock for Claude</h1><p>This address is an MCP connector: it is meant for Claude, not for a browser. It lets Claude read and post Overclock jobs on X Layer. Every transaction is approved in your own wallet.</p>
+<code id="u">${url}</code><button onclick="navigator.clipboard.writeText(document.getElementById('u').textContent);this.textContent='Copied'">Copy URL</button>
+<ol><li>In Claude, open Settings, then Connectors, then Add custom connector.</li><li>Name it Overclock and paste the URL above. No sign-in is needed.</li><li>In a chat, turn Overclock on and ask it to do something. When it needs to send a transaction, it gives you a link to approve it in OKX Wallet or MetaMask.</li></ol>
+<p><a href="https://github.com/nice-bills/overclock" style="color:inherit">Source on GitHub</a></p></main></body></html>`;
 }
