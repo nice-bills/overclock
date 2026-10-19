@@ -18,7 +18,7 @@
 // Hosted (a claude.ai connector), set PUBLIC_URL to the server's public address; approval pages
 // are served from it. --read-only serves the read-only tools alone.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createServer as createHttpServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -54,7 +54,36 @@ const chainId = await provider.getNetwork().then((n) => n.chainId, () => null);
 const walletOn = !signer && !readOnly && chainId !== null;
 const newBridge = () => new WalletBridge({ provider, chainId, rpcUrl: RPC_URL, log: (e) => console.error('overclock-mcp: wallet', JSON.stringify(e)) });
 const wallet = walletOn && !http ? newBridge() : null;
-const ctx = { provider, signer, wallet, readOnly, approvalWaitMs: env('OVERCLOCK_APPROVAL_WAIT_MS') && Number(env('OVERCLOCK_APPROVAL_WAIT_MS')), overclock: OVERCLOCK ?? (chainId === BigInt(XLAYER.chainId) ? XLAYER.overclock : undefined), factory: FACTORY };
+// deployments/<chainId>.json gives this network's Overclock contract, factory and ready-made machines.
+const depFile = chainId === null ? null : new URL(`../deployments/${chainId}.json`, import.meta.url);
+const dep = depFile && existsSync(depFile) ? JSON.parse(readFileSync(depFile, 'utf8')) : {};
+const ctx = {
+  provider, signer, wallet, readOnly, approvalWaitMs: env('OVERCLOCK_APPROVAL_WAIT_MS') && Number(env('OVERCLOCK_APPROVAL_WAIT_MS')),
+  overclock: OVERCLOCK ?? dep.overclock ?? (chainId === BigInt(XLAYER.chainId) ? XLAYER.overclock : undefined),
+  factory: FACTORY ?? (chainId === BigInt(XLAYER.chainId) ? undefined : dep.factory), machines: dep.machines,
+};
+
+// OVERCLOCK_OPERATOR_KEY: also run an operator here, claiming every open job, defending its claims
+// and finalizing them, so jobs posted through this server come back with a result. Meant for a
+// testnet or a dedicated wallet that holds only the bond and gas.
+if (env('OVERCLOCK_OPERATOR_KEY') && ctx.overclock) {
+  const { Contract } = await import('ethers');
+  const { Operator } = await import('../src/agents.js');
+  const { artifact } = await import('../src/chain.js');
+  const opWallet = new Wallet(env('OVERCLOCK_OPERATOR_KEY'), provider);
+  const op = new Operator({
+    oc: new Contract(ctx.overclock, artifact('Overclock').abi, provider), signer: opWallet, name: 'operator',
+    log: (e) => console.error(`overclock-mcp: operator ${e.what}${e.tx ? ` ${e.tx}` : ''}`),
+    settle: async (rc) => { while ((await provider.getBlockNumber()) < rc.blockNumber) await new Promise((r) => setTimeout(r, 1000)); },
+  });
+  console.error(`overclock-mcp: operator ${opWallet.address} claims jobs on ${ctx.overclock}`);
+  (async () => {
+    for (;;) {
+      try { await op.tick(); } catch (e) { console.error('overclock-mcp: operator', e.shortMessage ?? e.message); }
+      await new Promise((r) => setTimeout(r, Number(env('OPERATOR_POLL_MS') ?? 5000)));
+    }
+  })();
+}
 
 // stdio: the approval page gets its own localhost server, started (and opened) the first time it is needed
 if (wallet && !http) {

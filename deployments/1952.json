@@ -1,0 +1,20 @@
+{
+ "chainId": 1952,
+ "overclock": "0x3e53BC7a00c2A9f0f92040e126b4415bAF702E18",
+ "factory": "0x79CD28853Ef2a0782c5a9e7170f5868eD597F55a",
+ "bond": "1000000000000000",
+ "window": 120,
+ "feeBps": 200,
+ "treasury": "0x5C888375f7555b36419f1398ac62f76030ec746f",
+ "tapeout": "TapeOutLocal stand-in",
+ "machines": {
+  "life": {
+   "processor": "0x3a728a107daf1c7ec65f40426dd9b88e411722fa",
+   "circuitId": 2
+  },
+  "cpu": {
+   "processor": "0x3a728a107daf1c7ec65f40426dd9b88e411722fa",
+   "circuitId": 3
+  }
+ }
+}

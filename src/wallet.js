@@ -23,10 +23,12 @@ const APPROVE_MS = 15 * 60_000; // how long the wallet prompt may stay open
 const doing = new AsyncLocalStorage();
 export const labelled = (label, fn) => doing.run(label, fn);
 
-const XLAYER_CHAIN = {
-  chainId: '0xc4', chainName: 'X Layer Mainnet', nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
-  rpcUrls: ['https://rpc.xlayer.tech'], blockExplorerUrls: ['https://www.oklink.com/xlayer'],
+const OKB = { name: 'OKB', symbol: 'OKB', decimals: 18 };
+export const CHAINS = {
+  196: { chainId: '0xc4', chainName: 'X Layer Mainnet', nativeCurrency: OKB, rpcUrls: ['https://rpc.xlayer.tech'], blockExplorerUrls: ['https://www.oklink.com/x-layer'] },
+  1952: { chainId: '0x7a0', chainName: 'X Layer Testnet', nativeCurrency: OKB, rpcUrls: ['https://testrpc.xlayer.tech'], blockExplorerUrls: ['https://www.oklink.com/x-layer-testnet'] },
 };
+export const txLink = (chainId, hash) => (CHAINS[Number(chainId)] ? `${CHAINS[Number(chainId)].blockExplorerUrls[0]}/tx/${hash}` : null);
 
 export class NotConnected extends Error {
   constructor(url) {
@@ -40,7 +42,7 @@ export class WalletBridge {
     this.provider = provider;
     this.chainId = Number(chainId);
     this.rpcUrl = rpcUrl;
-    this.explorer = explorer ?? (this.chainId === 196 ? 'https://www.oklink.com/xlayer/tx/' : null);
+    this.explorer = explorer ?? (CHAINS[this.chainId] ? `${CHAINS[this.chainId].blockExplorerUrls[0]}/tx/` : null);
     this.log = log;
     this.token = randomBytes(16).toString('hex');
     this.base = null; // http://host:port, set by listen() or setBase()
@@ -234,7 +236,7 @@ function describe(tx, req) {
 function page(b) {
   const cfg = {
     base: b.path, chainId: b.chainId, explorer: b.explorer,
-    chain: b.chainId === 196 ? XLAYER_CHAIN : {
+    chain: CHAINS[b.chainId] ?? {
       chainId: toQuantity(b.chainId), chainName: `Chain ${b.chainId}`, nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
       rpcUrls: b.rpcUrl && /^https?:/.test(b.rpcUrl) ? [b.rpcUrl] : [],
     },

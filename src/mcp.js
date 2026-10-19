@@ -19,7 +19,7 @@ import { Operator, Challenger } from './agents.js';
 import { createCPU, mint, burnCost, tapeout, CIRCUITS_FULL_ABI, TRANSISTORS_ABI, XLAYER } from './tapeout.js';
 import { cellCircuit, boardCircuit, board, PATTERNS, render } from './life.js';
 import { toState, fromState, fibonacciMachine } from './cpu4.js';
-import { labelled } from './wallet.js';
+import { labelled, txLink } from './wallet.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
 const hex = z.string().regex(/^0x([0-9a-fA-F]{2})*$/, 'a 0x-prefixed hex string of whole bytes');
@@ -31,7 +31,8 @@ const bitsOf = (h, n) => unpack(hexToBytes(h), n);
 const bitString = (bits) => bits.join('');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Circuits already taped out on X Layer mainnet that anyone can run by name.
+// Ready-made machines anyone can run by name. Where they live depends on the network: on X Layer
+// mainnet the circuits below; elsewhere deployments/<chainId>.json (scripts/deploy-stack.js) says.
 export const MACHINES = {
   life: {
     processor: '0xb00f10bb4b2f32c561bf90e205e543d0a2395971', circuitId: 5, w: 8, h: 8,
@@ -46,7 +47,6 @@ export const MACHINES = {
     show: (bits) => { const m = fromState(bits); return { fibonacci: { previous: m.ram[0] | (m.ram[1] << 4), latest: m.ram[2] | (m.ram[3] << 4), note: 'mod 256' } }; },
   },
 };
-const machineOf = (processor, id) => Object.entries(MACHINES).find(([, m]) => m.processor === String(processor).toLowerCase() && m.circuitId === Number(id));
 
 // ctx: { provider, overclock (address), factory (optional address),
 //        wallet (a WalletBridge, or null), signer (a key-backed Signer, or null), readOnly }
@@ -67,6 +67,9 @@ export function createServer(ctx) {
   const oc = ctx.overclock ? new Contract(ctx.overclock, artifact('Overclock').abi, ctx.provider) : null;
   const ocTool = oc ? server.registerTool.bind(server) : () => {};
   const circuit = (cpu, id) => loadCircuit(ctx.provider, cpu, BigInt(id), ctx.circuitCache);
+  // this network's machines: the kinds above, at the addresses the deployment gives
+  const machines = Object.fromEntries(Object.entries(MACHINES).map(([k, m]) => [k, { ...m, ...(ctx.machines?.[k] ?? {}), processor: String(ctx.machines?.[k]?.processor ?? m.processor).toLowerCase() }]));
+  const machineOf = (processor, id) => Object.entries(machines).find(([, m]) => m.processor === String(processor).toLowerCase() && m.circuitId === Number(id));
   const machine = (j) => machineOf(j.cpu, j.id);
   // A ready-made machine by name, or an explicit processor and circuit id.
   const MACHINE_ARGS = {
@@ -77,7 +80,7 @@ export function createServer(ctx) {
   };
   const pick = (a) => {
     if (a.processor && a.circuitId) return { processor: a.processor, circuitId: a.circuitId, state: a.state ?? '0x', m: machineOf(a.processor, a.circuitId)?.[1] };
-    const m = MACHINES[a.machine ?? 'life'];
+    const m = machines[a.machine ?? 'life'];
     return { processor: m.processor, circuitId: m.circuitId, state: a.state ?? bytesToHex(pack(m.state(a))), m };
   };
   const now = async () => Number((await ctx.provider.send('eth_getBlockByNumber', ['latest', false])).timestamp);
@@ -330,7 +333,7 @@ export function createServer(ctx) {
     const st = bytesToHex(pack(bitsOf(state, c.nState)));
     const ins = bytesToHex(pack(bitsOf(inputs, perBeat ? beats * c.nIn : c.nIn)));
     const r = await send((await ocw()).postJob(processor, circuitId, ins, st, beats, perBeat, { value: parseEther(fee) }));
-    return { jobId: Number(evArg(r.rc, 'JobPosted', 'jobId')), tx: r.tx, gas: r.gas, explorer: `https://www.oklink.com/x-layer/tx/${r.tx}`, next: 'An operator claims it and the result becomes final after the challenge window; get_job shows its status and result.' };
+    return { jobId: Number(evArg(r.rc, 'JobPosted', 'jobId')), tx: r.tx, gas: r.gas, explorer: txLink((await ctx.provider.getNetwork()).chainId, r.tx), next: 'An operator claims it and the result becomes final after the challenge window; get_job shows its status and result.' };
   }));
 
   ocTool('continue_job', {
