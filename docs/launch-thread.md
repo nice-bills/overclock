@@ -49,7 +49,7 @@ Machine builders pay per job, operators and watchers earn fees and bonds, and AI
 **8/**
 Live on X Layer mainnet, every transaction public, all open source.
 
-Watch the job board: overclock-board.onrender.com
+Watch the job board: overclock-board.onrender.com/#board
 Code: github.com/nice-bills/overclock
 
 Built for TapeOut Accelerate. @XLayerOfficial
