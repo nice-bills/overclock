@@ -116,6 +116,8 @@ if (http) {
   const json = (res, code, error) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify({ jsonrpc: '2.0', error, id: null }));
 
   const srv = createHttpServer(async (req, res) => {
+    // MOVED_TO: this server was replaced; send every request (and connector) to the new address
+    if (env('MOVED_TO')) { res.writeHead(308, { location: env('MOVED_TO').replace(/\/$/, '') + req.url }).end(); return; }
     if (req.url.startsWith('/wallet/')) {
       const b = bridges.get(req.url.split(/[/?]/)[2]);
       if (!b?.handle(req, res)) res.writeHead(404).end();

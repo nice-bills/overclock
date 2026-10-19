@@ -191,7 +191,7 @@ Most people will hand this to an agent, so Overclock ships as an MCP server. Cla
   "env": { "RPC_URL": "https://rpc.xlayer.tech" } } } }
 ```
 
-**claude.ai connector (web, desktop and mobile, nothing to install):** in Claude, open Settings → Connectors → Add custom connector, name it Overclock and paste `https://overclock-mcp.onrender.com/mcp`. When the agent needs to send a transaction it gives you a link to your own approval page; open it in a browser with OKX Wallet or MetaMask. Each chat gets its own page and wallet connection.
+**claude.ai connector (web, desktop and mobile, nothing to install):** in Claude, open Settings → Connectors → Add custom connector, name it Overclock and paste `https://overclock-mcp-mainnet.onrender.com/mcp`. When the agent needs to send a transaction it gives you a link to your own approval page; open it in a browser with OKX Wallet or MetaMask. Each chat gets its own page and wallet connection.
 
 **Try it free on X Layer testnet:** add `https://overclock-mcp-testnet.onrender.com/mcp` as a second connector. It runs against a full playground on testnet (Overclock, the TapeOut stand-in, the Life board and the CPU; [deployments/1952.json](deployments/1952.json)) with an operator built in, so every job you post is claimed and finalized within about two and a half minutes. Pay with free test OKB from the [X Layer faucet](https://www.okx.com/xlayer/faucet); the approval page adds X Layer Testnet to your wallet. `node scripts/deploy-stack.js` builds the same playground on any chain.
 
