@@ -692,11 +692,13 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 })();
 </script>
 <script id="run-data" type="application/json">null</script>
+<script id="live-run-data" type="application/json">null</script>
 <script id="board-data" type="application/json">null</script>
 <script src="board.js"></script>
 <script>
 (async function () {
-  let run = JSON.parse(document.getElementById('run-data').textContent);
+  // the mainnet run when the page has it, else the recorded demo run
+  let run = JSON.parse(document.getElementById('live-run-data').textContent) || JSON.parse(document.getElementById('run-data').textContent);
   if (!run) run = await (await fetch('demo-run.json')).json();
   const $ = (id) => document.getElementById(id);
   const fmt = (n) => Number(n).toLocaleString('en-US');
