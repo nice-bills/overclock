@@ -644,7 +644,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   const gateAt = (e) => {
     if (!geom) return null;
     const b = cv.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top;
-    let best = null, bd = geom.step * 0.9;
+    let best = null, bd = geom.step * 2.5;
     for (let y = 0; y < G; y++) { const dy = Math.abs(geom.px(y) - my); if (dy > bd) continue;
       for (let x = 0; x < G; x++) { const d = Math.hypot(geom.px(x) - mx, geom.px(y) - my); if (d < bd && kind(x, y) === 1) { bd = d; best = { x, y }; } } }
     return best;

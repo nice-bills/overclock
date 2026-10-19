@@ -243,7 +243,7 @@
     if (hero && jobs.length) {
       const j = jobs[jobs.length - 1];
       const st = j.finalized ? 'finalized' : j.challenged ? 'in dispute' : j.claimant !== ZERO ? 'claimed' : 'open';
-      hero.innerHTML = `<i></i>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps · ${fmt(caught.length)} cheats caught`;
+      hero.innerHTML = `<i></i>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps${d.complete ? ` · ${fmt(caught.length)} cheat${caught.length === 1 ? '' : 's'} caught` : ''}`;
       hero.hidden = false;
       if ($('heroTag')) $('heroTag').hidden = true;
     }
@@ -382,6 +382,7 @@
       const blocks = await batch(need.map((b) => ['eth_getBlockByNumber', [hex(b), false]]));
       blocks.forEach((blk, k) => { if (blk) store.times[need[k]] = Number(blk.timestamp); });
       save();
+      d.complete = true;
       render(d);
       $('liveDot').className = 'dot on';
       $('liveStatus').textContent = `Live · block ${fmt(head.n)}`;
