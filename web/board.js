@@ -238,6 +238,15 @@
       [okb(paid).replace(' OKB', '<small> OKB</small>'), 'fees paid out'],
     ].map(([v, k]) => `<div class="spec"><span class="v">${v}</span><span class="label">${k}</span></div>`).join('');
 
+    // the landing's live line: the newest job, read from the chain like everything else here
+    const hero = $('heroLive');
+    if (hero && jobs.length) {
+      const j = jobs[jobs.length - 1];
+      const st = j.finalized ? 'finalized' : j.challenged ? 'in dispute' : j.claimant !== ZERO ? 'claimed' : 'open';
+      hero.innerHTML = `<i></i>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps · ${fmt(caught.length)} cheats caught`;
+      hero.hidden = false;
+      if ($('heroTag')) $('heroTag').hidden = true;
+    }
     // jobs, newest first
     const jobHtml = [...jobs].reverse().map((j) => {
       let cls, tag, until = '';
@@ -358,6 +367,8 @@
       const games = res.slice(nJobs).map(decodeGame);
       const d = { jobs, games, bond: uint(bond, 0), window: num(win, 0), feeBps: num(feeBps, 0) };
       render(d);
+      $('liveDot').className = 'dot on';
+      $('liveStatus').textContent = `Live · block ${fmt(head.n)} · finding transactions…`;
 
       await scanTail(head.n);
       // claims and live dispute moves the scans missed: look them up by the timestamp the contract keeps
@@ -376,7 +387,9 @@
       $('liveStatus').textContent = `Live · block ${fmt(head.n)}`;
     } catch (e) {
       $('liveDot').className = 'dot err';
-      $('liveStatus').textContent = `Could not reach X Layer nodes (${e && e.message ? e.message : e}). Retrying.`;
+      $('liveStatus').textContent = last ? 'X Layer nodes stopped answering. Showing the last data read; retrying.' : 'X Layer nodes are not answering right now. Retrying every 20 seconds.';
+      $('liveStatus').title = e && e.message ? e.message : String(e);
+      if (!last) $('jobs').innerHTML = '<p class="empty">Jobs will appear here as soon as an X Layer node answers. Every job is also listed on <a href="' + EXPLORER + '/address/' + CONTRACT + '">OKLink</a>.</p>';
     } finally {
       busy = false;
       $('liveRefresh').disabled = false;

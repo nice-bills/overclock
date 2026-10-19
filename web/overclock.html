@@ -199,6 +199,12 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 .btn:hover { border-color: var(--faint); }
 .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .btn.primary:hover { opacity: .86; }
+#home .herolive { display: flex; align-items: baseline; gap: 10px; font: 400 12px/1.5 var(--mono); color: var(--muted); text-decoration: none; max-width: 36em; }
+#home .herolive[hidden], #home .eyebrow[hidden] { display: none; }
+#home .herolive:hover { color: var(--ink); }
+#home .herolive i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 var(--accent); animation: ping 2s infinite; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 80%, 100% { box-shadow: 0 0 0 6px transparent; } }
+@media (prefers-reduced-motion: reduce) { #home .herolive i { animation: none; } }
 #home .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
 .chipwrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; justify-self: end; width: 100%; max-width: 440px; }
 .chip { width: 100%; aspect-ratio: 1; display: block; }
@@ -303,7 +309,8 @@ footer a:hover { color: var(--ink); }
   <main class="view" id="home">
     <header class="hero">
       <div>
-        <span class="eyebrow rise"><i></i>OVC-1 · live on X Layer · built on TapeOut</span>
+        <span class="eyebrow rise" id="heroTag"><i></i>OVC-1 · live on X Layer · built on TapeOut</span>
+        <a class="herolive rise" id="heroLive" href="#board" hidden style="--d:.36s"></a>
         <h1 class="rise" style="--d:.08s">Run circuits too big for the chain.</h1>
         <p class="lede rise" style="--d:.16s">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If a single gate in millions is wrong, anyone can prove it in one transaction and take the bond.</p>
         <div class="cta rise" style="--d:.24s">
@@ -313,7 +320,7 @@ footer a:hover { color: var(--ink); }
       </div>
       <figure class="chipwrap rise" style="margin:0;--d:.3s">
         <canvas class="chip" id="chip" role="img" aria-label="Circuit #5, the 8 by 8 Life board taped out on TapeOut, drawn as a chip. A dispute halves the gates until one wrong NAND is left."></canvas>
-        <figcaption class="chipcap"><span>TapeOut circuit #5</span><span id="chipState">&nbsp;</span></figcaption>
+        <figcaption class="chipcap"><span>TapeOut circuit #5 · <b>tap a gate to cheat</b></span><span id="chipState">&nbsp;</span></figcaption>
       </figure>
     </header>
 
@@ -516,7 +523,9 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   const G = 64, CELL = 8, NAND = 57, LATCH = 63;
   const kind = (x, y) => { const g = (y % CELL) * CELL + (x % CELL); return g < NAND ? 1 : g === LATCH ? 2 : 0; };
   const fmt = (n) => n.toLocaleString('en-US');
-  let target, sel, from, to, level, t0, phase, timer;
+  let target, sel, from, to, level, t0, phase, timer, hover = null, geom = null, picked = false, colors = null, layer = null, layerKey = '', lastFrame = 0, visible = true, lastCap = '';
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { colors = null; });
+  if ('IntersectionObserver' in window) new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(cv);
   const nandsIn = (r) => { let n = 0; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) n += kind(x, y) === 1; return n; };
   function pick() {
     for (;;) { const x = Math.floor(Math.random() * G), y = Math.floor(Math.random() * G); if (kind(x, y) === 1) return { x, y }; }
@@ -525,7 +534,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     if (r.w >= r.h) { const w = r.w / 2; return target.x < r.x + w ? { ...r, w } : { ...r, x: r.x + w, w }; }
     const h = r.h / 2; return target.y < r.y + h ? { ...r, h } : { ...r, y: r.y + h, h };
   }
-  function reset() { target = pick(); sel = from = to = { x: 0, y: 0, w: G, h: G }; level = 12; phase = 'run'; t0 = performance.now(); }
+  function reset() { picked = false; target = pick(); sel = from = to = { x: 0, y: 0, w: G, h: G }; level = 12; phase = 'run'; t0 = performance.now(); }
   const RUN = 3600, BEATS = 40;
   const ease = (k) => 1 - Math.pow(1 - k, 3);
   const lerp = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, w: a.w + (b.w - a.w) * k, h: a.h + (b.h - a.h) * k });
@@ -536,7 +545,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     if (cv.width !== Math.round(S * dpr)) cv.width = cv.height = Math.round(S * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, S, S);
-    const css = getComputedStyle(document.documentElement), v = (k) => css.getPropertyValue(k).trim();
+    if (!colors) { const css = getComputedStyle(document.documentElement); colors = {}; for (const k of ['--pin', '--accent', '--pkg', '--pkg-edge']) colors[k] = css.getPropertyValue(k).trim(); }
+    const v = (k) => colors[k];
     // pins
     const pl = S * 0.04, n = 14, span = S - pl * 2, pitch = span / n, pw = pitch * 0.42;
     const pin = v('--pin'), hot = v('--accent');
@@ -567,18 +577,33 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     const inR = (x, y) => x >= r.x - 1e-6 && x < r.x + r.w - 1e-6 && y >= r.y - 1e-6 && y < r.y + r.h - 1e-6;
     const done = phase === 'found';
     const rad = step * 0.3;
+    // The gate layer is redrawn only when what it shows changes, and then one path per colour: thousands of
+    // separate fills are too slow on phones.
+    const latchOn = phase === 'run' && beat % 2;
+    const sweep = phase === 'claim' ? 64 : phase === 'run' ? Math.floor(((now - t0) / RUN * 64 * 4) % 64) : -1;
+    const key = [S, dpr, r.x, r.y, r.w, r.h, sweep, latchOn ? 1 : 0, hover && phase !== 'found' ? hover.x + ',' + hover.y : ''].join('|');
+    if (key !== layerKey) {
+    layerKey = key;
+    if (!layer) layer = document.createElement('canvas');
+    layer.width = cv.width; layer.height = cv.height;
+    const lc = layer.getContext('2d'); lc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const paths = new Map();
+    const add = (col, fn) => { let q = paths.get(col); if (!q) paths.set(col, (q = new Path2D())); fn(q); };
+    const big = r.w * r.h <= 64, sq = step * 0.5;
     for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
       const k = kind(x, y); if (!k) continue;
-      const on = inR(x, y);
-      if (k === 2) { ctx.fillStyle = on || phase === 'run' && beat % 2 ? '#6cc19c' : '#2f4a3e'; const q = step * 0.5; ctx.fillRect(px(x) - q / 2, px(y) - q / 2, q, q); continue; }
+      const on = inR(x, y), cx = px(x), cy = px(y);
+      if (k === 2) { add(on || latchOn ? '#6cc19c' : '#2f4a3e', (q) => q.rect(cx - sq / 2, cy - sq / 2, sq, sq)); continue; }
       let col = on ? '#efeeea' : '#474745';
-      if (phase === 'run' || phase === 'claim') {
-        const ci = Math.floor(y / CELL) * CELL + Math.floor(x / CELL), sweep = phase === 'claim' ? 64 : ((now - t0) / RUN * 64 * 4) % 64;
-        col = ci < Math.floor(sweep) ? '#9a9995' : ci === Math.floor(sweep) ? '#ffffff' : '#474745';
-      }
-      ctx.fillStyle = col;
-      ctx.beginPath(); ctx.arc(px(x), px(y), on && r.w * r.h <= 64 ? rad * 1.35 : rad, 0, Math.PI * 2); ctx.fill();
+      if (sweep >= 0) { const ci = Math.floor(y / CELL) * CELL + Math.floor(x / CELL); col = ci < sweep ? '#9a9995' : ci === sweep ? '#ffffff' : '#474745'; }
+      if (hover && hover.x === x && hover.y === y && phase !== 'found') col = '#ff6b6b';
+      const rr = on && big ? rad * 1.35 : rad;
+      add(col, (q) => { q.moveTo(cx + rr, cy); q.arc(cx, cy, rr, 0, Math.PI * 2); });
     }
+    for (const [col, q] of paths) { lc.fillStyle = col; lc.fill(q); }
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(layer, 0, 0); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    geom = { px, step };
     // selection frame
     if (phase === 'move' || phase === 'found' || level < 12) {
       const fx = px(r.x) - step * 0.6, fy = px(r.y) - step * 0.6;
@@ -594,14 +619,15 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       ctx.beginPath(); ctx.arc(x, y, rad * 1.6 + k * step * 3, 0, Math.PI * 2); ctx.stroke();
     }
   }
+  const setCap = (h) => { if (h !== lastCap) { label.innerHTML = h; lastCap = h; } };
   function caption() {
     if (phase === 'found') {
       const cx = Math.floor(target.x / CELL), cy = Math.floor(target.y / CELL), g = (target.y % CELL) * CELL + (target.x % CELL) + 1;
-      label.innerHTML = `<span class="lie">wrong gate: cell ${cx},${cy} NAND ${g}</span>`;
-    } else if (phase === 'run') label.innerHTML = `operator running · beat <b>${Math.min(BEATS, Math.floor((performance.now() - t0) / (RUN / BEATS)) + 1)}</b> of ${BEATS}`;
-    else if (phase === 'claim') label.innerHTML = 'claim posted with a bond';
-    else if (level === 12) label.innerHTML = '<span class="lie">claim challenged</span>';
-    else label.innerHTML = `<b>${fmt(nandsIn(to))}</b> gates in dispute`;
+      setCap(`<span class="lie">wrong gate: cell ${cx},${cy} NAND ${g}</span>`);
+    } else if (phase === 'run' && !picked) setCap(`operator running · beat <b>${Math.min(BEATS, Math.floor((performance.now() - t0) / (RUN / BEATS)) + 1)}</b> of ${BEATS}`);
+    else if (phase === 'claim') setCap('claim posted with a bond');
+    else if (level === 12) setCap(picked ? '<span class="lie">you corrupted a gate · challenged</span>' : '<span class="lie">claim challenged</span>');
+    else setCap(`<b>${fmt(nandsIn(to))}</b> gates in dispute`);
   }
   function tick() {
     if (phase === 'run') { phase = 'claim'; caption(); timer = setTimeout(() => { phase = 'challenged'; caption(); timer = setTimeout(tick, 1000); }, 1300); return; }
@@ -614,14 +640,37 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       timer = setTimeout(() => { reset(); timer = setTimeout(tick, RUN); }, 3200);
     }
   }
-  function loop(now) { if (!document.hidden) { draw(now); if (phase === 'run') caption(); } requestAnimationFrame(loop); }
+  // Tap or click a gate to be the cheat: the dispute starts at once and has to find that gate.
+  const gateAt = (e) => {
+    if (!geom) return null;
+    const b = cv.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top;
+    let best = null, bd = geom.step * 0.9;
+    for (let y = 0; y < G; y++) { const dy = Math.abs(geom.px(y) - my); if (dy > bd) continue;
+      for (let x = 0; x < G; x++) { const d = Math.hypot(geom.px(x) - mx, geom.px(y) - my); if (d < bd && kind(x, y) === 1) { bd = d; best = { x, y }; } } }
+    return best;
+  };
+  cv.addEventListener('pointermove', (e) => { hover = gateAt(e); cv.style.cursor = hover ? 'crosshair' : ''; });
+  cv.addEventListener('pointerleave', () => { hover = null; });
+  cv.addEventListener('click', (e) => {
+    const g = gateAt(e); if (!g) return;
+    clearTimeout(timer); target = g; picked = true; hover = null;
+    sel = from = to = { x: 0, y: 0, w: G, h: G }; level = 12; phase = 'challenged'; caption();
+    if (still) { while (level > 0) { sel = to = halve(sel); level--; } phase = 'found'; t0 = -1e9; caption(); draw(performance.now()); return; }
+    timer = setTimeout(tick, 900);
+  });
+  function loop(now) {
+    // about 30 frames a second is plenty for this and keeps slow phones smooth
+    if (!document.hidden && visible && now - lastFrame > 30) { lastFrame = now; draw(now); if (phase === 'run') caption(); }
+    requestAnimationFrame(loop);
+  }
   reset();
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still) {
     while (level > 0) { sel = to = halve(sel); level--; }
     phase = 'found'; t0 = -1e9; caption();
-    const still = () => draw(performance.now());
-    still(); addEventListener('resize', still); addEventListener('hashchange', still);
-    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', still);
+    const redraw = () => draw(performance.now());
+    redraw(); addEventListener('resize', redraw); addEventListener('hashchange', redraw);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
     return;
   }
   caption();
@@ -2270,6 +2319,15 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       [okb(paid).replace(' OKB', '<small> OKB</small>'), 'fees paid out'],
     ].map(([v, k]) => `<div class="spec"><span class="v">${v}</span><span class="label">${k}</span></div>`).join('');
 
+    // the landing's live line: the newest job, read from the chain like everything else here
+    const hero = $('heroLive');
+    if (hero && jobs.length) {
+      const j = jobs[jobs.length - 1];
+      const st = j.finalized ? 'finalized' : j.challenged ? 'in dispute' : j.claimant !== ZERO ? 'claimed' : 'open';
+      hero.innerHTML = `<i></i>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps · ${fmt(caught.length)} cheats caught`;
+      hero.hidden = false;
+      if ($('heroTag')) $('heroTag').hidden = true;
+    }
     // jobs, newest first
     const jobHtml = [...jobs].reverse().map((j) => {
       let cls, tag, until = '';
@@ -2390,6 +2448,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       const games = res.slice(nJobs).map(decodeGame);
       const d = { jobs, games, bond: uint(bond, 0), window: num(win, 0), feeBps: num(feeBps, 0) };
       render(d);
+      $('liveDot').className = 'dot on';
+      $('liveStatus').textContent = `Live · block ${fmt(head.n)} · finding transactions…`;
 
       await scanTail(head.n);
       // claims and live dispute moves the scans missed: look them up by the timestamp the contract keeps
@@ -2408,7 +2468,9 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       $('liveStatus').textContent = `Live · block ${fmt(head.n)}`;
     } catch (e) {
       $('liveDot').className = 'dot err';
-      $('liveStatus').textContent = `Could not reach X Layer nodes (${e && e.message ? e.message : e}). Retrying.`;
+      $('liveStatus').textContent = last ? 'X Layer nodes stopped answering. Showing the last data read; retrying.' : 'X Layer nodes are not answering right now. Retrying every 20 seconds.';
+      $('liveStatus').title = e && e.message ? e.message : String(e);
+      if (!last) $('jobs').innerHTML = '<p class="empty">Jobs will appear here as soon as an X Layer node answers. Every job is also listed on <a href="' + EXPLORER + '/address/' + CONTRACT + '">OKLink</a>.</p>';
     } finally {
       busy = false;
       $('liveRefresh').disabled = false;
