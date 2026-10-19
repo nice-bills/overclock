@@ -5,6 +5,9 @@
 <title>Overclock</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Run TapeOut circuits too big for the chain. Settle them on X Layer, and prove any wrong gate in one transaction.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400;500&display=swap">
 <style>
 :root {
   --bg: #fafaf9;
@@ -24,8 +27,8 @@
   --pkg: #161616;
   --pkg-edge: #161616;
   --pin: #b8b7b1;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -41,8 +44,8 @@
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 400 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
-.wrap { max-width: 1040px; margin: 0 auto; padding-bottom: 80px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 15px/1.6 var(--sans); font-feature-settings: "ss01"; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-bottom: 80px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
 h1 { font-size: clamp(30px, 4.4vw, 40px); line-height: 1.1; letter-spacing: -0.03em; }
 h2 { font-size: 20px; line-height: 1.3; }
@@ -189,19 +192,22 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 
 /* landing view */
 #home { padding-top: 0; gap: 0; }
-#home .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 64px; align-items: center; padding: 96px 0 120px; }
+#home .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 64px; align-items: center; padding: 112px 0 160px; }
 #home .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
 #home .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-#home h1 { font-size: clamp(40px, 6vw, 64px); line-height: 1.04; letter-spacing: -0.035em; margin-top: 24px; }
-#home .lede { font-size: 18px; color: var(--muted); max-width: 30em; margin-top: 24px; text-wrap: pretty; }
+#home h1 { font-size: clamp(40px, 5.2vw, 66px); font-weight: 500; line-height: 1; letter-spacing: -0.045em; margin-top: 28px; }
+#home .dim { color: var(--faint); }
+#home h1 .dim { display: block; }
+#home .lede { font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 30em; margin-top: 24px; text-wrap: pretty; }
 #home .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
-.btn { display: inline-flex; align-items: center; height: 44px; padding: 0 20px; border-radius: 999px; font-size: 15px; font-weight: 500; text-decoration: none; border: 1px solid var(--line); transition: border-color .15s, opacity .15s; }
+.btn { display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 999px; font-size: 14px; font-weight: 500; text-decoration: none; border: 1px solid var(--line); transition: border-color .15s, opacity .15s; }
 .btn:hover { border-color: var(--faint); }
 .btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .btn.primary:hover { opacity: .86; }
-#home .herolive { display: flex; align-items: baseline; gap: 10px; font: 400 12px/1.5 var(--mono); color: var(--muted); text-decoration: none; max-width: 36em; }
+#home .herolive { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 6px 12px 6px 10px; border: 1px solid var(--line); border-radius: 999px; font: 400 12px/1.4 var(--mono); color: var(--muted); text-decoration: none; }
+#home .herolive span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #home .herolive[hidden], #home .eyebrow[hidden] { display: none; }
-#home .herolive:hover { color: var(--ink); }
+#home .herolive:hover { color: var(--ink); border-color: var(--faint); }
 #home .herolive i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 var(--accent); animation: ping 2s infinite; }
 @keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 80%, 100% { box-shadow: 0 0 0 6px transparent; } }
 @media (prefers-reduced-motion: reduce) { #home .herolive i { animation: none; } }
@@ -217,15 +223,16 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 #home .row.th { padding: 12px 0; font-size: 12px; color: var(--muted); }
 #home .row .m { font-weight: 500; }
 #home .row .m small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
-#home .row .v { font: 400 22px/1.2 var(--sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+#home .row .v { font: 400 24px/1.2 var(--sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 #home .row .v small { display: block; font-size: 12px; letter-spacing: 0; color: var(--muted); margin-top: 4px; }
 #home .row .v.win { color: var(--accent); }
 #home .row .k { display: none; }
 #home .sheet-foot { padding: 14px 0 0; font-size: 13px; color: var(--muted); max-width: none; }
-#home h2 { font-size: clamp(26px, 3vw, 32px); line-height: 1.15; letter-spacing: -0.025em; }
+#home h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 500; line-height: 1.08; letter-spacing: -0.035em; max-width: 20em; }
+#home .sec-intro { display: grid; gap: 16px; margin-bottom: 48px; }
 .sec-label { font: 500 11px/1.4 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .sec-label b { color: var(--accent); font-weight: 500; margin-right: 10px; }
-#home .app { padding: 120px 0 0; display: grid; gap: 28px; }
+#home .app { padding: 160px 0 0; display: grid; gap: 28px; }
 #home .app .lead p { color: var(--muted); margin-top: 12px; max-width: 34em; font-size: 16px; }
 .diagram { width: 100%; height: auto; display: block; overflow: visible; }
 .diagram text { font-family: var(--mono); fill: var(--ink); }
@@ -260,11 +267,11 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   .rise, .reveal { opacity: 1; transform: none; animation: none; transition: none; }
 }
-#home .close { padding-top: 120px; }
+#home .close { padding-top: 160px; }
 #home .closer { border-top: 1px solid var(--line); padding-top: 64px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 32px; }
 #home .closer p { color: var(--muted); margin-top: 12px; max-width: 28em; font-size: 16px; }
 @media (max-width: 820px) {
-  #home .hero { grid-template-columns: 1fr; gap: 48px; padding: 48px 0 72px; }
+  #home .hero { grid-template-columns: minmax(0, 1fr); gap: 48px; padding: 48px 0 72px; }
   .chipwrap { justify-self: start; max-width: 360px; }
   #home .app { padding-top: 80px; }
   .pinout .pr { grid-template-columns: 28px 1fr; gap: 4px 12px; }
@@ -311,7 +318,7 @@ footer a:hover { color: var(--ink); }
       <div>
         <span class="eyebrow rise" id="heroTag"><i></i>OVC-1 · live on X Layer · built on TapeOut</span>
         <a class="herolive rise" id="heroLive" href="#board" hidden style="--d:.36s"></a>
-        <h1 class="rise" style="--d:.08s">Run circuits too big for the chain.</h1>
+        <h1 class="rise" style="--d:.08s">Run circuits too big for the chain. <span class="dim">Catch any wrong gate.</span></h1>
         <p class="lede rise" style="--d:.16s">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If a single gate in millions is wrong, anyone can prove it in one transaction and take the bond.</p>
         <div class="cta rise" style="--d:.24s">
           <a class="btn primary" href="#board">Open the job board</a>
@@ -324,19 +331,23 @@ footer a:hover { color: var(--ink); }
       </figure>
     </header>
 
+    <div class="sec-intro reveal">
+      <span class="sec-label"><b>01</b>Electrical characteristics</span>
+      <h2>The honest cost stays flat. <span class="dim">However big the circuit gets.</span></h2>
+    </div>
     <div class="sheet">
-      <div class="sheet-head"><span class="sec-label"><b>01</b>Electrical characteristics</span><span>Measured on X Layer mainnet · gas per job</span></div>
+      <div class="sheet-head"><span>Gas per job</span><span>Measured on X Layer mainnet</span></div>
       <div class="row th"><span>Machine</span><span>Run directly on TapeOut</span><span>Overclock, honest</span><span>Prove one wrong gate</span></div>
       <div class="row reveal" style="--d:0.00s"><span class="m">Game of Life board<small>Circuit #5 · 3,712 gates × 40 beats</small></span><span class="v"><i class="k">Direct</i><span data-n="441085640">441M</span><small>2.1 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182011">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="347509">348K</span><small>1 tx</small></span></div>
       <div class="row reveal" style="--d:0.12s"><span class="m">4-bit CPU<small>Circuit #6 · 1,437 gates × 10,000 beats</small></span><span class="v"><i class="k">Direct</i><span data-n="34277810000">34.3B</span><small>163 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182227">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="887491">887K</span><small>1 tx</small></span></div>
       <div class="row reveal" style="--d:0.24s"><span class="m">Digit-recognition net<small>AlephTape's circuit #11 · 161,080 gates</small></span><span class="v"><i class="k">Direct</i><span data-n="388354847">388M</span><small>1.85 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="161979">162K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="2065659">2.07M</span><small>1 tx</small></span></div>
-      <p class="sheet-foot">The honest cost stays flat however big the circuit gets: one claim, one finalize. A block holds 210M gas.</p>
+      <p class="sheet-foot">Honest path: one claim, one finalize. A block holds 210M gas.</p>
     </div>
 
     <section class="app reveal">
       <div class="lead">
         <span class="sec-label"><b>02</b>Typical application</span>
-        <h2 style="margin-top:14px">Nobody pays to check a result unless someone disagrees.</h2>
+        <h2 style="margin-top:16px">Nobody pays to check a result <span class="dim">unless someone disagrees.</span></h2>
         <p>A TapeOut circuit is NAND and LATCH transistors burned into a netlist that lives on-chain and never changes. So any single gate of any circuit, at any size, is a step a contract can re-check.</p>
       </div>
       <svg class="diagram" id="diagram" viewBox="0 0 920 300" role="img" aria-label="A poster posts a job to the Overclock contract, an operator claims it with a bond, a watcher challenges a wrong claim, and the contract reads one gate from the TapeOut circuit and slashes the liar.">
@@ -371,7 +382,7 @@ footer a:hover { color: var(--ink); }
     <section class="close reveal">
       <div class="closer">
         <div>
-          <h2>Every job, claim and dispute, live.</h2>
+          <h2>Every job, claim and dispute. <span class="dim">Live.</span></h2>
           <p>The job board reads the Overclock contract straight from X Layer. Nothing in between.</p>
         </div>
         <a class="btn primary" href="#board">Open the job board</a>
@@ -2324,7 +2335,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     if (hero && jobs.length) {
       const j = jobs[jobs.length - 1];
       const st = j.finalized ? 'finalized' : j.challenged ? 'in dispute' : j.claimant !== ZERO ? 'claimed' : 'open';
-      hero.innerHTML = `<i></i>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps${d.complete ? ` · ${fmt(caught.length)} cheat${caught.length === 1 ? '' : 's'} caught` : ''}`;
+      hero.innerHTML = `<i></i><span>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps${d.complete ? ` · ${fmt(caught.length)} cheat${caught.length === 1 ? '' : 's'} caught` : ''}</span>`;
       hero.hidden = false;
       if ($('heroTag')) $('heroTag').hidden = true;
     }

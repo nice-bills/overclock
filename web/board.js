@@ -243,7 +243,7 @@
     if (hero && jobs.length) {
       const j = jobs[jobs.length - 1];
       const st = j.finalized ? 'finalized' : j.challenged ? 'in dispute' : j.claimant !== ZERO ? 'claimed' : 'open';
-      hero.innerHTML = `<i></i>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps${d.complete ? ` · ${fmt(caught.length)} cheat${caught.length === 1 ? '' : 's'} caught` : ''}`;
+      hero.innerHTML = `<i></i><span>Live on X Layer · job ${j.jobId} ${st} · ${fmt(j.beats * (j.flat + j.nState))} steps${d.complete ? ` · ${fmt(caught.length)} cheat${caught.length === 1 ? '' : 's'} caught` : ''}</span>`;
       hero.hidden = false;
       if ($('heroTag')) $('heroTag').hidden = true;
     }
