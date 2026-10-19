@@ -119,7 +119,7 @@ export class WalletBridge {
     if (req.method !== 'POST') { json(405, { error: 'method' }); return true; }
     // The page is same-origin; refuse posts a different site's page could send blindly.
     const origin = req.headers.origin;
-    if (origin && origin !== `http://${req.headers.host}`) { json(403, { error: 'origin' }); return true; }
+    if (origin && origin.replace(/^https?:\/\//, '') !== req.headers.host) { json(403, { error: 'origin' }); return true; }
     let body = '';
     req.on('data', (c) => { body += c; if (body.length > 1e5) req.destroy(); });
     req.on('end', () => {

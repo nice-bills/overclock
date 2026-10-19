@@ -191,7 +191,9 @@ Most people will hand this to an agent, so Overclock ships as an MCP server. Cla
   "env": { "RPC_URL": "https://rpc.xlayer.tech" } } } }
 ```
 
-**Remote agents and ChatGPT connectors over HTTP:** `RPC_URL=... node bin/overclock-mcp.js --http --port 3333` serves Streamable HTTP at `/mcp`, and the wallet approval page on the same server. Add `--read-only` when other people can reach the endpoint.
+**claude.ai connector (web, desktop and mobile, nothing to install):** in Claude, open Settings → Connectors → Add custom connector, name it Overclock and paste `https://overclock-mcp.onrender.com/mcp`. When the agent needs to send a transaction it gives you a link to your own approval page; open it in a browser with OKX Wallet or MetaMask. Each chat gets its own page and wallet connection.
+
+**Remote agents and ChatGPT connectors over HTTP:** `RPC_URL=... node bin/overclock-mcp.js --http --port 3333` serves Streamable HTTP at `/mcp`, and the wallet approval pages on the same server: one per MCP session, so people sharing a hosted server never see each other's transactions. Set `PUBLIC_URL` when the server sits behind a proxy that hides its address. Add `--read-only` to serve only the read-only tools.
 
 ### Connect your wallet, never paste a key
 

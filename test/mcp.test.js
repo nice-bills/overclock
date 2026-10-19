@@ -242,7 +242,7 @@ test('HTTP mode serves the same tools to remote agents, and only read-only ones 
   }
 });
 
-test('HTTP mode serves the approval page on the same server', async () => {
+test('HTTP mode gives each session its own approval page on the same server', async () => {
   const { spawn } = await import('node:child_process');
   const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
   const port = 40000 + Math.floor(Math.random() * 20000);
@@ -258,6 +258,16 @@ test('HTTP mode serves the approval page on the same server', async () => {
     assert.match(await (await fetch(r.approvalPage)).text(), /Overclock wallet/);
     const blind = await fetch(r.approvalPage + '/connect', { method: 'POST', headers: { origin: 'https://evil.example' }, body: '{}' });
     assert.equal(blind.status, 403, 'other sites cannot post to the page');
+    // a second client (another chat) gets its own page, and connecting one leaves the other alone
+    const other = new Client({ name: 'other', version: '1.0.0' });
+    await other.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`)));
+    const r2 = JSON.parse((await other.callTool({ name: 'connect_wallet', arguments: {} })).content[0].text);
+    assert.notEqual(r2.approvalPage, r.approvalPage);
+    await fetch(r.approvalPage + '/state');
+    await fetch(r.approvalPage + '/connect', { method: 'POST', body: JSON.stringify({ address: '0x' + '11'.repeat(20) }) });
+    assert.equal(JSON.parse((await remote.callTool({ name: 'connect_wallet', arguments: {} })).content[0].text).connected, true);
+    assert.equal(JSON.parse((await other.callTool({ name: 'connect_wallet', arguments: {} })).content[0].text).connected, false);
+    await other.close();
     await remote.close();
   } finally {
     child.kill();
