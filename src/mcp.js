@@ -220,7 +220,8 @@ export function createServer(ctx) {
     return ctx.wallet.signer;
   };
   const ocw = async () => oc.connect(await signer());
-  const tx = (name, fn) => safe((args) => labelled(name, () => fn(args)));
+  // Check for a wallet first, so an agent without one gets the connect link rather than an unrelated error.
+  const tx = (name, fn) => safe((args) => labelled(name, async () => { await signer(); return fn(args); }));
 
   const send = async (p) => {
     const rc = await (await p).wait();
