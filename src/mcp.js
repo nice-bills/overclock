@@ -1,8 +1,10 @@
 // Overclock as an MCP server: the tools an AI agent needs to read jobs, check claims, post work,
 // run as an operator or a watcher, and tape out circuits on TapeOut.
 //
-// Read-only tools always work. Tools that send transactions are registered only when a signer is
-// configured (PRIVATE_KEY), and each says what it costs.
+// Read-only tools always work, with no wallet. Tools that send transactions go through the user's
+// own wallet: connect_wallet gives a local approval page where they connect OKX Wallet or MetaMask
+// and approve each transaction (see wallet.js). A private key (OVERCLOCK_PRIVATE_KEY) is an opt-in
+// fallback for unattended use.
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -13,6 +15,7 @@ import { pack, unpack, bytesToHex, hexToBytes, NAND, LATCH, REF } from './tap02.
 import { Operator, Challenger } from './agents.js';
 import { createCPU, mint, burnCost, tapeout, CIRCUITS_FULL_ABI, TRANSISTORS_ABI, XLAYER } from './tapeout.js';
 import { cellCircuit, boardCircuit } from './life.js';
+import { labelled } from './wallet.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
 const hex = z.string().regex(/^0x([0-9a-fA-F]{2})*$/, 'a 0x-prefixed hex string of whole bytes');
@@ -23,7 +26,8 @@ const safe = (fn) => async (args) => { try { return ok(await fn(args ?? {})); } 
 const bitsOf = (h, n) => unpack(hexToBytes(h), n);
 const bitString = (bits) => bits.join('');
 
-// ctx: { provider, signer (or null), overclock (address), factory (optional address) }
+// ctx: { provider, overclock (address), factory (optional address),
+//        wallet (a WalletBridge, or null), signer (a key-backed Signer, or null), readOnly }
 // Long-lived helpers (circuit cache, the watcher's open games) live on ctx so HTTP mode, which
 // builds a server per request, keeps them between calls.
 export function createServer(ctx) {
@@ -31,12 +35,13 @@ export function createServer(ctx) {
     instructions: [
       'Overclock runs TapeOut circuits on X Layer far beyond what fits in a block: an operator runs the job off-chain and posts the result with a bond; anyone can re-run it and, if it is wrong, prove the one wrong gate on-chain and take the bond.',
       'Bit vectors (inputs, state, outputs) are TAP-02 packed hex: bit i is (byte[i>>3] >> (i&7)) & 1. Amounts are in OKB (decimal strings).',
-      'Typical flows: inspect with overclock_info, list_jobs, get_job, describe_circuit; check someone else\'s result with verify_claim before relying on it; preview a job for free with run_locally; then post_job / claim_job / challenge_claim / finalize_job if a wallet is configured.',
+      'Typical flows: inspect with overclock_info, list_jobs, get_job, describe_circuit; check someone else\'s result with verify_claim before relying on it; preview a job for free with run_locally; then post_job / claim_job / challenge_claim / finalize_job.',
+      'Transactions are approved by the user in their own wallet. If a transaction tool says no wallet is connected, call connect_wallet and give the user the link it returns; they open it once, connect OKX Wallet or MetaMask, and keep it open. Never ask the user for a private key.',
     ].join('\n'),
   });
   ctx.circuitCache ??= new Map();
   // Without an Overclock address only the TapeOut tools (circuits, local runs, tapeouts) are offered.
-  const oc = ctx.overclock ? new Contract(ctx.overclock, artifact('Overclock').abi, ctx.signer ?? ctx.provider) : null;
+  const oc = ctx.overclock ? new Contract(ctx.overclock, artifact('Overclock').abi, ctx.provider) : null;
   const ocTool = oc ? server.registerTool.bind(server) : () => {};
   const circuit = (cpu, id) => loadCircuit(ctx.provider, cpu, BigInt(id), ctx.circuitCache);
   const now = async () => Number((await ctx.provider.send('eth_getBlockByNumber', ['latest', false])).timestamp);
@@ -71,12 +76,11 @@ export function createServer(ctx) {
   }, safe(async () => {
     const p = await params();
     const net = await ctx.provider.getNetwork();
-    const wallet = ctx.signer ? await ctx.signer.getAddress() : null;
     return {
       chainId: Number(net.chainId), block: await ctx.provider.getBlockNumber(), overclock: ctx.overclock,
       tapeoutFactory: p.factory, bond: formatEther(p.bond), challengeWindowSeconds: p.window, protocolFeeBps: p.feeBps,
       jobs: Number(await oc.jobCount()),
-      wallet: wallet ? { address: wallet, balance: formatEther(await ctx.provider.getBalance(wallet)) } : 'none: read-only tools only',
+      wallet: await walletInfo(),
     };
   }));
 
@@ -179,9 +183,44 @@ export function createServer(ctx) {
     return { cell: { netlist: bytesToHex(cell.netlist), nIn: 9, nOut: 1 }, board: { netlist: bytesToHex(bd.netlist), nIn: 0, nOut: w * h, nState: w * h } };
   }));
 
-  if (!ctx.signer) return server;
+  async function walletInfo() {
+    if (ctx.signer) {
+      const address = await ctx.signer.getAddress();
+      return { mode: 'private key (OVERCLOCK_PRIVATE_KEY)', address, balance: formatEther(await ctx.provider.getBalance(address)) };
+    }
+    if (!ctx.wallet || ctx.readOnly) return 'none: read-only tools only';
+    const s = ctx.wallet.status();
+    return s.connected ? { ...s, balance: formatEther(await ctx.provider.getBalance(s.address)) } : { ...s, note: 'call connect_wallet' };
+  }
+
+  if (ctx.readOnly || (!ctx.signer && !ctx.wallet)) return server;
+
+  // ------------------------------------------------------------------ wallet
+
+  if (ctx.wallet && !ctx.signer) {
+    server.registerTool('connect_wallet', {
+      title: 'Connect the user\'s wallet',
+      description: 'Returns a link to a local approval page. The user opens it, connects OKX Wallet or MetaMask, and keeps it open; every transaction a tool sends then pops up in their wallet to approve or reject. No private key is shared. Call with waitSeconds 0 to get the link, show it to the user, then call again with a wait to know when they have connected.',
+      inputSchema: { waitSeconds: z.number().int().min(0).max(600).default(0) },
+    }, safe(async ({ waitSeconds = 0 }) => {
+      await ctx.ensureWallet?.();
+      await ctx.wallet.waitConnected(waitSeconds * 1000);
+      const s = ctx.wallet.status();
+      return s.connected ? s : { ...s, next: `Ask the user to open ${s.approvalPage}, connect their wallet and keep the page open.` };
+    }));
+  }
 
   // ------------------------------------------------------------------ transactions
+
+  // The signer for a transaction: the opt-in key, or the user's connected wallet.
+  const signer = async () => {
+    if (ctx.signer) return ctx.signer;
+    await ctx.ensureWallet?.();
+    await ctx.wallet.signer.getAddress(); // throws NotConnected, with the link, when nobody is connected
+    return ctx.wallet.signer;
+  };
+  const ocw = async () => oc.connect(await signer());
+  const tx = (name, fn) => safe((args) => labelled(name, () => fn(args)));
 
   const send = async (p) => {
     const rc = await (await p).wait();
@@ -196,11 +235,11 @@ export function createServer(ctx) {
       processor: address, circuitId: z.number().int().min(1), beats: z.number().int().min(1).max(1_000_000),
       state: hex.default('0x'), inputs: hex.default('0x'), perBeat: z.boolean().default(false), fee: z.string().default('0.01'),
     },
-  }, safe(async ({ processor, circuitId, beats, state = '0x', inputs = '0x', perBeat = false, fee = '0.01' }) => {
+  }, tx('post_job', async ({ processor, circuitId, beats, state = '0x', inputs = '0x', perBeat = false, fee = '0.01' }) => {
     const c = await circuit(processor, circuitId);
     const st = bytesToHex(pack(bitsOf(state, c.nState)));
     const ins = bytesToHex(pack(bitsOf(inputs, perBeat ? beats * c.nIn : c.nIn)));
-    const r = await send(oc.postJob(processor, circuitId, ins, st, beats, perBeat, { value: parseEther(fee) }));
+    const r = await send((await ocw()).postJob(processor, circuitId, ins, st, beats, perBeat, { value: parseEther(fee) }));
     return { jobId: Number(evArg(r.rc, 'JobPosted', 'jobId')), tx: r.tx, gas: r.gas };
   }));
 
@@ -208,10 +247,10 @@ export function createServer(ctx) {
     title: 'Continue a job',
     description: 'Run more beats of the same circuit starting from a finalized job\'s final state, so a stateful machine keeps going. Pays `fee` OKB. Sends a transaction.',
     inputSchema: { parentJobId: z.number().int().min(0), beats: z.number().int().min(1).max(1_000_000), inputs: hex.default('0x'), perBeat: z.boolean().default(false), fee: z.string().default('0.01') },
-  }, safe(async ({ parentJobId, beats, inputs = '0x', perBeat = false, fee = '0.01' }) => {
+  }, tx('continue_job', async ({ parentJobId, beats, inputs = '0x', perBeat = false, fee = '0.01' }) => {
     const pj = await readJob(oc, parentJobId);
     const ins = bytesToHex(pack(bitsOf(inputs, perBeat ? beats * pj.nIn : pj.nIn)));
-    const r = await send(oc.continueJob(parentJobId, ins, beats, perBeat, { value: parseEther(fee) }));
+    const r = await send((await ocw()).continueJob(parentJobId, ins, beats, perBeat, { value: parseEther(fee) }));
     return { jobId: Number(evArg(r.rc, 'JobPosted', 'jobId')), tx: r.tx, gas: r.gas };
   }));
 
@@ -219,8 +258,8 @@ export function createServer(ctx) {
     title: 'Claim a job as operator',
     description: 'Run an open job off-chain and claim its result, locking the bond. If nobody proves it wrong within the challenge window, finalize_job returns the bond plus the fee. The claim is defended automatically while this server runs (advance_disputes). Sends a transaction.',
     inputSchema: { jobId: z.number().int().min(0) },
-  }, safe(async ({ jobId }) => {
-    ctx.operator ??= new Operator({ oc, signer: ctx.signer, name: 'operator', circuits: ctx.circuitCache, log: (e) => (ctx.log ??= []).push(e) });
+  }, tx('claim_job', async ({ jobId }) => {
+    ctx.operator ??= new Operator({ oc, signer: await signer(), name: 'operator', circuits: ctx.circuitCache, log: (e) => (ctx.log ??= []).push(e) });
     ctx.operator.only ??= new Set();
     ctx.operator.only.add(jobId);
     const before = (ctx.log ?? []).length;
@@ -233,8 +272,8 @@ export function createServer(ctx) {
     title: 'Challenge a wrong claim',
     description: 'Re-run a claimed job and, if the claim is wrong, challenge it: either disprove a wrong result directly, or bisect the trace with the claimant down to the single wrong gate and prove it on-chain. Locks the bond; winning returns both bonds. Plays for up to waitSeconds, then returns; call advance_disputes to keep going. Sends transactions.',
     inputSchema: { jobId: z.number().int().min(0), waitSeconds: z.number().int().min(0).max(600).default(60) },
-  }, safe(async ({ jobId, waitSeconds = 60 }) => {
-    ctx.watcher ??= new Challenger({ oc, signer: ctx.signer, name: 'watcher', circuits: ctx.circuitCache, log: (e) => (ctx.log ??= []).push(e) });
+  }, tx('challenge_claim', async ({ jobId, waitSeconds = 60 }) => {
+    ctx.watcher ??= new Challenger({ oc, signer: await signer(), name: 'watcher', circuits: ctx.circuitCache, log: (e) => (ctx.log ??= []).push(e) });
     ctx.watcher.only ??= new Set();
     ctx.watcher.only.add(jobId);
     return advance(waitSeconds);
@@ -244,7 +283,7 @@ export function createServer(ctx) {
     title: 'Advance disputes',
     description: 'Make the next moves in every dispute this server is part of (as watcher or as operator), for up to waitSeconds. Sends transactions when it is our turn.',
     inputSchema: { waitSeconds: z.number().int().min(0).max(600).default(30) },
-  }, safe(async ({ waitSeconds = 30 }) => advance(waitSeconds)));
+  }, tx('advance_disputes', async ({ waitSeconds = 30 }) => advance(waitSeconds)));
 
   async function advance(waitSeconds) {
     const before = (ctx.log ?? []).length;
@@ -269,8 +308,8 @@ export function createServer(ctx) {
     title: 'Finalize a job',
     description: 'After the challenge window, make an unchallenged claim final: pays the claimant bond plus fee and makes the result readable by any contract. Anyone can call it. Sends a transaction.',
     inputSchema: { jobId: z.number().int().min(0) },
-  }, safe(async ({ jobId }) => {
-    const r = await send(oc.finalize(jobId));
+  }, tx('finalize_job', async ({ jobId }) => {
+    const r = await send((await ocw()).finalize(jobId));
     const [outputs, newState] = await oc.result(jobId);
     return { jobId, tx: r.tx, gas: r.gas, outputs, finalState: newState };
   }));
@@ -279,9 +318,9 @@ export function createServer(ctx) {
     title: 'Create a TapeOut processor',
     description: 'Create your own TapeOut processor (transistor and circuit contracts) through the TapeOut factory. Pays the factory\'s deploy fee (0.0066 OKB on X Layer). Sends a transaction.',
     inputSchema: { name: z.string().min(1), symbol: z.string().min(1), story: z.string().default(''), supply: z.number().int().min(1).default(1_000_000), mintPrice: z.string().default('0.00001') },
-  }, safe(async ({ name, symbol, story = '', supply = 1_000_000, mintPrice = '0.00001' }) => {
+  }, tx('create_processor', async ({ name, symbol, story = '', supply = 1_000_000, mintPrice = '0.00001' }) => {
     const factory = ctx.factory ?? (oc ? (await params()).factory : XLAYER.factory);
-    const { transistors, circuits, receipt } = await createCPU(ctx.signer, factory, { name, symbol, story, supply, mintPrice: parseEther(mintPrice) });
+    const { transistors, circuits, receipt } = await createCPU(await signer(), factory, { name, symbol, story, supply, mintPrice: parseEther(mintPrice) });
     return { processor: await circuits.getAddress(), transistors: await transistors.getAddress(), tx: receipt.hash };
   }));
 
@@ -289,10 +328,10 @@ export function createServer(ctx) {
     title: 'Tape out a circuit',
     description: 'Tape out a TAP-02 netlist on a TapeOut processor. Mints any NAND/LATCH transistors you are missing (one burns per NAND and per LATCH record; REFs are free), then pays TAPEOUT_FEE (0.0013 OKB on X Layer). Returns the new circuit id. Sends transactions.',
     inputSchema: { processor: address, netlist: hex, nIn: z.number().int().min(0), nOut: z.number().int().min(1) },
-  }, safe(async ({ processor, netlist, nIn, nOut }) => {
-    const circuits = new Contract(processor, CIRCUITS_FULL_ABI, ctx.signer);
-    const transistors = new Contract(await circuits.transistors(), TRANSISTORS_ABI, ctx.signer);
-    const me = await ctx.signer.getAddress();
+  }, tx('tapeout_circuit', async ({ processor, netlist, nIn, nOut }) => {
+    const me = await (await signer()).getAddress();
+    const circuits = new Contract(processor, CIRCUITS_FULL_ABI, await signer());
+    const transistors = new Contract(await circuits.transistors(), TRANSISTORS_ABI, await signer());
     const bytes = hexToBytes(netlist);
     const need = burnCost(bytes, nIn);
     const minted = {};

@@ -1,6 +1,8 @@
 // The MCP server end to end: a real MCP client spawns bin/overclock-mcp.js over stdio against a
-// local chain with the TapeOut stand-in, posts and claims a job through tools, finalizes it, and
-// catches a cheating operator through challenge_claim.
+// local chain with the TapeOut stand-in, connects a wallet through the approval page, posts and
+// claims a job through tools, finalizes it, and catches a cheating operator through challenge_claim.
+// No private key is given to the server: a stand-in for the browser page polls the approval
+// endpoints and sends each transaction from an unlocked ganache account, as a wallet would.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import ganache from 'ganache';
@@ -15,7 +17,29 @@ import { createCPU, mint, burnCost, tapeout } from '../src/tapeout.js';
 import { Operator } from '../src/agents.js';
 
 const W = 6, H = 6, WINDOW = 3600;
-let server, provider, factoryAddr, keys, oc, cpuAddr, cellId, boardId, bdC, cellC, client, start;
+let server, provider, factoryAddr, keys, oc, cpuAddr, cellId, boardId, bdC, cellC, client, start, me, page;
+
+// Plays the approval page and the user's wallet: connects `address`, then approves (or rejects, or
+// swaps for another transaction) every request.
+function fakePage(url, address) {
+  const p = { mode: 'approve', stop: false, seen: [] };
+  const post = (path, body) => fetch(url + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  p.loop = (async () => {
+    await post('/connect', { address, wallet: 'Test Wallet' });
+    while (!p.stop) {
+      const s = await (await fetch(url + '/state')).json();
+      for (const r of s.pending) {
+        p.seen.push(r);
+        await post('/picked', { id: r.id });
+        if (p.mode === 'reject') { await post('/result', { id: r.id, error: 'User rejected the request.' }); continue; }
+        const tx = p.mode === 'swap' ? { from: r.tx.from, to: r.tx.from, value: '0x1' } : { from: r.tx.from, to: r.tx.to, data: r.tx.data, value: r.tx.value, gas: r.tx.gas };
+        await post('/result', { id: r.id, hash: await provider.send('eth_sendTransaction', [tx]) });
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  })();
+  return p;
+}
 
 const call = async (name, args = {}) => {
   const t0 = Date.now();
@@ -57,26 +81,53 @@ before(async () => {
   client = new Client({ name: 'overclock-test', version: '1.0.0' });
   await client.connect(new StdioClientTransport({
     command: process.execPath,
-    args: [new URL('../bin/overclock-mcp.js', import.meta.url).pathname],
-    env: { ...process.env, RPC_URL: url, OVERCLOCK: await oc.getAddress(), PRIVATE_KEY: keys[1], FACTORY: factoryAddr },
+    args: [new URL('../bin/overclock-mcp.js', import.meta.url).pathname, '--no-open'],
+    env: { ...process.env, RPC_URL: url, OVERCLOCK: await oc.getAddress(), FACTORY: factoryAddr },
     stderr: process.env.MCP_DEBUG ? 'inherit' : 'ignore',
   }));
 });
 
 after(async () => {
+  if (page) { page.stop = true; await page.loop; }
   await client?.close();
   await server?.close();
 });
 
-test('lists read and write tools when a wallet is configured', async () => {
+test('transactions wait for a connected wallet; no private key needed', async () => {
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name);
-  for (const n of ['overclock_info', 'list_jobs', 'get_job', 'describe_circuit', 'run_locally', 'verify_claim', 'post_job', 'claim_job', 'challenge_claim', 'finalize_job', 'tapeout_circuit'])
+  for (const n of ['overclock_info', 'list_jobs', 'get_job', 'describe_circuit', 'run_locally', 'verify_claim', 'connect_wallet', 'post_job', 'claim_job', 'challenge_claim', 'finalize_job', 'tapeout_circuit'])
     assert.ok(names.includes(n), n);
-  const info = await call('overclock_info');
+  let info = await call('overclock_info');
   assert.equal(info.bond, '1.0');
   assert.equal(info.challengeWindowSeconds, WINDOW);
-  assert.equal(info.wallet.address, new Wallet(keys[1]).address);
+  assert.equal(info.wallet.connected, false);
+
+  // read-only tools work with no wallet; a transaction tool answers with the link instead of signing
+  await assert.rejects(call('finalize_job', { jobId: 0 }), /No wallet connected\. Ask the user to open http:\/\/127\.0\.0\.1:\d+\/wallet\//);
+  const { approvalPage, connected } = await call('connect_wallet', { waitSeconds: 0 });
+  assert.equal(connected, false);
+  const html = await (await fetch(approvalPage)).text();
+  assert.match(html, /Overclock wallet/);
+  assert.equal((await fetch(approvalPage.replace(/[0-9a-f]{32}$/, '0'.repeat(32)))).status, 404, 'the page needs the token');
+
+  me = new Wallet(keys[1]).address;
+  page = fakePage(approvalPage, me);
+  const c = await call('connect_wallet', { waitSeconds: 10 });
+  assert.equal(c.connected, true);
+  assert.equal(c.address, me);
+  info = await call('overclock_info');
+  assert.equal(info.wallet.address, me);
+});
+
+test('a rejected or swapped transaction fails the tool and sends nothing else', async () => {
+  page.mode = 'reject';
+  await assert.rejects(call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' }), /Wallet: User rejected/);
+  page.mode = 'swap';
+  await assert.rejects(call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' }), /not the one that was requested/);
+  page.mode = 'approve';
+  assert.match(page.seen.at(-1).label, /^post_job · 0\.05 OKB to 0x/);
+  assert.equal(Number(await oc.jobCount()), 0);
 });
 
 test('describes a taped-out circuit and runs it locally', async () => {
@@ -107,7 +158,7 @@ test('post, claim, verify and finalize a job through tools', async () => {
   const { jobId } = await call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 6, state: bytesToHex(pack(start)), fee: '0.05' });
   assert.equal((await call('get_job', { jobId })).status, 'open');
   const c = await call('claim_job', { jobId });
-  assert.equal(c.claimant, new Wallet(keys[1]).address);
+  assert.equal(c.claimant, me);
   assert.equal((await call('verify_claim', { jobId })).verdict, 'correct');
   await assert.rejects(call('finalize_job', { jobId })); // too early, and a failed send must not break the next one
   await provider.send('evm_increaseTime', [WINDOW + 1]);
@@ -130,7 +181,6 @@ test('challenge_claim catches a cheat down to one gate and takes the bond', asyn
   await cheat.tick();
   assert.match((await call('verify_claim', { jobId })).verdict, /^wrong/);
 
-  const me = new Wallet(keys[1]).address;
   const before = await provider.getBalance(me);
   let stop = false;
   const loop = (async () => { while (!stop) { await cheat.tick(); await new Promise((r) => setTimeout(r, 300)); } })();
@@ -149,24 +199,65 @@ test('challenge_claim catches a cheat down to one gate and takes the bond', asyn
   assert.ok((await provider.getBalance(me)) > before, 'the challenger won the cheat\'s bond');
 });
 
-test('HTTP mode serves the same tools to remote agents, read-only without a key', async () => {
+test('OVERCLOCK_PRIVATE_KEY signs unattended, as an opt-in', async () => {
+  const keyed = new Client({ name: 'keyed', version: '1.0.0' });
+  await keyed.connect(new StdioClientTransport({
+    command: process.execPath,
+    args: [new URL('../bin/overclock-mcp.js', import.meta.url).pathname, '--no-open'],
+    env: { ...process.env, RPC_URL: provider._getConnection().url, OVERCLOCK: await oc.getAddress(), OVERCLOCK_PRIVATE_KEY: keys[3] },
+    stderr: 'ignore',
+  }));
+  try {
+    const names = (await keyed.listTools()).tools.map((t) => t.name);
+    assert.ok(names.includes('post_job') && !names.includes('connect_wallet'));
+    const info = JSON.parse((await keyed.callTool({ name: 'overclock_info', arguments: {} })).content[0].text);
+    assert.match(info.wallet.mode, /private key/);
+    assert.equal(info.wallet.address, new Wallet(keys[3]).address);
+  } finally {
+    await keyed.close();
+  }
+});
+
+test('HTTP mode serves the same tools to remote agents, and only read-only ones with --read-only', async () => {
   const { spawn } = await import('node:child_process');
   const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
   const port = 40000 + Math.floor(Math.random() * 20000);
   const env = { ...process.env, RPC_URL: provider._getConnection().url, OVERCLOCK: await oc.getAddress() };
-  delete env.PRIVATE_KEY;
-  const child = spawn(process.execPath, [new URL('../bin/overclock-mcp.js', import.meta.url).pathname, '--http', '--port', String(port)], { env, stdio: ['ignore', 'ignore', 'pipe'] });
+  delete env.OVERCLOCK_PRIVATE_KEY;
+  const child = spawn(process.execPath, [new URL('../bin/overclock-mcp.js', import.meta.url).pathname, '--http', '--port', String(port), '--read-only'], { env, stdio: ['ignore', 'ignore', 'pipe'] });
   try {
     await new Promise((ok, bad) => { child.stderr.on('data', (d) => String(d).includes('/mcp') && ok()); child.on('exit', bad); });
     const remote = new Client({ name: 'remote', version: '1.0.0' });
     await remote.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`)));
     const names = (await remote.listTools()).tools.map((t) => t.name);
     assert.ok(names.includes('verify_claim'));
-    assert.ok(!names.includes('post_job'), 'no wallet, no transaction tools');
+    assert.ok(!names.includes('post_job') && !names.includes('connect_wallet'), 'read-only: no transaction tools');
     const r = await remote.callTool({ name: 'overclock_info', arguments: {} });
     const info = JSON.parse(r.content[0].text);
     assert.equal(info.overclock, await oc.getAddress());
     assert.match(info.wallet, /read-only/);
+    await remote.close();
+  } finally {
+    child.kill();
+  }
+});
+
+test('HTTP mode serves the approval page on the same server', async () => {
+  const { spawn } = await import('node:child_process');
+  const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
+  const port = 40000 + Math.floor(Math.random() * 20000);
+  const env = { ...process.env, RPC_URL: provider._getConnection().url, OVERCLOCK: await oc.getAddress() };
+  delete env.OVERCLOCK_PRIVATE_KEY;
+  const child = spawn(process.execPath, [new URL('../bin/overclock-mcp.js', import.meta.url).pathname, '--http', '--port', String(port)], { env, stdio: ['ignore', 'ignore', 'pipe'] });
+  try {
+    await new Promise((ok, bad) => { child.stderr.on('data', (d) => String(d).includes('/mcp') && ok()); child.on('exit', bad); });
+    const remote = new Client({ name: 'remote', version: '1.0.0' });
+    await remote.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp`)));
+    const r = JSON.parse((await remote.callTool({ name: 'connect_wallet', arguments: {} })).content[0].text);
+    assert.ok(r.approvalPage.startsWith(`http://127.0.0.1:${port}/wallet/`));
+    assert.match(await (await fetch(r.approvalPage)).text(), /Overclock wallet/);
+    const blind = await fetch(r.approvalPage + '/connect', { method: 'POST', headers: { origin: 'https://evil.example' }, body: '{}' });
+    assert.equal(blind.status, 403, 'other sites cannot post to the page');
     await remote.close();
   } finally {
     child.kill();

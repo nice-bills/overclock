@@ -6,7 +6,7 @@
       "env": {
         "RPC_URL": "${RPC_URL:-https://rpc.xlayer.tech}",
         "OVERCLOCK": "${OVERCLOCK:-}",
-        "PRIVATE_KEY": "${PRIVATE_KEY:-}"
+        "OVERCLOCK_PRIVATE_KEY": "${OVERCLOCK_PRIVATE_KEY:-}"
       }
     }
   }

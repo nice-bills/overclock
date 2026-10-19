@@ -13,7 +13,27 @@ challenge window and become readable by any contract.
 
 The `overclock` MCP server provides the tools. Configuration comes from the environment:
 `RPC_URL` (defaults to X Layer mainnet), `OVERCLOCK` (the deployed contract; on X Layer mainnet it
-defaults to `0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`, elsewhere without it only the TapeOut tools appear) and `PRIVATE_KEY` (without it only read-only tools appear).
+defaults to `0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`, elsewhere without it only the TapeOut tools appear).
+
+## Wallet
+
+Never ask the user for a private key or seed phrase. Transactions are approved in the user's own
+wallet:
+
+1. The first time a write tool is needed (or when one answers "No wallet connected"), call
+   `connect_wallet` with `waitSeconds: 0`. It returns `approvalPage`, a localhost link (in a local
+   setup it also opens in the browser).
+2. Give the user that link: they open it, connect OKX Wallet or MetaMask (the page adds X Layer to
+   the wallet if needed) and keep the tab open.
+3. Call `connect_wallet` again with `waitSeconds: 120` to learn when they are connected.
+
+From then on every transaction pops up in their wallet. The tool waits for their answer and
+returns the transaction hash; a rejection comes back as an error starting `Wallet:`, which means
+the user said no, so do not retry it unasked. Tools that send several transactions
+(`tapeout_circuit`, `challenge_claim`) ask once per transaction; say how many to expect.
+
+If the server was started with `OVERCLOCK_PRIVATE_KEY` it signs without asking and has no
+`connect_wallet`; the cost rules below matter even more then.
 
 ## Conventions
 
@@ -25,7 +45,8 @@ defaults to `0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710`, elsewhere without it o
 ## Before spending anything
 
 Every write tool sends a real transaction. Before calling one, tell the user what it costs and get
-a yes, unless they already asked for exactly that action:
+a yes, unless they already asked for exactly that action. Their wallet prompt shows the amount,
+but they should not be surprised by it:
 
 | Tool | Cost |
 |---|---|
@@ -58,7 +79,9 @@ answered (an honest claim always wins). `finalize_job` once status is `ready to 
 
 **Earn as a watcher.** For each `claimed` job, `verify_claim`. On `wrong`, `challenge_claim`
 plays the bisection; if it returns open disputes, keep calling `advance_disputes` until none
-remain. Each move must land before the opponent's deadline, so do not leave a dispute idle.
+remain. Each move must land before the opponent's deadline, so do not leave a dispute idle, and
+tell the user each move needs their approval in the wallet. For unattended watching or operating,
+suggest a dedicated wallet with `OVERCLOCK_PRIVATE_KEY` holding only the bond and gas.
 
 **Put a circuit on TapeOut.** `create_processor`, then `tapeout_circuit` with a TAP-02 netlist
 (it mints the transistors it needs). A netlist that REFs another circuit needs that circuit taped

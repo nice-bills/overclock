@@ -140,6 +140,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 | `scripts/headline.js` | The CPU and digit-net runs (`npm run cpu`, `npm run digits`) |
 | `bin/overclock.js` | CLI: `operator`, `watch`, `post`, `trace`, `job`, `life` |
 | `src/mcp.js`, `bin/overclock-mcp.js` | MCP server (stdio and HTTP) for AI agents |
+| `src/wallet.js` | Wallet approval page and signer: transactions approved in OKX Wallet or MetaMask, no private key |
 | `.claude-plugin/`, `.mcp.json`, `skills/overclock/` | Claude Code plugin: the MCP server plus a usage skill |
 | `scripts/demo.js` | The end-to-end demo; writes `web/demo-run.json` |
 | `web/` | Job board and replay page |
@@ -148,7 +149,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 
 ```sh
 npm install
-npm test             # 42 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
+npm test             # 58 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
 npm run demo         # 16x16 board, 100 generations (about 90 s); --w --h --beats to change
 node scripts/build-web.js   # inline the run into web/overclock.html
 ```
@@ -187,19 +188,32 @@ Most people will hand this to an agent, so Overclock ships as an MCP server. Cla
 ```json
 { "mcpServers": { "overclock": {
   "command": "node", "args": ["/path/to/overclock/bin/overclock-mcp.js"],
-  "env": { "RPC_URL": "https://rpc.xlayer.tech", "OVERCLOCK": "0x...", "PRIVATE_KEY": "0x..." } } } }
+  "env": { "RPC_URL": "https://rpc.xlayer.tech" } } } }
 ```
 
-**Remote agents and ChatGPT connectors over HTTP:** `RPC_URL=... OVERCLOCK=0x... node bin/overclock-mcp.js --http --port 3333` serves Streamable HTTP at `/mcp`. Leave `PRIVATE_KEY` unset when anyone else can reach the endpoint.
+**Remote agents and ChatGPT connectors over HTTP:** `RPC_URL=... node bin/overclock-mcp.js --http --port 3333` serves Streamable HTTP at `/mcp`, and the wallet approval page on the same server. Add `--read-only` when other people can reach the endpoint.
+
+### Connect your wallet, never paste a key
+
+The agent never sees a private key. Transactions are approved in your own wallet:
+
+1. When the agent first needs to send something, it calls `connect_wallet`, which returns a link to an approval page on localhost (and, in a local setup, opens it in your browser).
+2. You connect **OKX Wallet** or **MetaMask** there. The page switches the wallet to X Layer, adding the network if it is missing. Keep the tab open.
+3. Every transaction the agent sends opens in your wallet with its amount and target. Approve it and the tool returns the hash; reject it and the tool fails with nothing sent.
+
+The server checks on-chain that the transaction your wallet sent is exactly the one it asked for, and the page only answers same-origin requests that carry its random token. Read-only tools need no wallet at all.
+
+**Unattended agents.** A bonded operator or watcher has to answer dispute moves before a deadline, possibly while you sleep. For that, `OVERCLOCK_PRIVATE_KEY=0x...` makes the server sign without asking. Use a dedicated wallet that holds only the bond and gas. The server ignores a plain `PRIVATE_KEY` so a key in your shell is never picked up by accident.
 
 What the server offers depends on its configuration:
 
 - **Without `OVERCLOCK`:** only the TapeOut tools.
-- **Without `PRIVATE_KEY`:** only the read-only tools.
+- **With `--read-only`:** only the read-only tools.
 
 | Tool | What it does |
 |---|---|
-| `overclock_info`, `list_jobs`, `get_job` | Deployment parameters; jobs with their status (open, claimed, disputed, ready to finalize, final) |
+| `overclock_info`, `list_jobs`, `get_job` | Deployment parameters and wallet status; jobs with their status (open, claimed, disputed, ready to finalize, final) |
+| `connect_wallet` | Link to the approval page where you connect OKX Wallet or MetaMask; waits until you have |
 | `describe_circuit` | Pins, state, flattened gates, REFs and estimated `step` gas for any TapeOut circuit |
 | `run_locally` | Runs beats off-chain for free: outputs, final state and the trace root an honest claim commits to |
 | `verify_claim` | Re-runs a claimed job and says whether to trust it |
@@ -207,11 +221,13 @@ What the server offers depends on its configuration:
 | `claim_job`, `challenge_claim`, `advance_disputes`, `finalize_job` | Operator and watcher: claim with a bond, bisect a wrong claim to one gate and prove it, settle |
 | `create_processor`, `tapeout_circuit`, `life_circuits` | TapeOut's own flow: new processor, mint transistors, tape out a netlist; example netlists |
 
-`test/mcp.test.js` drives the server through the official MCP client over both stdio and HTTP. In the test, the agent:
+`test/mcp.test.js` drives the server through the official MCP client over both stdio and HTTP, with no private key: a stand-in for the approval page approves each transaction from an unlocked test account. In the test, the agent:
 
-1. creates a processor and tapes out circuits;
-2. posts, claims and finalizes a job;
-3. catches a cheating operator by bisecting to the corrupted gate and takes its bond.
+1. is told to connect a wallet before its first transaction, gets the link, and waits for the connection;
+2. has a rejected transaction and a swapped one refused;
+3. creates a processor and tapes out circuits;
+4. posts, claims and finalizes a job;
+5. catches a cheating operator by bisecting to the corrupted gate and takes its bond.
 
 ## Status and limits
 
