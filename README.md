@@ -57,11 +57,11 @@ TapeOut circuits avoid that problem. They are NAND gates with exact, published s
 
 ## Who it's for
 
-TapeOut's own limit is the market: `step()` costs about 2.5K gas per flattened gate and a block holds 210M, so one call tops out near 80,000 gates. Anything bigger, or anything that has to run for many beats, can't be run on-chain today.
+TapeOut's own limit is the market: `step()` costs about 2.5K gas per flattened gate and a block holds 210M, so one call tops out near 80,000 gates. Anything bigger, or anything that has to run for many beats, can't be run on-chain today. ZK coprocessors (AlephTape) cover big *stateless* circuits, but their compiler rejects LATCH and each circuit needs its own setup ceremony. Overclock is the route for everything else.
 
 **We counted.** [`scripts/census.js`](scripts/census.js) reads every circuit of all 397 processors in the TapeOut factory: **11,074 circuits**. 7 are too big to run even once in a block, all AlephTape's. Of 1,754 machines (circuits with state and logic), **1,014 can't run 1,000 beats in a block**, held by **213 wallets**: 996 of them on the two FAB-Genisis processors, plus LoteGate (4,863 gates, 17 beats per block), Covenant (44 per block) and others. [docs/census.md](docs/census.md) lists each processor, its holders and a link that runs its biggest circuit.
 
-**Try it on your own circuit: [overclock-board.onrender.com/#try](https://overclock-board.onrender.com/#try).** Paste any processor and circuit ID. The page reads the netlist from mainnet, runs it in the browser with the same TAP-02 evaluator our operators use, checks beat 1 against TapeOut's own `eval`/`step` when it fits a call, and shows what the run costs directly and through Overclock, with the prompt or command that posts it as a job. No wallet needed, and every run has a link to share. ZK coprocessors (AlephTape) cover big *stateless* circuits, but their compiler rejects LATCH and each circuit needs its own setup ceremony. Overclock is the route for everything else.
+**Try it on your own circuit: [overclock-board.onrender.com/#try](https://overclock-board.onrender.com/#try).** Paste any processor and circuit ID. The page reads the netlist from mainnet, runs it in the browser with the same TAP-02 evaluator our operators use, checks beat 1 against TapeOut's own `eval`/`step` when it fits a call, and shows what the run costs directly and through Overclock, with the prompt or command that posts it as a job. No wallet needed, and every run has a link to share.
 
 | Who | What they need | What Overclock gives them |
 |---|---|---|
