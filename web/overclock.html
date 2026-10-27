@@ -2183,7 +2183,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       jobId, cpu: addr(h, 0), id: uint(h, 1), inputs: bytesAt(h, 2), state: bytesAt(h, 3), fee: uint(h, 4),
       beats: num(h, 5), perBeat: num(h, 6) === 1, nIn: num(h, 7), nOut: num(h, 8), nState: num(h, 9), flat: num(h, 10),
       poster: addr(h, 11), parent: num(h, 12), claimant: addr(h, 13), traceRoot: '0x' + word(h, 14),
-      outputs: bytesAt(h, 15), newState: bytesAt(h, 16), claimedAt: num(h, 17), challenged: num(h, 18) === 1, finalized: num(h, 19) === 1,
+      outputs: bytesAt(h, 15), newState: bytesAt(h, 16), claimedAt: num(h, 17), challenged: num(h, 18) > 0, finalized: num(h, 19) === 1,
     };
   }
   function decodeGame(h, gameId) {

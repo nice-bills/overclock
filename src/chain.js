@@ -56,7 +56,8 @@ export async function readJob(oc, jobId) {
     outputs: j.outputs,
     newState: j.newState,
     claimedAt: Number(j.claimedAt),
-    challenged: j.challenged,
+    openGames: Number(j.openGames),
+    challenged: Number(j.openGames) > 0,
     finalized: j.finalized,
   };
   job.inputBits = unpack(hexToBytes(j.inputs), job.perBeat ? job.beats * job.nIn : job.nIn);
@@ -67,6 +68,16 @@ export async function readJob(oc, jobId) {
 export async function readGame(oc, gameId) {
   const g = await oc.games(gameId);
   return { gameId: BigInt(gameId), jobId: g.jobId, challenger: g.challenger, level: Number(g.level), index: Number(g.index), node: g.node, turn: Number(g.turn), deadline: Number(g.deadline) };
+}
+
+// Whether a game's claim was already overturned by another game, so the game only refunds.
+// Contracts from before parallel challenges have no claim counter: their games are never stale.
+export async function isStale(oc, gameId, jobId) {
+  try {
+    return (await oc.gameClaim(gameId)) !== (await oc.claimCount(jobId));
+  } catch {
+    return false;
+  }
 }
 
 export const Turn = { Claimant: 0, Challenger: 1, Leaf: 2, Done: 3 };

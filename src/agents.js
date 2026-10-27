@@ -9,7 +9,7 @@
 import { traceJob, Tree } from './trace.js';
 import { depsOf, resultPos, Bisector } from './game.js';
 import { pack, bytesToHex, hexToBytes, unpack } from './tap02.js';
-import { loadCircuit, readJob, readGame, Turn, CLOSED } from './chain.js';
+import { loadCircuit, readJob, readGame, isStale, Turn, CLOSED } from './chain.js';
 
 class Agent {
   // settle(receipt): optional wait after each transaction, for RPCs whose reads can lag a block
@@ -96,6 +96,7 @@ export class Operator extends Agent {
       if (game.level === CLOSED || game.turn !== Turn.Claimant) continue;
       const job = await readJob(this.oc, game.jobId);
       if (job.claimant.toLowerCase() !== me || !this.mine.has(Number(game.jobId))) continue;
+      if (await isStale(this.oc, g, game.jobId)) continue; // a game against an earlier claim of ours
       const { tree } = await this.trace(job, this.mine.get(Number(game.jobId)));
       const l = game.level - 1;
       await this.send(`reveals level ${game.level}`, 'reveal', g, tree.node(l, 2 * game.index), tree.node(l, 2 * game.index + 1));
@@ -119,8 +120,11 @@ export class Challenger extends Agent {
     for (let i = 0; i < nJobs; i++) {
       if (this.only && !this.only.has(i)) continue;
       const job = await readJob(this.oc, i);
-      if (job.finalized || job.challenged || job.claimant === '0x0000000000000000000000000000000000000000') continue;
+      // other games on the claim don't matter: each is decided on its own, so a cheat's
+      // accomplice challenging first can't keep this watcher out
+      if (job.finalized || job.claimant === '0x0000000000000000000000000000000000000000') continue;
       if (now >= job.claimedAt + window) continue;
+      if ([...this.games.values()].some((b) => b.jobId === i)) continue; // already playing this claim
       const key = `${i}:${job.traceRoot}:${job.claimedAt}`;
       if (this.checked.has(key)) continue;
       this.checked.add(key);
@@ -129,7 +133,9 @@ export class Challenger extends Agent {
         this.log({ who: this.name, what: `re-ran job ${i}: trace root differs, challenging` });
         const { events } = await this.send('challenges', 'challenge', i, { value: bond });
         const gameId = events.find((e) => e.name === 'Challenged').args.gameId;
-        this.games.set(Number(gameId), new Bisector(tree));
+        const bis = new Bisector(tree);
+        bis.jobId = i;
+        this.games.set(Number(gameId), bis);
         continue;
       }
       const claimed = [...unpack(hexToBytes(job.outputs), job.nOut), ...unpack(hexToBytes(job.newState), job.nState)];
@@ -147,7 +153,11 @@ export class Challenger extends Agent {
       const game = await readGame(this.oc, g);
       if (game.level === CLOSED) { this.games.delete(g); continue; }
       if (game.challenger.toLowerCase() !== me) continue;
-      if (game.turn === Turn.Challenger) {
+      if (await isStale(this.oc, g, game.jobId)) {
+        // another watcher already overturned this claim
+        await this.send('takes its bond back from a game on an overturned claim', 'timeout', g);
+        this.games.delete(g);
+      } else if (game.turn === Turn.Challenger) {
         const [left, right] = await this.oc.pending(g);
         const goLeft = bis.choose(game.level, game.index, left, right);
         await this.send(`picks ${goLeft ? 'left' : 'right'} at level ${game.level}`, 'pick', g, !goLeft);

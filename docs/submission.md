@@ -3,6 +3,8 @@
 Answers to every field the submission form asks for, in the order the event page lists them. Short
 enough to paste field by field; every number links to a mainnet transaction or a file in this repo.
 
+简体中文版：[submission.zh.md](submission.zh.md)
+
 ## Project
 
 **Name:** Overclock
@@ -144,10 +146,12 @@ security review with a proof-of-concept test for every finding ([docs/security-a
 
 ## Honest limits
 
-- The mainnet contract predates two critical fixes from our own audit (dispute payouts). It has no
-  owner or upgrade path and held 0 OKB when checked; a redeploy of the fixed contract is the next step.
+- The mainnet contract predates the fixes from our own audit (two critical bugs in dispute payouts,
+  and one challenger at a time). It has no owner or upgrade path and held 0 OKB when checked; a
+  redeploy of the fixed contract is the next step.
 - Bond (0.001 OKB) and challenge window (10 minutes) are demo parameters. Real value needs a bigger bond
   and a longer window.
-- One challenger at a time per claim: a griefer can delay a job, though never make a wrong result
-  final. Multi-party games are the planned fix.
+- Any number of watchers can now challenge the same claim in parallel, each in its own game, so a
+  cheat's accomplice can't hold an honest watcher off. A griefer can still restart the window by
+  losing a bond each time.
 - Results wait for the challenge window, which suits games, batch jobs and verdicts, not instant trades.

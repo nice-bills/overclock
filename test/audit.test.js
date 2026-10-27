@@ -201,6 +201,69 @@ test('a circuit whose trace does not fit in 64 bits is refused', async () => {
   await assert.rejects(send(oc.postJob(await cpu.getAddress(), id, '0x', '0x', 1, false)));
 });
 
+test('a cheat\'s accomplice who challenges first cannot keep an honest watcher out', async () => {
+  const inputs = [0, 1, 1, 0, 1, 0, 0, 1];
+  const fee = parseEther('1');
+  const jobId = await post(inputs, fee);
+  const honest = traceBeat(pop, [], inputs);
+  const lied = honest.leaves.slice();
+  lied[40] ^= 1;
+  const H = buildTree(honest.leaves), C = buildTree(lied);
+  const held = await bal(oc.target);
+  await claim(jobId, attacker, C.root, honest.outputs);
+  // the accomplice opens a game it means to lose slowly
+  const stall = await challenge(jobId, accomplice);
+  // the honest watcher still gets in, and wins on its own game
+  const gameId = await challenge(jobId, watcher);
+  const b = new Bisector(H);
+  const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, left, right) => b.choose(l, i, left, right));
+  const before = await bal(watcher.address);
+  await send(oc.connect(attacker).resolveLeaf(gameId, depsOf(pop, q).map((pos) => ({ pos, bit: honest.leaves[pos], siblings: b.siblings(pos, q) }))));
+  assert.equal(await bal(watcher.address), before + 2n * BOND, 'the watcher is paid its bond and the cheat\'s');
+  assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the wrong claim is gone');
+  // the accomplice's game is now stale: no more moves, and it only refunds
+  await assert.rejects(send(oc.connect(attacker).reveal(stall, C.node(C.depth - 1, 0), C.node(C.depth - 1, 1))));
+  await send(oc.timeout(stall));
+  assert.equal(Number((await oc.games(stall)).level), 255);
+  await assert.rejects(send(oc.timeout(stall)));
+  // an honest operator claims and is paid; the contract keeps nothing it doesn't owe
+  await claim(jobId, operator, H.root, honest.outputs);
+  await warp(WINDOW + 1);
+  await send(oc.finalize(jobId));
+  assert.equal(await bal(oc.target), held - fee);
+});
+
+test('a claim cannot finalize while any game against it is open', async () => {
+  const inputs = [1, 0, 0, 1, 1, 0, 1, 0];
+  const jobId = await post(inputs);
+  const t = traceBeat(pop, [], inputs);
+  const H = buildTree(t.leaves);
+  await claim(jobId, operator, H.root, t.outputs);
+  const g1 = await challenge(jobId, accomplice);
+  const g2 = await challenge(jobId, watcher);
+  await warp(WINDOW + 1);
+  await assert.rejects(send(oc.finalize(jobId)));
+  await send(oc.timeout(g1)); // the claimant was due to move: it loses g1, and the claim with it
+  assert.equal((await oc.jobs(jobId)).claimant, ZERO);
+  const before = await bal(watcher.address);
+  await send(oc.connect(operator).timeout(g2)); // stale now: the watcher's bond comes back, and no more
+  assert.equal((await oc.games(g2)).turn, 3n);
+  assert.equal(await bal(watcher.address), before + BOND);
+});
+
+test('a move after its deadline is refused, and the side that was due loses on timeout', async () => {
+  const inputs = [1, 1, 0, 0, 1, 1, 0, 0];
+  const jobId = await post(inputs);
+  const t = traceBeat(pop, [], inputs);
+  const H = buildTree(t.leaves);
+  await claim(jobId, operator, H.root, t.outputs);
+  const gameId = await challenge(jobId, watcher);
+  await warp(WINDOW + 1);
+  await assert.rejects(send(oc.connect(operator).reveal(gameId, H.node(H.depth - 1, 0), H.node(H.depth - 1, 1))));
+  await send(oc.timeout(gameId));
+  assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the late claimant lost');
+});
+
 // ------------------------------------------------------------------ randomized solvency invariant
 
 // Whatever sequence of posts, claims, challenges, games, timeouts, replays and finalizations
@@ -236,6 +299,7 @@ for (const seed of [1, 2, 3]) {
     const players = signers.slice(0, 5);
     const jobs = []; // { jobId, inputs, honest, claim: { who, leaves, tree, outputs } | null }
     const closed = []; // [gameId, deps] of settled games, for replays
+    const parked = []; // games left open mid-bisection
     // owed() counts every job and game ever made on this contract, so it starts from what earlier tests left
     const base = (await bal(oc.target)) - (await owed());
     const check = async (what) => assert.equal((await bal(oc.target)) - (await owed()), base, `after ${what}`);
@@ -261,7 +325,7 @@ for (const seed of [1, 2, 3]) {
       } else if (r < 0.65 && open.length) {
         const j = pick(open);
         const s = await oc.jobs(j.jobId);
-        if (s.challenged || s.finalized) continue;
+        if (s.finalized) continue; // games run in parallel, so an open one doesn't stop another
         const challenger = pick(players);
         // the challenger plays from the honest trace; if the claim is honest it plays a made-up one
         let mine = j.honest.leaves;
@@ -269,11 +333,18 @@ for (const seed of [1, 2, 3]) {
           mine = mine.slice();
           mine[2 + 8 + Math.floor(rand() * 50)] ^= 1;
         }
-        const gameId = await challenge(j.jobId, challenger);
+        let gameId;
+        try { gameId = await challenge(j.jobId, challenger); } catch { continue; } // window over
         await check('challenge');
+        if (rand() < 0.4) { // a second watcher opens its own game on the same claim and waits
+          parked.push(await challenge(j.jobId, pick(players)));
+          await check('parallel challenge');
+        }
         if (rand() < 0.2) { // someone walks away mid-game
           await warp(WINDOW + 1);
           await send(oc.timeout(gameId));
+        } else if (rand() < 0.25) { // left open: a later game may overturn the claim and make it stale
+          parked.push(gameId);
         } else {
           const b = new Bisector(new Tree(mine));
           const q = await bisect(gameId, { claimant: j.claim.who, challenger }, j.claim.tree, (l, i, left, right) => b.choose(l, i, left, right));
@@ -287,7 +358,7 @@ for (const seed of [1, 2, 3]) {
       } else if (r < 0.75 && open.length) {
         const j = pick(open);
         const s = await oc.jobs(j.jobId);
-        if (s.challenged || s.finalized) continue;
+        if (s.openGames > 0n || s.finalized) continue;
         const k = Math.floor(rand() * 4);
         const pos = sigPosOf(pop, 0, pop.nSignals - pop.nOut + k);
         try {
@@ -295,6 +366,15 @@ for (const seed of [1, 2, 3]) {
         } catch { continue; } // window over
         if ((await oc.jobs(j.jobId)).claimant === ZERO) j.claim = null;
         await check('disputeOutput');
+      } else if (r < 0.8 && parked.length) {
+        // close a parked game: a stale one refunds at once, a live one waits out its deadline
+        const gameId = parked.splice(Math.floor(rand() * parked.length), 1)[0];
+        const g = await oc.games(gameId);
+        if (Number(g.level) === 255) continue;
+        if ((await oc.gameClaim(gameId)) === (await oc.claimCount(g.jobId))) await warp(WINDOW + 1);
+        await send(oc.timeout(gameId));
+        for (const j of jobs) if (j.claim && (await oc.jobs(j.jobId)).claimant === ZERO) j.claim = null;
+        await check('timeout of a parked game');
       } else if (r < 0.85 && closed.length) {
         const [gameId, deps] = pick(closed);
         try { await send(oc.connect(pick(players)).resolveLeaf(gameId, rand() < 0.5 ? deps : [])); } catch {}
@@ -304,7 +384,7 @@ for (const seed of [1, 2, 3]) {
         await warp(WINDOW + 1);
         for (const j of open) {
           const s = await oc.jobs(j.jobId);
-          if (s.challenged || s.finalized) continue;
+          if (s.openGames > 0n || s.finalized) continue;
           await send(oc.finalize(j.jobId));
           j.claim = null;
           j.done = true;

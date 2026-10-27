@@ -24,10 +24,10 @@ see the end of this file.
 | H-1 | High | An old game can wipe a later honest claim on the same job and take its bond | Fixed (by C-1) |
 | M-1 | Medium | Whoever calls `finalize` can starve the poster's result callback of gas | Fixed |
 | M-2 | Medium | Padding bits of a claimed result are unchecked and undisputable | Fixed |
-| M-3 | Medium | One challenge at a time: a claimant and an accomplice can stall a job indefinitely | Open (design) |
+| M-3 | Medium | One challenge at a time: a claimant and an accomplice can stall a job indefinitely | Fixed (parallel games) |
 | L-1 | Low | `flatSize` is truncated to `uint64` when a job is posted | Fixed |
 | L-2 | Low | A 10-minute move window and a 0.001 OKB bond are thin for real value | Open (redeploy parameters) |
-| L-3 | Low | Moves after their deadline are accepted until someone calls `timeout` | Open |
+| L-3 | Low | Moves after their deadline are accepted until someone calls `timeout` | Fixed |
 | I-1 | Info | Gas of the one-step check is not bounded by the contract | Open |
 | I-2 | Info | Slither results | Triaged |
 
@@ -105,7 +105,7 @@ no one could dispute it.
 PoC: *a claim cannot carry unchecked garbage in the padding bits of its result*. Fix: `claim` requires
 those bits to be zero (line 156).
 
-## M-3. One challenge at a time (Medium, open)
+## M-3. One challenge at a time (Medium, fixed)
 
 A job holds one challenge at a time (`j.challenged`). A cheat can have an accomplice challenge its own
 wrong claim first and then let the game time out. The accomplice's bond goes back to the cheat, so the
@@ -116,7 +116,17 @@ the pair keeps winning that race. The poster's fee stays locked.
 
 Recommendation for the next version: let any number of challengers open games against the same claim
 (each game decided independently, as in Arbitrum's BOLD or Cartesi's Dave), or at least let a second
-challenger join an open game. That is a design change, so it is not part of this fix.
+challenger join an open game.
+
+**Fix (27 Oct).** Any number of challengers can open games against the same claim (`challenge` and
+`disputeOutput` no longer require the claim to be unchallenged). Each game is decided on its own.
+The job counts its open games (`openGames`), and a claim finalizes only when none is open. Every game
+records which claim it was opened against (`gameClaim`, `claimCount`). The first game that proves
+the claim wrong pays its challenger both bonds and reopens the job, and the claim's other games turn
+stale: they take no more moves, and `timeout` closes each one at once and returns its challenger's
+bond. PoC: *a cheat's accomplice who challenges first cannot keep an honest watcher out*; also *a
+claim cannot finalize while any game against it is open*. The solvency invariant now opens games in
+parallel and leaves some parked until they go stale.
 
 ## L-1. `flatSize` truncated to `uint64` (Low)
 
@@ -134,12 +144,16 @@ minutes. And a lie on a job with a large fee risks only 0.001 OKB. For anything 
 window of hours, and a bond that covers the gas of a full dispute plus a margin over the largest fee
 you expect (or make the bond scale with the fee).
 
-## L-3. Late moves are accepted (Low, open)
+## L-3. Late moves are accepted (Low, fixed)
 
 `reveal`, `pick` and `resolveLeaf` don't check `g.deadline`, so a late move counts if it lands before
 anyone calls `timeout`. Nobody gains from that beyond what the waiting side could have stopped, and it
-lets a late but correct `resolveLeaf` still win. Left as is; worth knowing when writing watchers: call
-`timeout` promptly.
+lets a late but correct `resolveLeaf` still win.
+
+**Fix (27 Oct).** `reveal`, `pick` and `resolveLeaf` refuse a move after the game's deadline, so the
+side that was due loses on `timeout` however late anyone calls it. PoC: *a move after its deadline is
+refused, and the side that was due loses on timeout*. Watchers should still move well before the
+deadline.
 
 ## I-1. One-step check gas is unbounded (Info, open)
 

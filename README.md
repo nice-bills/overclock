@@ -31,7 +31,7 @@ Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet cir
 | Circuit IDs | On the processor above: #4, the Life cell rule (57 gates); #5, the 8×8 board (64 REFs to #4); #6, the 4-bit CPU (1,437 gates). On AlephTape's processor [`0xb00e17789f905234f1890c22e6c01015c10d2f54`](https://www.oklink.com/x-layer/address/0xb00e17789f905234f1890c22e6c01015c10d2f54): #11, the digit net (161,080 gates) |
 | TapeOut features used | Processor factory, NAND and LATCH transistors, tapeout, `REF`, `step`, netlist reads, ERC-6551 circuit accounts |
 | Live site | [overclock-board.onrender.com](https://overclock-board.onrender.com): landing, [job board](https://overclock-board.onrender.com/#board), [replay](https://overclock-board.onrender.com/#replay) |
-| Write-up, film script, launch thread | [docs/submission.md](docs/submission.md), [docs/demo-script.md](docs/demo-script.md), [docs/launch-thread.md](docs/launch-thread.md) |
+| Write-up (English, 中文), film script, launch thread | [docs/submission.md](docs/submission.md), [docs/submission.zh.md](docs/submission.zh.md), [docs/demo-script.md](docs/demo-script.md), [docs/launch-thread.md](docs/launch-thread.md) |
 
 **Demo result (local EVM).** The demo runs Conway's Game of Life on a 16×16 board built from TapeOut circuits, for 100 generations. That is 14,848 gates per generation and 1,817,800 steps in all.
 
@@ -240,5 +240,5 @@ What the server offers depends on its configuration:
 - **Mainnet parameters are small.** The deployment's 0.001 OKB bond and 10-minute window suit a demo; a deployment for real value needs a bigger bond and a longer window.
 - **Measured on the real factory.** The one-step check reads the netlist from TapeOut's own processor: 347,509 gas on mainnet for an 8×8 board.
 - **Gas of the one-step check** grows with the number of records in the netlist before the disputed step. Big designs are built from REFs, which keeps each netlist small. A 512-record board costs 0.6M to 0.9M gas.
-- **One challenger at a time per claim.** A false challenge restarts the window, so a griefer can delay finalization but pays a bond each time. Bond sizing and multi-party games are future work.
-- **Audited in-house, not independently.** [docs/security-audit.md](docs/security-audit.md) lists every finding with a proof-of-concept test. Two critical bugs in the dispute payouts are fixed in this repo; the mainnet contract above predates the fixes and can't be patched (no owner or upgrade path). It held 0 OKB when checked, so nothing is at risk today, and a redeploy of the fixed contract is the next step.
+- **Challenges run in parallel.** Any number of watchers can open games against the same claim, each decided on its own; the first to prove a wrong step overturns the claim and the rest get their bonds back. A false challenge restarts the window, so a griefer can delay finalization but loses a bond each time.
+- **Audited in-house, not independently.** [docs/security-audit.md](docs/security-audit.md) lists every finding with a proof-of-concept test. Two critical bugs in the dispute payouts are fixed in this repo, and so are the one-challenger stall and late moves; the mainnet contract above predates the fixes and can't be patched (no owner or upgrade path). It held 0 OKB when checked, so nothing is at risk today, and a redeploy of the fixed contract is the next step.

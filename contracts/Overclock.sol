@@ -61,7 +61,7 @@ contract Overclock {
         bytes outputs;
         bytes newState;
         uint64 claimedAt;
-        bool challenged;
+        uint32 openGames; // games still open against the current claim
         bool finalized;
     }
 
@@ -87,6 +87,10 @@ contract Overclock {
     Game[] public games;
     mapping(address => mapping(uint256 => uint256)) internal _flat; // flatSize + 1, 0 = not computed
     mapping(address => mapping(uint256 => uint256)) internal _nStateOf; // nState, set with _flat
+    /// Claims ever made on each job. A game belongs to the claim that was current when it opened
+    /// (gameClaim); once that claim is overturned, its other games are stale and only refund.
+    mapping(uint256 => uint256) public claimCount;
+    mapping(uint256 => uint256) public gameClaim;
 
     event JobPosted(uint256 indexed jobId, address cpu, uint256 id, uint32 beats);
     event Claimed(uint256 indexed jobId, address claimant, bytes32 traceRoot, bytes outputs);
@@ -155,12 +159,13 @@ contract Overclock {
         // bits past nOut / nState are out of reach of any dispute, so they must be zero
         require(_padded(outputs, j.nOut) && _padded(newState, j.nState), "result padding");
         (j.claimant, j.traceRoot, j.outputs, j.newState, j.claimedAt) = (msg.sender, traceRoot, outputs, newState, uint64(block.timestamp));
+        claimCount[jobId] += 1;
         emit Claimed(jobId, msg.sender, traceRoot, outputs);
     }
 
     function finalize(uint256 jobId) external {
         Job storage j = jobs[jobId];
-        require(j.claimant != address(0) && !j.challenged && !j.finalized, "state");
+        require(j.claimant != address(0) && j.openGames == 0 && !j.finalized, "state");
         require(block.timestamp >= j.claimedAt + window, "window");
         j.finalized = true;
         uint256 cut = j.fee * feeBps / 10_000;
@@ -184,21 +189,36 @@ contract Overclock {
 
     // ---------------------------------------------------------------- disputes over the trace
 
+    /// Any number of challengers can open games against the same claim, each decided on its own,
+    /// so a cheat's accomplice who challenges first can't hold off an honest watcher.
     function challenge(uint256 jobId) external payable returns (uint256 gameId) {
         Job storage j = jobs[jobId];
-        require(j.claimant != address(0) && !j.challenged && !j.finalized, "state");
+        require(j.claimant != address(0) && !j.finalized, "state");
         require(block.timestamp < j.claimedAt + window, "window");
         require(msg.value == bond, "bond");
-        j.challenged = true;
-        gameId = games.length;
-        games.push(Game(jobId, msg.sender, _depth(traceSize(jobId)), 0, j.traceRoot, Turn.Claimant, uint64(block.timestamp + window)));
+        gameId = _open(jobId, Game(jobId, msg.sender, _depth(traceSize(jobId)), 0, j.traceRoot, Turn.Claimant, uint64(block.timestamp + window)));
         emit Challenged(jobId, gameId, msg.sender);
+    }
+
+    function _open(uint256 jobId, Game memory g) internal returns (uint256 gameId) {
+        jobs[jobId].openGames += 1;
+        gameId = games.length;
+        games.push(g);
+        gameClaim[gameId] = claimCount[jobId];
+    }
+
+    /// A move in a live game, on time. A game whose claim was already overturned by another game
+    /// takes no moves; its challenger gets the bond back through `timeout`.
+    function _move(Game storage g, uint256 gameId) internal view {
+        require(gameClaim[gameId] == claimCount[g.jobId], "stale");
+        require(block.timestamp <= g.deadline, "late");
     }
 
     /// Claimant opens the node under dispute into its two children.
     function reveal(uint256 gameId, bytes32 left, bytes32 right) external {
         Game storage g = games[gameId];
         require(g.turn == Turn.Claimant && msg.sender == jobs[g.jobId].claimant, "turn");
+        _move(g, gameId);
         require(keccak256(abi.encodePacked(left, right)) == g.node, "hash");
         emit Revealed(gameId, g.level, g.index, left, right);
         g.turn = Turn.Challenger;
@@ -225,6 +245,7 @@ contract Overclock {
     function pick(uint256 gameId, bool right) external {
         Game storage g = games[gameId];
         require(g.turn == Turn.Challenger && msg.sender == g.challenger, "turn");
+        _move(g, gameId);
         g.node = _pending[gameId][right ? 1 : 0];
         g.index = g.index * 2 + (right ? 1 : 0);
         g.level -= 1;
@@ -239,6 +260,7 @@ contract Overclock {
     function resolveLeaf(uint256 gameId, Leaf[] calldata deps) external {
         Game storage g = games[gameId];
         require(g.turn == Turn.Leaf, "turn");
+        _move(g, gameId);
         Job storage j = jobs[g.jobId];
         Ctx memory ctx = _ctx(j, _depth(traceSize(g.jobId)), deps);
         bytes32 expected;
@@ -254,7 +276,7 @@ contract Overclock {
     /// the last beat; nOut + i is bit i of the final state.
     function disputeOutput(uint256 jobId, uint256 k, Leaf[] calldata deps) external payable {
         Job storage j = jobs[jobId];
-        require(j.claimant != address(0) && !j.challenged && !j.finalized, "state");
+        require(j.claimant != address(0) && !j.finalized, "state");
         require(block.timestamp < j.claimedAt + window, "window");
         require(msg.value == bond, "bond");
         require(k < uint256(j.nOut) + j.nState, "k");
@@ -269,17 +291,23 @@ contract Overclock {
             pos = last + j.flat + (k - j.nOut);
             claimed = _bit(j.newState, k - j.nOut);
         }
-        j.challenged = true;
-        uint256 gameId = games.length;
-        games.push(Game(jobId, msg.sender, 0, pos, bytes32(0), Turn.Leaf, 0));
+        uint256 gameId = _open(jobId, Game(jobId, msg.sender, 0, pos, bytes32(0), Turn.Leaf, 0));
         bool wrong = _get(ctx, pos) != claimed;
         _settle(gameId, wrong, wrong ? "output does not match trace" : "output matches trace");
     }
 
-    /// Whoever is due to move and misses the deadline loses.
+    /// Whoever is due to move and misses the deadline loses. A stale game (its claim was
+    /// overturned by another game) closes at once and returns the challenger's bond.
     function timeout(uint256 gameId) external {
         Game storage g = games[gameId];
-        require(g.deadline != 0 && block.timestamp > g.deadline, "not yet");
+        require(g.deadline != 0, "closed");
+        if (gameClaim[gameId] != claimCount[g.jobId]) {
+            (g.deadline, g.turn, g.level) = (0, Turn.Done, 255);
+            _pay(g.challenger, bond);
+            emit Resolved(g.jobId, gameId, g.challenger, "claim already overturned");
+            return;
+        }
+        require(block.timestamp > g.deadline, "not yet");
         bool claimantLate = g.turn == Turn.Claimant;
         _settle(gameId, claimantLate, claimantLate ? "claimant timed out" : "challenger timed out");
     }
@@ -294,14 +322,15 @@ contract Overclock {
         if (claimantWrong) {
             // the challenger gets its bond back plus the claimant's
             (winner, prize) = (g.challenger, 2 * bond);
-            // reopen the job for an honest claim
-            (j.claimant, j.traceRoot, j.challenged) = (address(0), bytes32(0), false);
+            // reopen the job for an honest claim; other games on this claim become stale
+            (j.claimant, j.traceRoot, j.openGames) = (address(0), bytes32(0), 0);
+            claimCount[g.jobId] += 1; // the claim is gone, so its other games are stale from now on
             delete j.outputs;
             delete j.newState;
         } else {
             // the claimant gets the challenger's bond; its own stays staked on the claim until finalize
             (winner, prize) = (j.claimant, bond);
-            j.challenged = false;
+            j.openGames -= 1;
             j.claimedAt = uint64(block.timestamp); // a fresh window for other watchers
         }
         g.level = 255; // closed
