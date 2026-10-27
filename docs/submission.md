@@ -24,6 +24,7 @@ lies about the result is caught by a one-gate check on X Layer and loses their b
 | Access link | https://overclock-board.onrender.com (landing page) |
 | Live job board | https://overclock-board.onrender.com/#board: every mainnet job, claim and dispute, read from the contract |
 | Mainnet replay | https://overclock-board.onrender.com/#replay: job 0 step by step, from the lie in generation 25 to the one gate that proved it |
+| Try it on any circuit | https://overclock-board.onrender.com/#try: load any circuit on mainnet, run it in the browser, check beat 1 against TapeOut's own `eval`/`step`, and compare the cost directly and through Overclock. No wallet needed |
 | Agent access | `/plugin install overclock --marketplace nice-bills/overclock` (Claude Code), or the MCP server over stdio or HTTP |
 | Demo video | to be added |
 
@@ -96,10 +97,16 @@ slashing on X Layer are what make that safe.
 4. **AI agents**, through the MCP server and Claude Code plugin: they can verify a result before relying
    on it, buy computation, or run as a bonded operator or watcher.
 
-**Reaching them.** The TapeOut ecosystem is small and concentrated, so the first users can be contacted
-by name: the teams with designs too big for a block (Cerebr, AlephTape, whose digit net we already
-ran on mainnet, and the on-chain CPU builders), FabX's Gate Challenge community, and the TapeOut and X Layer builder Telegram
-groups. Then Demo Day, the X Layer pop-up at DevConnect on Nov 18, and the Claude Code plugin
+**How many there are.** We read every circuit of all 397 processors on mainnet
+([docs/census.md](census.md), `scripts/census.js`): 11,074 circuits. 7 are too big to run once in a block
+(all AlephTape's), and 1,014 of the 1,754 machines can't run 1,000 beats in a block. Those circuits are
+held by 213 wallets, 996 of them on the two FAB-Genisis processors, plus LoteGate (17 beats per block),
+Covenant (44) and others.
+
+**Reaching them.** The census names the processors and holders, so the first users can be contacted
+by name, each with a link that runs their own circuit on our site and shows what it would cost: AlephTape,
+whose digit net we already ran on mainnet, the FAB-Genisis and FabX Gate Challenge community, LoteGate and
+Covenant, and the TapeOut and X Layer builder Telegram groups. Then Demo Day, the X Layer pop-up at DevConnect on Nov 18, and the Claude Code plugin
 marketplace for agent users. Every job we run for a team is a public mainnet example for the next one.
 
 ## Revenue model

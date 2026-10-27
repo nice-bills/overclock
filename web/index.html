@@ -301,6 +301,37 @@ footer a:hover { color: var(--ink); }
   .disputes th:nth-child(3), .disputes td:nth-child(3), .feed th:nth-child(4), .feed td:nth-child(4) { display: none; }
   .disputes td:nth-child(6) { min-width: 220px; }
 }
+/* your circuit */
+#try .dim { color: var(--faint); }
+.trylist td:last-child { text-align: right; }
+.trylist .num, .trylist th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tryform { grid-template-columns: 1fr 1fr; gap: 16px; }
+.tryform label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); min-width: 0; }
+.tryform .wide { grid-column: 1 / -1; }
+.tryform input { font: 400 14px/1.4 var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; width: 100%; }
+.tryform input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; min-width: 0; }
+.row .grow { flex: 1 1 260px; min-width: 0; }
+#tryNote.bad { color: var(--lie); }
+.costs { display: grid; gap: 14px; }
+.cost { display: grid; grid-template-columns: minmax(180px, 1.2fr) 2fr auto auto; align-items: center; gap: 8px 16px; font-size: 14px; }
+.cost b { font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.cost .track { height: 10px; background: var(--cell-off); border-radius: 999px; overflow: hidden; }
+.cost .track i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.cost .track i.over { background: var(--lie); }
+.tryres { gap: 12px; }
+.tryres div { display: grid; gap: 4px; min-width: 0; }
+.tryres code { overflow-wrap: anywhere; }
+#tryCheck { justify-items: start; }
+#tryPrompt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.tryres .tag, .cost .tag { white-space: normal; line-height: 1.3; }
+.trylist button { white-space: nowrap; }
+@media (max-width: 640px) {
+  .tryform { grid-template-columns: 1fr; padding: 16px; }
+  .cost { grid-template-columns: 1fr auto; }
+  .cost .track { grid-column: 1 / -1; grid-row: 2; }
+  .trylist th:nth-child(3), .trylist td:nth-child(3) { display: none; }
+}
 </style>
 
 <div class="wrap">
@@ -309,6 +340,7 @@ footer a:hover { color: var(--ink); }
     <div class="tabs">
       <a href="#board" id="tab-board">Job board</a>
       <a href="#replay" id="tab-replay">Replay</a>
+      <a href="#try" id="tab-try">Your circuit</a>
     </div>
     <a class="gh" href="https://github.com/nice-bills/overclock">GitHub</a>
   </nav>
@@ -503,6 +535,51 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     </div>
   </main>
 
+  <main class="view" id="try" hidden>
+    <div class="intro">
+      <h1>Overclock your circuit</h1>
+      <p>Pick any circuit taped out on X Layer mainnet. This page reads its netlist from the chain, runs it right here with the same TAP-02 evaluator our operators use, and shows what running it on-chain costs directly and through Overclock. No wallet needed.</p>
+    </div>
+
+    <div class="specs" id="censusSpecs"></div>
+
+    <section>
+      <div class="sec-head"><h2>Circuits the chain can't run today</h2><p class="label" id="censusNote"></p></div>
+      <div class="log"><table class="trylist"><thead><tr><th>Circuit</th><th class="num">Gates</th><th class="num">State bits</th><th>Directly on-chain</th><th></th></tr></thead><tbody id="tryList"></tbody></table></div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2>Or bring your own</h2></div>
+      <form class="card tryform" id="tryForm">
+        <label class="wide">Processor<input id="tryCpu" placeholder="0x… the circuits contract from the TapeOut factory" spellcheck="false" autocomplete="off" required></label>
+        <label>Circuit ID<input id="tryId" type="number" min="1" value="1" required></label>
+        <label>Beats<input id="tryBeats" type="number" min="1" max="100000000" value="1"></label>
+        <label class="wide">Inputs <span class="muted">packed hex, bit i is byte i/8, bit i%8; empty for random</span><input id="tryInputs" placeholder="0x" spellcheck="false" autocomplete="off"></label>
+        <label class="wide">Starting state <span class="muted">empty for all zeros</span><input id="tryState" placeholder="0x" spellcheck="false" autocomplete="off"></label>
+        <div class="wide row"><button type="submit" class="btn primary">Run it here</button><button type="button" id="tryRandom">Random inputs</button><span class="label" id="tryNote" role="status"></span></div>
+      </form>
+    </section>
+
+    <section id="tryOut" hidden>
+      <div class="sec-head"><h2 id="tryTitle"></h2><p class="label" id="tryMeta"></p></div>
+      <div class="specs" id="trySpecs"></div>
+      <div class="card">
+        <div class="costs" id="tryGas"></div>
+        <p class="label" id="tryGasNote"></p>
+      </div>
+      <div class="card tryres" id="tryResult"></div>
+      <p class="label" id="tryCut" hidden></p>
+      <div class="card">
+        <h3>Run it on-chain, checkable by anyone</h3>
+        <p class="muted">Ask Claude with the Overclock connector (<code>https://overclock-mcp-mainnet.onrender.com/mcp</code>), which sends you to your own wallet to approve:</p>
+        <div class="row"><pre id="tryPrompt" class="grow"></pre><button type="button" id="tryCopyPrompt">Copy</button></div>
+        <p class="muted">Or from a checkout of the repository, with <code>RPC_URL</code> and <code>PRIVATE_KEY</code> set:</p>
+        <pre id="tryCli"></pre>
+        <div class="row"><button type="button" id="tryCopyLink">Copy link to this run</button></div>
+      </div>
+    </section>
+  </main>
+
   <footer>
     <span>Overclock · optimistic execution for TapeOut circuits</span>
     <a href="https://github.com/nice-bills/overclock">github.com/nice-bills/overclock</a>
@@ -513,15 +590,17 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 // Three views on one page: the landing (no hash), #board and #replay.
 (function () {
   const show = () => {
-    const view = ['#board', '#replay'].includes(location.hash) ? location.hash.slice(1) : 'home';
-    for (const id of ['home', 'board', 'replay']) document.getElementById(id).hidden = id !== view;
-    for (const id of ['board', 'replay']) {
+    const h = location.hash.split('?')[0];
+    const view = ['#board', '#replay', '#try'].includes(h) ? h.slice(1) : 'home';
+    for (const id of ['home', 'board', 'replay', 'try']) document.getElementById(id).hidden = id !== view;
+    for (const id of ['board', 'replay', 'try']) {
       const t = document.getElementById('tab-' + id);
       if (id === view) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
     }
-    document.title = { home: 'Overclock', board: 'Overclock · Job board', replay: 'Overclock · Replay' }[view];
+    document.title = { home: 'Overclock', board: 'Overclock · Job board', replay: 'Overclock · Replay', try: 'Overclock · Your circuit' }[view];
   };
-  addEventListener('hashchange', () => { show(); scrollTo(0, 0); });
+  addEventListener('hashchange', () => { const v = location.hash.split('?')[0]; show(); if (v !== last) scrollTo(0, 0); last = v; });
+  let last = location.hash.split('?')[0];
   show();
 })();
 </script>
@@ -755,6 +834,9 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 <script id="live-run-data" type="application/json">null</script>
 <script id="board-data" type="application/json">null</script>
 <script src="board.js"></script>
+<script id="census-data" type="application/json">null</script>
+<script src="tap02.js"></script>
+<script src="try.js"></script>
 <script>
 (async function () {
   // the mainnet run when the page has it, else the recorded demo run

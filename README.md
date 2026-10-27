@@ -30,7 +30,7 @@ Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet cir
 | TapeOut processor | [`0xb00f10bb4b2f32c561bf90e205e543d0a2395971`](https://www.oklink.com/x-layer/address/0xb00f10bb4b2f32c561bf90e205e543d0a2395971) |
 | Circuit IDs | On the processor above: #4, the Life cell rule (57 gates); #5, the 8×8 board (64 REFs to #4); #6, the 4-bit CPU (1,437 gates). On AlephTape's processor [`0xb00e17789f905234f1890c22e6c01015c10d2f54`](https://www.oklink.com/x-layer/address/0xb00e17789f905234f1890c22e6c01015c10d2f54): #11, the digit net (161,080 gates) |
 | TapeOut features used | Processor factory, NAND and LATCH transistors, tapeout, `REF`, `step`, netlist reads, ERC-6551 circuit accounts |
-| Live site | [overclock-board.onrender.com](https://overclock-board.onrender.com): landing, [job board](https://overclock-board.onrender.com/#board), [replay](https://overclock-board.onrender.com/#replay) |
+| Live site | [overclock-board.onrender.com](https://overclock-board.onrender.com): landing, [job board](https://overclock-board.onrender.com/#board), [replay](https://overclock-board.onrender.com/#replay), [your circuit](https://overclock-board.onrender.com/#try) |
 | Write-up (English, 中文), film script, launch thread | [docs/submission.md](docs/submission.md), [docs/submission.zh.md](docs/submission.zh.md), [docs/demo-script.md](docs/demo-script.md), [docs/launch-thread.md](docs/launch-thread.md) |
 
 **Demo result (local EVM).** The demo runs Conway's Game of Life on a 16×16 board built from TapeOut circuits, for 100 generations. That is 14,848 gates per generation and 1,817,800 steps in all.
@@ -57,7 +57,11 @@ TapeOut circuits avoid that problem. They are NAND gates with exact, published s
 
 ## Who it's for
 
-TapeOut's own limit is the market: `step()` costs about 2.5K gas per flattened gate and a block holds 210M, so one call tops out near 80,000 gates. Anything bigger, or anything that has to run for many beats, can't be run on-chain today. ZK coprocessors (AlephTape) cover big *stateless* circuits, but their compiler rejects LATCH and each circuit needs its own setup ceremony. Overclock is the route for everything else.
+TapeOut's own limit is the market: `step()` costs about 2.5K gas per flattened gate and a block holds 210M, so one call tops out near 80,000 gates. Anything bigger, or anything that has to run for many beats, can't be run on-chain today.
+
+**We counted.** [`scripts/census.js`](scripts/census.js) reads every circuit of all 397 processors in the TapeOut factory: **11,074 circuits**. 7 are too big to run even once in a block, all AlephTape's. Of 1,754 machines (circuits with state and logic), **1,014 can't run 1,000 beats in a block**, held by **213 wallets**: 996 of them on the two FAB-Genisis processors, plus LoteGate (4,863 gates, 17 beats per block), Covenant (44 per block) and others. [docs/census.md](docs/census.md) lists each processor, its holders and a link that runs its biggest circuit.
+
+**Try it on your own circuit: [overclock-board.onrender.com/#try](https://overclock-board.onrender.com/#try).** Paste any processor and circuit ID. The page reads the netlist from mainnet, runs it in the browser with the same TAP-02 evaluator our operators use, checks beat 1 against TapeOut's own `eval`/`step` when it fits a call, and shows what the run costs directly and through Overclock, with the prompt or command that posts it as a job. No wallet needed, and every run has a link to share. ZK coprocessors (AlephTape) cover big *stateless* circuits, but their compiler rejects LATCH and each circuit needs its own setup ceremony. Overclock is the route for everything else.
 
 | Who | What they need | What Overclock gives them |
 |---|---|---|
@@ -149,7 +153,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 
 ```sh
 npm install
-npm test             # 59 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
+npm test             # 65 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
 npm run demo         # 16x16 board, 100 generations (about 90 s); --w --h --beats to change
 node scripts/build-web.js   # inline the run into web/overclock.html
 ```

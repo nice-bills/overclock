@@ -19,6 +19,7 @@
 | 全部主网交易 | [docs/mainnet-run.md](mainnet-run.md)（生命游戏），[docs/headline-demos.md](headline-demos.md)（CPU 与数字识别网络） |
 | 访问链接 | https://overclock-board.onrender.com（首页） |
 | 实时任务看板 | https://overclock-board.onrender.com/#board：直接从合约读取主网上的每个任务、声明和争议 |
+| 用你自己的电路试试 | https://overclock-board.onrender.com/#try：载入主网上任意一个电路，在浏览器里运行，用 TapeOut 自己的 `eval`/`step` 核对第 1 拍，并对比直接上链和通过 Overclock 的成本。无需钱包 |
 | 主网回放 | https://overclock-board.onrender.com/#replay：逐步回放 0 号任务，从第 25 代的作假一直到证明它的那一个门 |
 | AI 智能体接入 | `/plugin install overclock --marketplace nice-bills/overclock`（Claude Code），或通过 stdio / HTTP 使用 MCP 服务器 |
 | 演示视频 | 待补充 |
@@ -66,7 +67,9 @@ CPU 把程序存放在 LATCH 状态里，所以换一段代码只是一个新任
 3. **运营者和监督者**：手上有闲置机器的矿工和节点运营者。诚实声明赚任务费，抓到作假者赚对方的保证金。两个机器人都内置在命令行工具里。
 4. **AI 智能体**，通过 MCP 服务器和 Claude Code 插件：在依赖某个结果之前先验证它、购买算力，或作为有保证金的运营者或监督者运行。
 
-**如何触达。** TapeOut 生态规模小而集中，第一批用户可以点名联系：设计已经超出一个区块的团队（Cerebr、AlephTape，我们已经在主网上运行了他们的数字识别网络，以及做链上 CPU 的团队）、FabX 的 Gate Challenge 社区，以及 TapeOut 和 X Layer 的开发者 Telegram 群。之后是 Demo Day、11 月 18 日 DevConnect 期间的 X Layer 快闪活动，以及面向智能体用户的 Claude Code 插件市场。我们为每个团队跑的每个任务，都是给下一个团队看的公开主网案例。
+**有多少这样的用户。** 我们读取了主网上全部 397 个处理器的每一个电路（[docs/census.md](census.md)，`scripts/census.js`）：共 11,074 个电路。其中 7 个大到一个区块连一次都跑不完（都属于 AlephTape），1,754 台状态机里有 1,014 台在一个区块内跑不满 1,000 拍。这些电路由 213 个钱包持有，其中 996 个在两个 FAB-Genisis 处理器上，另有 LoteGate（每区块 17 拍）、Covenant（44 拍）等。
+
+**如何触达。** 普查列出了处理器和持有者，所以第一批用户可以点名联系，并附上一个在我们网站上运行他们自己电路、显示成本的链接：AlephTape（我们已经在主网上运行了他们的数字识别网络）、FAB-Genisis 与 FabX 的 Gate Challenge 社区、LoteGate 和 Covenant，以及 TapeOut 和 X Layer 的开发者 Telegram 群。之后是 Demo Day、11 月 18 日 DevConnect 期间的 X Layer 快闪活动，以及面向智能体用户的 Claude Code 插件市场。我们为每个团队跑的每个任务，都是给下一个团队看的公开主网案例。
 
 ## 收入模式
 
