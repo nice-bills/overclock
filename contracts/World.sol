@@ -52,6 +52,7 @@ contract World is IOverclockReceiver {
     uint8 public constant RED = 1;
     uint8 public constant BLUE = 2;
     uint256 public constant MAX_CELLS = 12; // per placement
+    uint256 internal constant ANNOUNCE_GAS = 400_000; // a full-board TapeSend costs about 160K
 
     IOverclockWorld public immutable overclock;
     address public immutable cpu;
@@ -256,6 +257,9 @@ contract World is IOverclockReceiver {
         if (address(hub) == address(0) || container == address(0)) return;
         bytes32 me = bytes32((uint256(block.chainid) << 160) | uint160(container));
         bytes32 ref = keccak256(abi.encodePacked("overclock-world/season", season));
+        // a gas estimate stops at the least gas that succeeds, which here would be one where the hub runs out
+        // and the catch swallows it: make sure the send itself always gets enough
+        require(gasleft() > ANNOUNCE_GAS, "gas");
         try hub.send(cpu, worldId, me, ref, seasonMessage(season, w, r, b, pot)) returns (uint256 i) {
             emit Announced(season, i);
         } catch {
