@@ -22,6 +22,8 @@ An operator runs the job off-chain and posts the result with a bond. Anyone can 
 
 For the digit net, AlephTape's own ZK check is cheaper still (297K gas), because someone already ran a setup ceremony for that circuit. Overclock's case is everything else: any circuit the moment it's taped out, with no ceremony, and stateful machines like the CPU, which the ZK route can't handle.
 
+**Overclock World: Red vs Blue** ([contracts/World.sol](contracts/World.sol), the [#world](https://overclock-board.onrender.com/#world) page, and `world_*` tools in the MCP server). One shared 16×16 two-colour Game of Life that people play with OKX Wallet or through Claude and ChatGPT. Players pick a team and buy cells; every 20 generations (660,480 gates of TapeOut circuit) run as one Overclock job; after a season the team with more live cells splits the pot. The world is its own TapeOut circuit: the World contract holds the circuit's NFT, the circuit's ERC-6551 container posts and pays for every epoch, and each season's final board goes out as a public TapeSend message from that container through TapeOut's DeWEB hub. A full launch and season ran on a fork of X Layer mainnet against TapeOut's real factory, opener, container and hub (`node scripts/rehearse-world.js`); launching on mainnet costs about 0.087 OKB, plus about 0.03 OKB of fuel per season.
+
 Our TAP-02 evaluator also matches TapeOut's live `eval`/`step` on 86 mainnet circuits, 688 of 688 samples ([docs/live-check.json](docs/live-check.json)).
 
 | Submission at a glance | |

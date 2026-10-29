@@ -57,6 +57,8 @@ Overclock 照样能跑，方式和 Optimistic Rollup 运行交易一样：
 
 CPU 把程序存放在 LATCH 状态里，所以换一段代码只是一个新任务，不需要重新流片。对于数字识别网络，AlephTape 的零知识验证更便宜（297K gas），因为他们已经为它做过可信设置仪式。Overclock 对任何电路都不需要仪式，而且能处理像 CPU 这样有状态的机器，这正是零知识路线目前不支持的。我们的求值器还与 TapeOut 线上的 `eval`/`step` 在 86 个主网电路上逐一比对，688 个样本全部一致（[docs/live-check.json](live-check.json)）。
 
+**Overclock World：红蓝对战的共享生命游戏。** 一个 16×16 的双色生命游戏，所有人共用一块棋盘（[contracts/World.sol](../contracts/World.sol)）。玩家选择红队或蓝队，用 OKX Wallet 在网站的 World 页面购买格子，也可以在 Claude 或 ChatGPT 里通过 MCP 服务器的 `world_*` 工具来玩（`world_forecast` 让 AI 在购买前免费试算一步棋）。每个回合 20 代，共 660,480 个门，远超一个区块的容量，所以每个回合都作为一个 Overclock 任务运行；20 个回合结束后，存活格子更多的队伍按购买格子数瓜分奖池。这个世界本身就是一个 TapeOut 电路：World 合约持有电路的 NFT，电路的 ERC-6551 容器发布每个回合的任务并为之付费，每个赛季结束时，最终棋盘会作为公开的 TapeSend 消息，从这个容器通过 TapeOut 的 DeWEB hub 发出。完整的上线流程和一个赛季已在 X Layer 主网分叉上，用 TapeOut 真实的工厂、opener、容器和 hub 跑通。
+
 **为什么必须是 TapeOut。** 欺诈证明需要一个合约能重新执行的"单步"。对 EVM 来说，这花了 Arbitrum 和 Optimism 多年时间。TapeOut 电路由 NAND 门构成，语义逐字节公开、存储在链上且永不改变，所以一个门*就是*那一步。任何流片过的电路，一出现就能以任意规模运行，不需要仪式或重新编译。REF 让嵌套电路变成嵌套争议，LATCH 状态把一拍拍串起来，这正是零知识路线目前处理不了的有状态场景。
 
 **为什么必须上链。** 核心是让陌生人信任一个不是自己算出来的结果，而 X Layer 上的保证金和罚没机制让这件事变得安全。
@@ -89,6 +91,7 @@ CPU 把程序存放在 LATCH 状态里，所以换一段代码只是一个新任
 - **`REF`。** 棋盘 64 次 REF 单元电路；争议可以深入到被引用的电路内部。
 - **LATCH 与 `step`。** 多拍任务携带状态；LATCH 的读和写都是可争议的单步。
 - **ERC-6551 电路账户。** 在主网分叉演练中，棋盘电路自己的账户用 `continueJob` 为下一次运行付费，让机器自己持续运行。
+- **电路自有账户与 TapeSend。** Overclock World 持有世界电路的 NFT，用 TapeOut 的 opener 打开电路的 ERC-6551 容器；容器向 Overclock 发布每个回合，每个赛季的结果作为公开的 TapeSend 消息（TAP-10）经 DeWEB hub 发出。
 - **DeWEB。** 任务看板是一个不依赖外部字体或脚本的独立文件，`scripts/publish-deweb.js` 会把它存进棋盘电路自己的容器（已在主网分叉上演练）。在上传费用到位之前，同一页面托管在 https://overclock-board.onrender.com。
 
 ## 活动期间完成的工作

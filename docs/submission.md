@@ -75,6 +75,18 @@ ZK route rejects. Our evaluator
 also matches TapeOut's live `eval`/`step` on 86 mainnet circuits, 688 of 688 samples
 ([docs/live-check.json](live-check.json)).
 
+**Overclock World: a game that shows it off.** One shared Red vs Blue Game of Life on a 16×16 board
+([contracts/World.sol](../contracts/World.sol)). Players pick a team and buy cells with OKX Wallet on
+the site's World page, or from Claude or ChatGPT with the MCP server's `world_*` tools (`world_forecast`
+lets an agent try a move for free before buying). Every epoch of 20 generations is 660,480 gates, far
+past a block, so each one runs as an Overclock job; after 20 epochs the team with more live cells splits
+the pot. The world is its own TapeOut circuit: World holds the circuit's NFT, the circuit's ERC-6551
+container posts and pays for every epoch, and the season's final board is announced as a public
+TapeSend message from that container through TapeOut's DeWEB hub. A full launch and season ran on a
+fork of X Layer mainnet against TapeOut's real factory, opener, container and hub. Along the way we
+found that the hub only sends for processors with the original circuits code (the first 387 the
+factory made), so the world lives on our processor, which is one of them.
+
 **Why it needs TapeOut.** A fraud proof needs a single step a contract can re-execute. For the EVM that
 meant years of work by Arbitrum and Optimism. A TapeOut circuit is NAND gates with byte-exact,
 published semantics, stored on-chain and never changed, so one gate *is* the step. Every circuit ever
@@ -141,6 +153,9 @@ large jobs carry large security.
 - **LATCH and `step`.** Multi-beat jobs carry state; LATCH reads and writes are disputable steps.
 - **ERC-6551 circuit accounts.** In the fork rehearsal the board circuit's own account pays for its next
   run with `continueJob`, so the machine keeps itself running.
+- **The circuit as its own account, and TapeSend.** Overclock World holds its world circuit's NFT and
+  opens the circuit's ERC-6551 container with TapeOut's opener; the container posts every epoch to
+  Overclock, and each season's result is a public TapeSend message (TAP-10) from it through the DeWEB hub.
 - **DeWEB.** The job board is a single self-contained file with no outside fonts or scripts, and `scripts/publish-deweb.js` stores it in the board circuit's own container (rehearsed on a mainnet fork). Until that upload is funded, the same page is hosted at https://overclock-board.onrender.com.
 
 ## What was built during the event
