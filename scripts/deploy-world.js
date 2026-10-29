@@ -3,7 +3,7 @@
 // deployments/<chainId>.json under "world", where the MCP server's keeper and the site find it.
 //
 //   RPC_URL=https://testrpc.xlayer.tech PRIVATE_KEY=0x... node scripts/deploy-world.js \
-//     [--processor 0x...] [--beats 20] [--epochs 20] [--price 0.0005] [--job-fee 0.0001] [--tip 0.00002] [--fund 0.002]
+//     [--processor 0x...] [--beats 20] [--epochs 20] [--price 0.0005] [--job-fee 0.0001] [--tip 0.00002] [--fund 0.03]
 //     [--hub 0x...] [--adopt 0xOpener]
 //
 // The processor defaults to the one holding this network's ready-made machines (on mainnet, our Overclock Life
@@ -66,7 +66,7 @@ if (arg('adopt')) {
   container = await world.container();
   console.log(`World holds circuit #${worldId}; its container is ${container}`);
 }
-const fund = parseEther(arg('fund', '0.002'));
+const fund = parseEther(arg('fund', '0.03'));
 if (fund > 0n) await (await world.fund({ value: fund })).wait();
 
 dep.world = {
