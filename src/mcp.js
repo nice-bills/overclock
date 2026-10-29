@@ -18,6 +18,7 @@ import { pack, unpack, bytesToHex, hexToBytes, NAND, LATCH, REF } from './tap02.
 import { Operator, Challenger } from './agents.js';
 import { createCPU, mint, burnCost, tapeout, CIRCUITS_FULL_ABI, TRANSISTORS_ABI, XLAYER } from './tapeout.js';
 import { cellCircuit, boardCircuit, board, PATTERNS, render } from './life.js';
+import { worldStep } from './world.js';
 import { toState, fromState, fibonacciMachine } from './cpu4.js';
 import { labelled, txLink } from './wallet.js';
 
@@ -59,6 +60,7 @@ export function createServer(ctx) {
       'Users speak plainly. Ready-made machines need no addresses or hex: machine "life" (8x8 Game of Life; pattern glider, blinker, toad, lwss or rpentomino; beats = generations) and machine "cpu" (Fibonacci on a 4-bit CPU). For "show me", "try it" or "what would happen", use run_locally: it is free and instant. Use post_job only when they want it done on-chain.',
       'Transactions: call the tool directly, with no setup step. Within seconds it either returns the result or returns status "waiting for approval" with an approve link. Show that link to the user as one tappable link, say it opens their wallet (OKX Wallet or MetaMask) to approve, and that on a phone they can use phone.openInOkxWalletApp instead. When they say they approved (or after a short while), call transaction_status with the requestId. Never ask for a private key or seed phrase.',
       'Before a paid action, say in one line what it costs (post_job: the fee, default 0.0001 OKB, plus a little gas).',
+      'Overclock World (when the network has one): a shared Red vs Blue Game of Life. world_status shows the board, world_forecast tries a move for free, world_place buys cells, world_advance moves it on, world_claim collects winnings. Show boards exactly as given, in a code block.',
       'Amounts are OKB as decimal strings. Raw bit vectors are TAP-02 packed hex (bit i is (byte[i>>3] >> (i&7)) & 1); only needed for circuits other than the ready-made machines.',
     ].join('\n'),
   });
@@ -236,6 +238,86 @@ export function createServer(ctx) {
     return s.connected ? { ...s, balance: formatEther(await ctx.provider.getBalance(s.address)) } : { ...s, note: 'call connect_wallet' };
   }
 
+  // ------------------------------------------------------------------ Overclock World
+
+  // Red vs Blue on a shared 16x16 Life board (contracts/World.sol), when this network has one (ctx.world).
+  const world = ctx.world && oc ? new Contract(ctx.world, artifact('World').abi, ctx.provider) : null;
+  const worldTool = world ? server.registerTool.bind(server) : () => {};
+  const WN = 256, TEAMS = { red: 1, blue: 2 }, TEAM_NAME = ['nobody', 'red', 'blue'];
+  const cellsOf = (aliveMask, blueMask) => Array.from({ length: WN }, (_, k) => ((aliveMask >> BigInt(k)) & 1n ? ((blueMask >> BigInt(k)) & 1n ? 2 : 1) : 0));
+  const picture = (cells, extra = new Map()) => Array.from({ length: 16 }, (_, y) => Array.from({ length: 16 }, (_, x) => {
+    const k = y * 16 + x, v = extra.get(k) ?? cells[k];
+    return v === 1 ? '🟥' : v === 2 ? '🟦' : '·';
+  }).join('')).join('\n');
+  const scoreOf = (cells) => ({ red: cells.filter((v) => v === 1).length, blue: cells.filter((v) => v === 2).length });
+  const worldParams = async () => (ctx.worldParams ??= {
+    epochBeats: Number(await world.epochBeats()), epochsPerSeason: Number(await world.epochsPerSeason()),
+    cellPrice: await world.cellPrice(), keeperTip: await world.keeperTip(), container: await world.container(),
+  });
+  const me = async () => ctx.signer ? ctx.signer.getAddress() : ctx.wallet?.address ?? null;
+  // Cells to place: a named pattern at (x, y), or a list of [x, y] cells. x is the column (0 left), y the row (0 top).
+  const PLACE_ARGS = {
+    pattern: z.enum(Object.keys(PATTERNS)).optional().describe('a named Life pattern, placed with its top-left corner at x, y'),
+    x: z.number().int().min(0).max(15).default(0), y: z.number().int().min(0).max(15).default(0),
+    cells: z.array(z.tuple([z.number().int().min(0).max(15), z.number().int().min(0).max(15)])).optional().describe('cells as [x, y] pairs, instead of a pattern'),
+  };
+  const placement = ({ pattern, x = 0, y = 0, cells }) => {
+    const ks = new Set();
+    if (cells?.length) for (const [cx, cy] of cells) ks.add(cy * 16 + cx);
+    else board(16, 16, [[PATTERNS[pattern ?? 'glider'], x, y]]).forEach((v, k) => { if (v) ks.add(k); });
+    return [...ks];
+  };
+  async function worldNow() {
+    const who = await me();
+    const s = await world.status(who ?? ZERO);
+    const p = await worldParams();
+    const board_ = cellsOf(s.alive_, s.blue_), pending = cellsOf(s.pendingAlive_, s.pendingBlue_);
+    return { s, p, who, board: board_, pending, next: board_.map((v, k) => pending[k] || v) };
+  }
+
+  worldTool('world_status', {
+    title: 'Overclock World: the board',
+    description: 'The shared Red vs Blue Game of Life on X Layer: the 16x16 board (🟥 red, 🟦 blue), the score, the season, the pot, the epoch running as an Overclock job, cells bought for the next epoch, and the connected player\'s team. Free; no wallet needed.',
+    inputSchema: {},
+  }, safe(async () => {
+    const { s, p, who, board: b, pending } = await worldNow();
+    const job = s.running_ > 0n ? await summary(s.running_ - 1n) : null;
+    const season = Number(s.season_), epoch = Number(s.epoch_);
+    const pend = new Map(pending.map((v, k) => [k, v]).filter(([, v]) => v));
+    const past = [];
+    for (let i = season - 1; i >= Math.max(0, season - 3); i--) {
+      const x = await world.seasonInfo(i);
+      past.push({ season: i + 1, winner: TEAM_NAME[Number(x.winner)], red: Number(x.red), blue: Number(x.blue_), pot: formatEther(x.pot) });
+    }
+    return {
+      board: picture(b), score: scoreOf(b),
+      season: season + 1, generation: epoch * p.epochBeats, generationsPerSeason: p.epochsPerSeason * p.epochBeats,
+      pot: formatEther(s.pot), cellPrice: formatEther(p.cellPrice), fuel: formatEther(s.fuel_),
+      boughtForNextEpoch: pend.size ? { cells: pend.size, nextBoard: picture(b, pend) } : null,
+      epoch: job ? { ...job, generations: `${epoch * p.epochBeats + 1}-${(epoch + 1) * p.epochBeats}` } : null,
+      canMoveOn: job ? job.status === 'final' : pend.size > 0 || b.some(Boolean),
+      you: who ? { address: who, team: TEAM_NAME[Number(s.team)], cellsThisSeason: Number(s.placed) } : null,
+      pastSeasons: past,
+      worldAccount: p.container !== ZERO ? p.container : null,
+      rules: `Pick a team and buy cells (up to 12 at a time); they join the board at the next epoch. Each epoch runs ${p.epochBeats} generations of two-colour Life as one Overclock job; survivors keep their colour, newborns take their parents' majority colour. After ${p.epochsPerSeason} epochs the team with more live cells splits the pot by cells bought. x is the column (0 left), y the row (0 top).`,
+    };
+  }));
+
+  worldTool('world_forecast', {
+    title: 'Overclock World: what happens if',
+    description: 'Run the world forward off-chain, for free, from the next epoch\'s starting board, optionally with cells you are thinking of buying, and show the board and score after that many generations. Use it to plan a move before world_place.',
+    inputSchema: { ...PLACE_ARGS, team: z.enum(['red', 'blue']).optional().describe('the team of the cells to try; leave out to forecast the board as it is'), generations: z.number().int().min(1).max(1000).optional().describe('default: one epoch') },
+  }, safe(async (a) => {
+    const { p, next } = await worldNow();
+    let cells = next.slice();
+    const tried = a.team ? placement(a) : [];
+    for (const k of tried) cells[k] = TEAMS[a.team];
+    const g = a.generations ?? p.epochBeats;
+    const start = scoreOf(cells);
+    for (let i = 0; i < g; i++) cells = worldStep(cells, 16, 16);
+    return { tried: tried.length ? { team: a.team, cells: tried.length, cost: formatEther(p.cellPrice * BigInt(tried.length)) } : null, start, after: { generations: g, score: scoreOf(cells), board: picture(cells) } };
+  }));
+
   if (ctx.readOnly || (!ctx.signer && !ctx.wallet)) return server;
 
   // ------------------------------------------------------------------ wallet
@@ -405,6 +487,50 @@ export function createServer(ctx) {
     const r = await send((await ocw()).finalize(jobId));
     const [outputs, newState] = await oc.result(jobId);
     return { jobId, tx: r.tx, gas: r.gas, outputs, finalState: newState };
+  }));
+
+  // ------------------------------------------------------------------ Overclock World: playing
+
+  worldTool('world_place', {
+    title: 'Overclock World: buy cells',
+    description: 'Buy cells for red or blue: a named pattern at x, y or a list of cells, up to 12 at a time. They join the board at the next epoch. Costs the cell price per cell (half goes to the season pot); you stay on one team for the season. The user approves it in their wallet.',
+    inputSchema: { team: z.enum(['red', 'blue']), ...PLACE_ARGS },
+  }, tx('world_place', async (a) => {
+    const ks = placement(a);
+    if (ks.length > 12) throw new Error(`That is ${ks.length} cells; at most 12 at a time.`);
+    const { s: st, p, pending } = await worldNow();
+    const taken = ks.filter((k) => pending[k]);
+    if (taken.length) throw new Error(`Already bought for the next epoch: ${taken.map((k) => `[${k % 16}, ${Math.floor(k / 16)}]`).join(', ')}. Pick other cells.`);
+    if (Number(st.team) && Number(st.team) !== TEAMS[a.team]) throw new Error(`You are ${TEAM_NAME[Number(st.team)]} this season (one team a season); buy ${TEAM_NAME[Number(st.team)]} cells or wait for the next season.`);
+    const mask = ks.reduce((m, k) => m | (1n << BigInt(k)), 0n);
+    const value = p.cellPrice * BigInt(ks.length);
+    const r = await send(world.connect(await signer()).place(TEAMS[a.team], mask, { value }));
+    return { team: a.team, cells: ks.length, paid: formatEther(value), tx: r.tx, explorer: txLink((await ctx.provider.getNetwork()).chainId, r.tx), next: 'The cells drop onto the board when the next epoch starts; world_advance starts it if nobody else does.' };
+  }));
+
+  worldTool('world_advance', {
+    title: 'Overclock World: move the world on',
+    description: 'Start the next epoch (posting it as an Overclock job, paid by the world) once the running one is final, or when cells are waiting. Ends the season when it is over. Anyone can call it and earns the keeper tip. The user approves it in their wallet.',
+    inputSchema: {},
+  }, tx('world_advance', async () => {
+    const before = Number(await world.season());
+    const r = await send(world.connect(await signer()).advance());
+    const ev = (name) => r.rc.logs.map((l) => { try { return world.interface.parseLog(l); } catch { return null; } }).find((e) => e?.name === name);
+    const ended = ev('SeasonEnded'), started = ev('EpochStarted');
+    return {
+      tx: r.tx, seasonEnded: ended ? { season: before + 1, winner: TEAM_NAME[Number(ended.args.winner)], red: Number(ended.args.red), blue: Number(ended.args.blue), pot: formatEther(ended.args.pot), announcedOverTapeSend: !!ev('Announced') } : null,
+      jobId: started ? Number(started.args.jobId) : null, tip: formatEther((await worldParams()).keeperTip),
+    };
+  }));
+
+  worldTool('world_claim', {
+    title: 'Overclock World: claim winnings',
+    description: 'Collect your share of a season your team won (seasons are numbered from 1, as world_status shows them). The user approves it in their wallet.',
+    inputSchema: { season: z.number().int().min(1) },
+  }, tx('world_claim', async ({ season }) => {
+    const r = await send(world.connect(await signer()).claim(season - 1));
+    const ev = r.rc.logs.map((l) => { try { return world.interface.parseLog(l); } catch { return null; } }).find((e) => e?.name === 'Claimed');
+    return { season, paid: ev ? formatEther(ev.args.amount) : null, tx: r.tx };
   }));
 
   server.registerTool('create_processor', {

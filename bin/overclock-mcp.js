@@ -61,6 +61,7 @@ const ctx = {
   provider, signer, wallet, readOnly, approvalWaitMs: env('OVERCLOCK_APPROVAL_WAIT_MS') && Number(env('OVERCLOCK_APPROVAL_WAIT_MS')),
   overclock: OVERCLOCK ?? dep.overclock ?? (chainId === BigInt(XLAYER.chainId) ? XLAYER.overclock : undefined),
   factory: FACTORY ?? (chainId === BigInt(XLAYER.chainId) ? undefined : dep.factory), machines: dep.machines,
+  world: env('WORLD') ?? dep.world?.address,
 };
 
 // OVERCLOCK_OPERATOR_KEY: also run an operator here, claiming every open job, defending its claims
