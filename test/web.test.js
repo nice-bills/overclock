@@ -50,3 +50,19 @@ test('web: "Run a job" is inlined with the testnet playground and the CPU progra
   assert.ok(net.machines.life > 0 && net.machines.cpu > 0);
   assert.match(cfg.cpuState, /^0x[0-9a-f]+$/);
 });
+
+test('web: World gets its network and selectors when a world is deployed', async () => {
+  const { Interface } = await import('ethers');
+  const dir = mkdtempSync(join(tmpdir(), 'overclock-world-'));
+  const dep = join(dir, 'dep.json'), page = join(dir, 'page.html');
+  const world = { address: '0x5A36e44D4911E7b828Cc39844Dc32a4e962e0C13', container: '0x07e7813eCbA04fEa317403f9a03AEfa87EceE514', epochBeats: 20, epochsPerSeason: 20, cellPrice: '500000000000000', keeperTip: '20000000000000' };
+  (await import('node:fs')).writeFileSync(dep, JSON.stringify({ chainId: 196, overclock: '0x2F38e310D398228f4D5Ef737eFaCDCC84BE92E25', world }));
+  execFileSync('node', ['scripts/build-web.js', 'web/demo-run.json', page], { cwd: new URL('..', import.meta.url), env: { ...process.env, WORLD_DEPLOYMENT: dep } });
+  const cfg = JSON.parse(readFileSync(page, 'utf8').match(/<script id="world-config" type="application\/json">(.*?)<\/script>/)[1]);
+  const abi = new Interface(JSON.parse(readFileSync(new URL('../build/World.json', import.meta.url))).abi);
+  assert.equal(cfg.chainId, 196);
+  assert.equal(cfg.world, world.address);
+  assert.equal(cfg.sel.place, abi.getFunction('place').selector);
+  assert.equal(cfg.sel.status, abi.getFunction('status').selector);
+  assert.ok(html.includes('id="world"') && scripts.some((s) => s.includes('"World": Overclock World')), 'the World view and its script are in the page');
+});

@@ -219,6 +219,31 @@ contract World is IOverclockReceiver {
         }
     }
 
+    /// Everything a game page needs in one call: the board, the cells waiting for the next epoch, where the
+    /// season is, its pot, the fuel left, and `player`'s team and cells this season.
+    function status(address player)
+        external
+        view
+        returns (
+            uint256 alive_,
+            uint256 blue_,
+            uint256 pendingAlive_,
+            uint256 pendingBlue_,
+            uint256 running_,
+            uint32 epoch_,
+            uint32 season_,
+            uint256 pot,
+            uint256 fuel_,
+            uint8 team,
+            uint256 placed
+        )
+    {
+        return (
+            alive, blue, pendingAlive, pendingBlue, running, epoch, season, seasons[season].pot, fuel(),
+            teamOf[season][player], placedBy[season][player]
+        );
+    }
+
     function scores() external view returns (uint256 red, uint256 blue_) {
         return (_popcount(alive & ~blue), _popcount(blue));
     }

@@ -27,6 +27,7 @@
   --pkg: #161616;
   --pkg-edge: #161616;
   --pin: #b8b7b1;
+  --red: #c23f35; --red-soft: #f6dedb; --blue: #2d5fc4; --blue-soft: #dde6f7;
   --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: "Geist Mono", ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
 }
@@ -35,12 +36,14 @@
     --bg: #0f0f0f; --sheet: #161616; --ink: #ecebe8; --muted: #9b9a96; --faint: #5f5e5b; --line: #252524;
     --accent: #7fc4a6; --accent-soft: #17291f; --lie: #f0838d; --lie-soft: #351a1d; --warn: #e0b072; --warn-soft: #2e2416;
     --cell: #ecebe8; --cell-off: #262625; --pkg: #1b1b1b; --pkg-edge: #2c2c2b; --pin: #4b4b49; color-scheme: dark;
+    --red: #f07a6e; --red-soft: #3a1d1a; --blue: #7aa3f2; --blue-soft: #18223a;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f0f0f; --sheet: #161616; --ink: #ecebe8; --muted: #9b9a96; --faint: #5f5e5b; --line: #252524;
   --accent: #7fc4a6; --accent-soft: #17291f; --lie: #f0838d; --lie-soft: #351a1d; --warn: #e0b072; --warn-soft: #2e2416;
   --cell: #ecebe8; --cell-off: #262625; --pkg: #1b1b1b; --pkg-edge: #2c2c2b; --pin: #4b4b49; color-scheme: dark;
+  --red: #f07a6e; --red-soft: #3a1d1a; --blue: #7aa3f2; --blue-soft: #18223a;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -362,7 +365,52 @@ footer a:hover { color: var(--ink); }
 .steps li.now { color: var(--ink); }
 .steps li.now::before { border-color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 4px var(--accent-soft); } }
-@media (max-width: 640px) { .tabs a { padding: 6px 10px; font-size: 13px; } }
+@media (max-width: 640px) { .tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; } .tabs a { padding: 6px 10px; font-size: 13px; white-space: nowrap; } }
+
+/* World */
+.worldapp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 20px; align-items: start; }
+.worldapp .side { display: grid; gap: 20px; min-width: 0; }
+.worldapp h3 { font-size: 15px; }
+.wscore { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-size: 14px; }
+.wscore .n { font: 600 28px/1 var(--mono); }
+.wscore .r { color: var(--red); } .wscore .b { color: var(--blue); }
+.wscore .lead { margin-left: auto; font-size: 13px; color: var(--muted); }
+.wscore .lead.r { color: var(--red); } .wscore .lead.b { color: var(--blue); }
+.wgrid { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; width: 100%; max-width: 560px; aspect-ratio: 1; touch-action: manipulation; }
+.wgrid button { all: unset; box-sizing: border-box; aspect-ratio: 1; border-radius: 3px; background: var(--cell-off); cursor: pointer; }
+.wgrid button:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--faint); }
+.wgrid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.wgrid button:disabled { cursor: default; }
+.wgrid .r { background: var(--red); } .wgrid .b { background: var(--blue); }
+.wgrid .p1 { box-shadow: inset 0 0 0 2px var(--red); background: var(--red-soft); }
+.wgrid .p2 { box-shadow: inset 0 0 0 2px var(--blue); background: var(--blue-soft); }
+.wgrid .pick.t1 { background: var(--red-soft); box-shadow: inset 0 0 0 2px var(--red); outline: 2px dashed var(--red); outline-offset: -1px; }
+.wgrid .pick.t2 { background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); outline: 2px dashed var(--blue); outline-offset: -1px; }
+.wahead { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); max-width: 560px; }
+.wahead input { accent-color: var(--ink); width: 100%; }
+.wteams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wteams .pick { text-align: left; border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
+.wteams .pick b { font-size: 15px; }
+#wTeam1 b { color: var(--red); } #wTeam2 b { color: var(--blue); }
+#wTeam1[aria-pressed="true"] { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
+#wTeam2[aria-pressed="true"] { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
+.wteams .pick:disabled { opacity: .45; cursor: not-allowed; }
+#wBuy { width: 100%; justify-content: center; }
+#wBuy.t1:not(:disabled) { background: var(--red); border-color: var(--red); color: #fff; }
+#wBuy.t2:not(:disabled) { background: var(--blue); border-color: var(--blue); color: #fff; }
+#wBuy:disabled, #wAdvance:disabled { opacity: .5; cursor: default; }
+#wAdvance { width: 100%; justify-content: center; }
+#wEpoch { font-size: 14px; line-height: 1.5; }
+#wStatus { font-size: 13px; color: var(--muted); }
+#wStatus.bad { color: var(--lie); }
+.seasons { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
+.seasons li { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.seasons li > span:first-child { color: var(--muted); min-width: 64px; }
+.seasons .tr { color: var(--red); } .seasons .tb { color: var(--blue); }
+.seasons .btn { height: 30px; padding: 0 12px; font-size: 13px; }
+#wWallet { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#wWallet img { width: 18px; height: 18px; margin-right: 8px; }
+@media (max-width: 820px) { .worldapp { grid-template-columns: minmax(0, 1fr); } }
 </style>
 
 <div class="wrap">
@@ -373,6 +421,7 @@ footer a:hover { color: var(--ink); }
       <a href="#replay" id="tab-replay">Replay</a>
       <a href="#try" id="tab-try">Your circuit</a>
       <a href="#run" id="tab-run">Run a job</a>
+      <a href="#world" id="tab-world">World</a>
     </div>
     <a class="gh" href="https://github.com/nice-bills/overclock">GitHub</a>
   </nav>
@@ -658,6 +707,49 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     </div>
   </main>
 
+  <main class="view" id="world" hidden>
+    <div class="intro">
+      <h1>Overclock World: Red vs Blue</h1>
+      <p>One shared Game of Life on X Layer. Pick a team and buy cells; they drop onto the board at the next epoch. Survivors keep their colour and a newborn cell takes the colour most of its three parents have. Whoever has more live cells when the season ends splits the pot.</p>
+      <p class="label"><span id="wRules"></span> On <b id="wNet"></b> · <a id="wContract" href="#" target="_blank" rel="noopener">World contract</a><span id="wContainer"></span></p>
+    </div>
+
+    <div class="worldapp">
+      <section class="card">
+        <div class="wscore"><span class="n r" id="wRed">0</span><span>Red</span><span class="n b" id="wBlue">0</span><span>Blue</span><span class="lead" id="wLead"></span></div>
+        <p class="label" id="wSeason">Reading the world…</p>
+        <div class="wgrid" id="wGrid" role="group" aria-label="The 16 by 16 board: tap cells to pick them"></div>
+        <label class="wahead">Look ahead<input type="range" id="wAhead" min="0" max="20" value="0"><span id="wAheadLabel">now</span></label>
+        <p class="label" id="wForecast"></p>
+      </section>
+
+      <div class="side">
+        <section class="card">
+          <h3>Play</h3>
+          <div id="wWallet"><p class="label">Looking for a wallet…</p></div>
+          <div class="wteams">
+            <button type="button" class="pick" id="wTeam1" aria-pressed="true"><b>Red</b><span class="label">play red</span></button>
+            <button type="button" class="pick" id="wTeam2" aria-pressed="false"><b>Blue</b><span class="label">play blue</span></button>
+          </div>
+          <p class="label" id="wTeamNote"></p>
+          <button type="button" class="btn primary" id="wBuy" disabled>Tap empty or enemy cells to pick them</button>
+          <p class="label" id="wPickNote"></p>
+          <p id="wStatus" role="status"></p>
+        </section>
+        <section class="card">
+          <h3>This epoch</h3>
+          <p id="wEpoch"></p>
+          <button type="button" class="btn" id="wAdvance" disabled>Move the world on</button>
+          <p class="label" id="wFuel"></p>
+        </section>
+        <section class="card">
+          <h3>Seasons</h3>
+          <div id="wSeasons"><p class="label">No season has finished yet.</p></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
   <footer>
     <span>Overclock · optimistic execution for TapeOut circuits</span>
     <a href="https://github.com/nice-bills/overclock">github.com/nice-bills/overclock</a>
@@ -665,17 +757,17 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 </div>
 
 <script>
-// Three views on one page: the landing (no hash), #board and #replay.
+// The views on one page: the landing (no hash), #board, #replay, #try, #run and #world.
 (function () {
   const show = () => {
     const h = location.hash.split('?')[0];
-    const view = ['#board', '#replay', '#try', '#run'].includes(h) ? h.slice(1) : 'home';
-    for (const id of ['home', 'board', 'replay', 'try', 'run']) document.getElementById(id).hidden = id !== view;
-    for (const id of ['board', 'replay', 'try', 'run']) {
+    const view = ['#board', '#replay', '#try', '#run', '#world'].includes(h) ? h.slice(1) : 'home';
+    for (const id of ['home', 'board', 'replay', 'try', 'run', 'world']) document.getElementById(id).hidden = id !== view;
+    for (const id of ['board', 'replay', 'try', 'run', 'world']) {
       const t = document.getElementById('tab-' + id);
-      if (id === view) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
+      if (id === view) { t.setAttribute('aria-current', 'page'); t.parentElement.scrollLeft = t.offsetLeft - (t.parentElement.clientWidth - t.offsetWidth) / 2; } else t.removeAttribute('aria-current');
     }
-    document.title = { home: 'Overclock', board: 'Overclock · Job board', replay: 'Overclock · Replay', try: 'Overclock · Your circuit', run: 'Overclock · Run a job' }[view];
+    document.title = { home: 'Overclock', board: 'Overclock · Job board', replay: 'Overclock · Replay', try: 'Overclock · Your circuit', run: 'Overclock · Run a job', world: 'Overclock World' }[view];
   };
   addEventListener('hashchange', () => { const v = location.hash.split('?')[0]; show(); if (v !== last) scrollTo(0, 0); last = v; });
   let last = location.hash.split('?')[0];
@@ -917,6 +1009,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 <script src="try.js"></script>
 <script id="run-config" type="application/json">null</script>
 <script src="run.js"></script>
+<script id="world-config" type="application/json">null</script>
+<script src="world.js"></script>
 <script>
 (async function () {
   // the mainnet run when the page has it, else the recorded demo run

@@ -142,6 +142,11 @@ test('world: adopted by its circuit, it posts through its own container and anno
   await (await w2.connect(blue).place(2, mask([[3, 3], [4, 3], [5, 3]]), { value: PRICE * 3n })).wait();
   await (await w2.connect(red).place(1, mask([[10, 10], [11, 10], [10, 11], [11, 11]]), { value: PRICE * 4n })).wait();
   await (await w2.fund({ value: parseEther('0.01') })).wait();
+  const st = await w2.status(await red.getAddress());
+  assert.equal(st.team, 1n);
+  assert.equal(st.placed, 4n);
+  assert.equal(st.pot, PRICE * 7n / 2n);
+  assert.equal(st.pendingAlive_, mask([[3, 3], [4, 3], [5, 3], [10, 10], [11, 10], [10, 11], [11, 11]]));
   const rc = await (await w2.connect(keeper).advance()).wait();
   const started = rc.logs.map((l) => { try { return w2.interface.parseLog(l); } catch { return null; } }).find((x) => x?.name === 'EpochStarted');
   const jobId = started.args.jobId;
