@@ -19,6 +19,7 @@
 | 全部主网交易 | [docs/mainnet-run.md](mainnet-run.md)（生命游戏），[docs/headline-demos.md](headline-demos.md)（CPU 与数字识别网络） |
 | 访问链接 | https://overclock-board.onrender.com（首页） |
 | 实时任务看板 | https://overclock-board.onrender.com/#board：直接从合约读取主网上的每个任务、声明和争议 |
+| 在浏览器里运行任务 | https://overclock-board.onrender.com/#run：选择生命游戏或 4 位 CPU，在 OKX Wallet 里批准一笔交易，然后看着它被认领、度过挑战窗口、最终确定，并在页面里重新核对。在主网重新部署之前，运行在 X Layer 测试网上，使用免费的测试 OKB |
 | 用你自己的电路试试 | https://overclock-board.onrender.com/#try：载入主网上任意一个电路，在浏览器里运行，用 TapeOut 自己的 `eval`/`step` 核对第 1 拍，并对比直接上链和通过 Overclock 的成本。无需钱包 |
 | 主网回放 | https://overclock-board.onrender.com/#replay：逐步回放 0 号任务，从第 25 代的作假一直到证明它的那一个门 |
 | AI 智能体接入 | `/plugin install overclock --marketplace nice-bills/overclock`（Claude Code），或通过 stdio / HTTP 使用 MCP 服务器 |

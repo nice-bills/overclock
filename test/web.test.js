@@ -40,3 +40,13 @@ test('web: the census is inlined with the circuits the page lists', () => {
   assert.ok(census.featured.length > 0);
   for (const c of census.featured) assert.match(c.processor, /^0x[0-9a-fA-F]{40}$/);
 });
+
+test('web: "Run a job" is inlined with the testnet playground and the CPU program', () => {
+  const m = html.match(/<script id="run-config" type="application\/json">([\s\S]*?)<\/script>/);
+  const cfg = JSON.parse(m[1]);
+  const net = cfg.networks[cfg.default];
+  assert.equal(net.chainId, 1952);
+  assert.match(net.overclock, /^0x[0-9a-fA-F]{40}$/);
+  assert.ok(net.machines.life > 0 && net.machines.cpu > 0);
+  assert.match(cfg.cpuState, /^0x[0-9a-f]+$/);
+});

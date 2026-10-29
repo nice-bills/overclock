@@ -332,6 +332,37 @@ footer a:hover { color: var(--ink); }
   .cost .track { grid-column: 1 / -1; grid-row: 2; }
   .trylist th:nth-child(3), .trylist td:nth-child(3) { display: none; }
 }
+/* run a job */
+.runapp { display: grid; gap: 20px; }
+.runapp h3 { font-size: 15px; }
+.picks .pick { display: grid; gap: 2px; text-align: left; border-radius: 10px; padding: 12px 16px; flex: 1 1 220px; }
+.pick b { font-size: 14px; font-weight: 600; }
+.pick span { font-size: 13px; color: var(--muted); font-weight: 400; }
+.pick[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.runopts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.runapp label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); min-width: 0; }
+.runapp input, .runapp select { font: 400 14px/1.4 var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; width: 100%; }
+.runfee { max-width: 260px; }
+.runopts[hidden] { display: none; }
+.runstart { display: grid; gap: 8px; justify-items: start; }
+.lifegrid { display: grid; grid-template-columns: repeat(8, 18px); gap: 2px; }
+.lifegrid i { width: 18px; height: 18px; border-radius: 3px; background: var(--cell-off); }
+.lifegrid i.on { background: var(--cell); }
+.fib { display: grid; gap: 4px; }
+.fib b { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+#runWallet .btn img { width: 18px; height: 18px; margin-right: 8px; }
+#runStatus.bad { color: var(--lie); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.steps li { display: grid; grid-template-columns: 22px 1fr; column-gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); color: var(--faint); font-size: 14px; }
+.steps li::before { content: ""; width: 10px; height: 10px; margin: 6px; border-radius: 50%; border: 1.5px solid currentColor; grid-row: span 2; }
+.steps li b { font-weight: 500; }
+.steps li span { grid-column: 2; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.steps li.done { color: var(--ink); }
+.steps li.done::before { background: var(--accent); border-color: var(--accent); }
+.steps li.now { color: var(--ink); }
+.steps li.now::before { border-color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 4px var(--accent-soft); } }
+@media (max-width: 640px) { .tabs a { padding: 6px 10px; font-size: 13px; } }
 </style>
 
 <div class="wrap">
@@ -341,6 +372,7 @@ footer a:hover { color: var(--ink); }
       <a href="#board" id="tab-board">Job board</a>
       <a href="#replay" id="tab-replay">Replay</a>
       <a href="#try" id="tab-try">Your circuit</a>
+      <a href="#run" id="tab-run">Run a job</a>
     </div>
     <a class="gh" href="https://github.com/nice-bills/overclock">GitHub</a>
   </nav>
@@ -580,6 +612,52 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     </section>
   </main>
 
+  <main class="view" id="run" hidden>
+    <div class="intro">
+      <h1>Run a job on X Layer</h1>
+      <p>Pick a machine, approve one transaction in your wallet, and watch it happen: an operator runs it off-chain and claims the result with a bond, anyone gets a window to prove it wrong, and the result becomes final on-chain. Then this page checks it, gate by gate.</p>
+      <p class="label">On <b id="runNet"></b> with free test OKB · <a id="runContract" href="#">Overclock contract</a> · mainnet opens after the redeploy</p>
+    </div>
+
+    <div class="runapp">
+      <section class="card">
+        <h3>1 · Pick a machine</h3>
+        <div class="row picks">
+          <button type="button" class="pick" id="pick-life" aria-pressed="true"><b>Game of Life</b><span>8×8 board, 3,712 gates a generation</span></button>
+          <button type="button" class="pick" id="pick-cpu" aria-pressed="false"><b>4-bit CPU</b><span>a Fibonacci program, 1,437 gates a beat</span></button>
+        </div>
+        <div class="runopts" id="opts-life">
+          <label>Pattern<select id="runPattern"><option value="glider">Glider</option><option value="lwss">Spaceship</option><option value="rpentomino">R-pentomino</option><option value="toad">Toad</option><option value="blinker">Blinker</option></select></label>
+          <label>Generations<input id="runGens" type="number" min="1" max="100000" value="40"></label>
+        </div>
+        <div class="runopts" id="opts-cpu" hidden>
+          <label>Passes of the program (16 beats each)<input id="runPasses" type="number" min="1" max="100000" value="100"></label>
+        </div>
+        <label class="runfee">Fee to the operator, in test OKB<input id="runFee" value="0.0001" inputmode="decimal"></label>
+        <div id="runStart" class="runstart"></div>
+        <p class="label" id="runSummary"></p>
+      </section>
+
+      <section class="card">
+        <h3>2 · Connect a wallet and post it</h3>
+        <div id="runWallet"><p class="label">Looking for a wallet…</p></div>
+        <div class="row"><button type="button" class="btn primary" id="runPost" disabled>Post the job</button><span class="label" id="runStatus" role="status"></span></div>
+      </section>
+
+      <section class="card" id="runTrack" hidden>
+        <h3>3 · Watch it settle</h3>
+        <ol class="steps">
+          <li id="st-posted"><b>Posted</b><span id="sd-posted"></span></li>
+          <li id="st-claimed"><b>Run off-chain and claimed</b><span id="sd-claimed"></span></li>
+          <li id="st-window"><b>Challenge window</b><span id="sd-window"></span></li>
+          <li id="st-finalized"><b>Final on-chain</b><span id="sd-finalized"></span></li>
+          <li id="st-checked"><b>Checked in your browser</b><span id="sd-checked"></span></li>
+        </ol>
+        <div id="runResult" class="runstart"></div>
+      </section>
+    </div>
+  </main>
+
   <footer>
     <span>Overclock · optimistic execution for TapeOut circuits</span>
     <a href="https://github.com/nice-bills/overclock">github.com/nice-bills/overclock</a>
@@ -591,13 +669,13 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 (function () {
   const show = () => {
     const h = location.hash.split('?')[0];
-    const view = ['#board', '#replay', '#try'].includes(h) ? h.slice(1) : 'home';
-    for (const id of ['home', 'board', 'replay', 'try']) document.getElementById(id).hidden = id !== view;
-    for (const id of ['board', 'replay', 'try']) {
+    const view = ['#board', '#replay', '#try', '#run'].includes(h) ? h.slice(1) : 'home';
+    for (const id of ['home', 'board', 'replay', 'try', 'run']) document.getElementById(id).hidden = id !== view;
+    for (const id of ['board', 'replay', 'try', 'run']) {
       const t = document.getElementById('tab-' + id);
       if (id === view) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
     }
-    document.title = { home: 'Overclock', board: 'Overclock · Job board', replay: 'Overclock · Replay', try: 'Overclock · Your circuit' }[view];
+    document.title = { home: 'Overclock', board: 'Overclock · Job board', replay: 'Overclock · Replay', try: 'Overclock · Your circuit', run: 'Overclock · Run a job' }[view];
   };
   addEventListener('hashchange', () => { const v = location.hash.split('?')[0]; show(); if (v !== last) scrollTo(0, 0); last = v; });
   let last = location.hash.split('?')[0];
@@ -837,6 +915,8 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 <script id="census-data" type="application/json">null</script>
 <script src="tap02.js"></script>
 <script src="try.js"></script>
+<script id="run-config" type="application/json">null</script>
+<script src="run.js"></script>
 <script>
 (async function () {
   // the mainnet run when the page has it, else the recorded demo run

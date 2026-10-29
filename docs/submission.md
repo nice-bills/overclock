@@ -24,6 +24,7 @@ lies about the result is caught by a one-gate check on X Layer and loses their b
 | Access link | https://overclock-board.onrender.com (landing page) |
 | Live job board | https://overclock-board.onrender.com/#board: every mainnet job, claim and dispute, read from the contract |
 | Mainnet replay | https://overclock-board.onrender.com/#replay: job 0 step by step, from the lie in generation 25 to the one gate that proved it |
+| Run a job from the browser | https://overclock-board.onrender.com/#run: pick the Game of Life or the 4-bit CPU, approve one transaction in OKX Wallet, and watch it get claimed, survive the challenge window and finalize, then checked in the page. On X Layer testnet with free test OKB until the mainnet redeploy |
 | Try it on any circuit | https://overclock-board.onrender.com/#try: load any circuit on mainnet, run it in the browser, check beat 1 against TapeOut's own `eval`/`step`, and compare the cost directly and through Overclock. No wallet needed |
 | Agent access | `/plugin install overclock --marketplace nice-bills/overclock` (Claude Code), or the MCP server over stdio or HTTP |
 | Demo video | to be added |
