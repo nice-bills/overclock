@@ -9,11 +9,12 @@
 //   overclock post --cpu A --id N --beats B [--state HEX] [--inputs HEX] [--per-beat] [--fee OKB]
 //   overclock trace --cpu A --id N --beats B [--state HEX] [--inputs HEX] [--per-beat]
 //   overclock job N                        show a job and its result
+//   overclock keeper --world A                advance an Overclock World whenever its epoch is final
 //   overclock life --w 16 --h 16 --cpu A --cell-id N
 //                                          print Game of Life netlists, ready to tape out
 
 import { JsonRpcProvider, Wallet, Contract, parseEther, formatEther } from 'ethers';
-import { Operator, Challenger } from '../src/agents.js';
+import { Operator, Challenger, WorldKeeper } from '../src/agents.js';
 import { artifact, loadCircuit, readJob } from '../src/chain.js';
 import { traceJob, Tree } from '../src/trace.js';
 import { hexToBytes, bytesToHex, pack, unpack, load } from '../src/tap02.js';
@@ -60,6 +61,11 @@ switch (cmd) {
     await loop(new Challenger({ oc: overclock(s), signer: s, name: 'watcher', log }));
     break;
   }
+  case 'keeper': {
+    const s = signer();
+    await loop(new WorldKeeper({ world: new Contract(flag('world'), artifact('World').abi, s), oc: overclock(s), signer: s, log }));
+    break;
+  }
   case 'post': {
     const s = signer();
     const c = await loadCircuit(s, flag('cpu'), BigInt(flag('id')));
@@ -98,5 +104,5 @@ switch (cmd) {
     break;
   }
   default:
-    console.log('usage: overclock operator|watch|post|trace|job|life (see bin/overclock.js)');
+    console.log('usage: overclock operator|watch|keeper|post|trace|job|life (see bin/overclock.js)');
 }

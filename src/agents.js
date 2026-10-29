@@ -45,6 +45,11 @@ class Agent {
     return this.traces.get(k);
   }
 
+  // Drop a settled job's traces: a big job's trace and tree take hundreds of MB.
+  forget(jobId) {
+    for (const k of this.traces.keys()) if (k.startsWith(`${jobId}:`)) this.traces.delete(k);
+  }
+
   async send(what, fn, ...args) {
     const value = args.at(-1)?.value !== undefined ? args.pop() : undefined;
     const tx = await this.oc[fn](...args, ...(value ? [value] : []));
@@ -77,7 +82,7 @@ export class Operator extends Agent {
       if (this.only && !this.only.has(i)) continue;
       if (this.skip.has(i)) continue;
       const job = await readJob(this.oc, i);
-      if (job.finalized) { this.skip.add(i); continue; }
+      if (job.finalized) { this.skip.add(i); this.forget(i); continue; }
       if (job.claimant === '0x0000000000000000000000000000000000000000') {
         const fault = this.lie(job, { flat: job.flat, block: job.flat + job.nState });
         if (fault === null) continue; // this operator passes on the job
@@ -88,6 +93,7 @@ export class Operator extends Agent {
       } else if (job.claimant.toLowerCase() === me && !job.challenged && now >= job.claimedAt + window) {
         await this.send('finalizes', 'finalize', i);
         this.skip.add(i);
+        this.forget(i);
       }
     }
     const nGames = Number(await this.oc.gameCount());
@@ -143,6 +149,7 @@ export class Challenger extends Agent {
       const k = honest.findIndex((v, idx) => v !== claimed[idx]);
       if (k < 0) {
         this.log({ who: this.name, what: `re-ran job ${i}: claim is correct` });
+        this.forget(i);
         continue;
       }
       const pos = resultPos(c, job.beats, k);
@@ -174,5 +181,29 @@ export class Challenger extends Agent {
         this.games.delete(g);
       }
     }
+  }
+}
+
+// Keeper for an Overclock World (contracts/World.sol): advances it whenever its epoch has finalized, or
+// when cells are waiting and nothing is running. The world pays the keeper a tip for each epoch it posts.
+export class WorldKeeper {
+  constructor({ world, oc, signer, name = 'keeper', log = () => {}, settle = null }) {
+    this.world = world.connect(signer);
+    this.oc = oc;
+    this.name = name;
+    this.log = log;
+    this.settle = settle;
+  }
+
+  async tick() {
+    const running = await this.world.running();
+    if (running === 0n) {
+      if ((await this.world.alive()) === 0n && (await this.world.pendingAlive()) === 0n) return;
+    } else if (!(await this.oc.jobs(running - 1n)).finalized) return;
+    const rc = await (await this.world.advance()).wait();
+    if (this.settle) await this.settle(rc);
+    const ev = rc.logs.map((l) => { try { return this.world.interface.parseLog(l); } catch { return null; } }).filter(Boolean);
+    const what = ev.map((e) => (e.name === 'EpochStarted' ? `started epoch ${e.args.epoch} as job ${e.args.jobId}` : e.name === 'EpochEnded' ? `ended epoch ${e.args.epoch}: red ${e.args.red}, blue ${e.args.blue}` : e.name === 'SeasonEnded' ? `ended season ${e.args.season}` : e.name)).join('; ');
+    this.log({ who: this.name, what: what || 'advanced the world', gas: Number(rc.gasUsed), tx: rc.hash });
   }
 }

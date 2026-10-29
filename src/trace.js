@@ -130,7 +130,8 @@ export class Tree {
     let depth = 0;
     while (1 << depth < n) depth++;
     this.depth = depth;
-    this.cacheFrom = Math.max(0, depth - 20);
+    // nodes up to MEMO_LEVELS come from the memo, so caching starts no lower than that
+    this.cacheFrom = Math.max(Math.min(MEMO_LEVELS, depth), depth - 20);
     this.levels = [];
     const count = 1 << (depth - this.cacheFrom);
     let lvl = new Array(count);

@@ -34,7 +34,7 @@ async function runHonest(jobId, c, stateBits, beats) {
 }
 
 before(async () => {
-  provider = new BrowserProvider(ganache.provider({ logging: { quiet: true }, chain: { hardfork: 'shanghai' }, wallet: { totalAccounts: 5, defaultBalance: 1000 } }));
+  provider = new BrowserProvider(ganache.provider({ logging: { quiet: true }, chain: { hardfork: 'shanghai' }, wallet: { totalAccounts: 5, defaultBalance: 1000 } }), undefined, { cacheTimeout: -1 });
   [owner, op, treasury, stranger] = await Promise.all([0, 1, 2, 3].map((i) => provider.getSigner(i)));
   factory = await deploy('TapeOutFactoryLocal', owner);
   cpu = await createCPU(owner, await factory.getAddress(), { name: 'Test', symbol: 'T', story: '', supply: 100000, mintPrice: parseEther('0.00001') });

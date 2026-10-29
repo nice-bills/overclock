@@ -65,7 +65,8 @@ const ctx = {
 
 // OVERCLOCK_OPERATOR_KEY: also run an operator here, claiming every open job, defending its claims
 // and finalizing them, so jobs posted through this server come back with a result. Meant for a
-// testnet or a dedicated wallet that holds only the bond and gas.
+// testnet or a dedicated wallet that holds only the bond and gas. The same wallet keeps the network's
+// Overclock World running, if it has one.
 if (env('OVERCLOCK_OPERATOR_KEY') && ctx.overclock) {
   const { Contract } = await import('ethers');
   const { Operator } = await import('../src/agents.js');
@@ -77,9 +78,17 @@ if (env('OVERCLOCK_OPERATOR_KEY') && ctx.overclock) {
     settle: async (rc) => { while ((await provider.getBlockNumber()) < rc.blockNumber) await new Promise((r) => setTimeout(r, 1000)); },
   });
   console.error(`overclock-mcp: operator ${opWallet.address} claims jobs on ${ctx.overclock}`);
+  // An Overclock World on this network (deployments/<chainId>.json "world"): keep it moving too.
+  const keeper = dep.world ? new (await import('../src/agents.js')).WorldKeeper({
+    world: new Contract(dep.world.address, artifact('World').abi, provider), oc: new Contract(ctx.overclock, artifact('Overclock').abi, provider), signer: opWallet,
+    log: (e) => console.error(`overclock-mcp: keeper ${e.what}${e.tx ? ` ${e.tx}` : ''}`),
+    settle: async (rc) => { while ((await provider.getBlockNumber()) < rc.blockNumber) await new Promise((r) => setTimeout(r, 1000)); },
+  }) : null;
+  if (keeper) console.error(`overclock-mcp: keeper advances the world at ${dep.world.address}`);
   (async () => {
     for (;;) {
       try { await op.tick(); } catch (e) { console.error('overclock-mcp: operator', e.shortMessage ?? e.message); }
+      if (keeper) try { await keeper.tick(); } catch (e) { console.error('overclock-mcp: keeper', e.shortMessage ?? e.message); }
       await new Promise((r) => setTimeout(r, Number(env('OPERATOR_POLL_MS') ?? 5000)));
     }
   })();
