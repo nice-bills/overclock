@@ -6,12 +6,14 @@
 //     [--processor 0x...] [--beats 20] [--epochs 20] [--price 0.0005] [--job-fee 0.0001] [--tip 0.00002] [--fund 0.002]
 //     [--hub 0x...] [--adopt 0xOpener]
 //
-// The processor defaults to the one holding this network's ready-made machines.
+// The processor defaults to the one holding this network's ready-made machines (on mainnet, our Overclock Life
+// processor). TapeOut's hub only sends for processors with the original Circuits code, the first 387 the
+// factory made; a newer processor's world would never get its season messages out, so this refuses one.
 // On X Layer mainnet the world announces each season over TapeSend (--hub defaults to TapeOut's hub there), and
 // --adopt hands the world circuit to World and opens its container (TapeOut's opener fee, 0.08 OKB), so every
 // epoch is posted by the circuit's own account and the season message comes from it.
 
-import { JsonRpcProvider, Wallet, Contract, ContractFactory, parseEther, formatEther } from 'ethers';
+import { JsonRpcProvider, Wallet, Contract, ContractFactory, parseEther, formatEther, keccak256 } from 'ethers';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { artifact } from '../src/chain.js';
 import { CIRCUITS_FULL_ABI, TRANSISTORS_ABI, OPENER_ABI, mint, burnCost, tapeout } from '../src/tapeout.js';
@@ -23,7 +25,10 @@ const me = new Wallet(process.env.PRIVATE_KEY, provider);
 const net = await provider.getNetwork();
 const file = `deployments/${net.chainId}.json`;
 const dep = JSON.parse(readFileSync(file, 'utf8'));
-const processor = (arg('processor') ?? dep.machines.life.processor).toLowerCase();
+const OUR_PROCESSOR = { 196: '0xB00f10BB4b2f32c561BF90e205e543d0a2395971' };
+const processor = (arg('processor') ?? dep.machines?.life?.processor ?? OUR_PROCESSOR[Number(net.chainId)]).toLowerCase();
+const HUB_CODEHASH = '0x57aa306fd0be97087da3534e03398f5ff4efd533b5be4e45a405ce86fa6717d5';
+if (net.chainId === 196n && keccak256(await provider.getCode(processor)) !== HUB_CODEHASH) throw new Error(`TapeOut's hub will not send for ${processor}: pick a processor with the original Circuits code`);
 const start = await provider.getBalance(me.address);
 console.log(`chain ${net.chainId}, deployer ${me.address}, balance ${formatEther(start)}, processor ${processor}`);
 
