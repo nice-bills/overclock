@@ -110,6 +110,13 @@ contract CircuitsLocal {
     mapping(uint256 => uint256) internal _size;
     mapping(uint256 => address) public ownerOf;
 
+    /// ERC-721 transfer, as the real circuits contract has it (approvals left out).
+    function transferFrom(address from, address to, uint256 id) external {
+        require(ownerOf[id] == from && msg.sender == from && to != address(0), "transfer");
+        ownerOf[id] = to;
+        emit Transfer(from, to, id);
+    }
+
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
     event TapedOut(uint256 indexed circuitId, address indexed author, uint32 gateCount, uint32 nState);
 
@@ -273,5 +280,29 @@ contract CircuitAccountLocal {
         (ok, result) = to.call{value: value}(data);
         if (!ok) assembly ("memory-safe") { revert(add(result, 32), mload(result)) }
         if (msg.value > EXEC_FEE) payable(msg.sender).transfer(msg.value - EXEC_FEE);
+    }
+}
+
+/// Stand-in for the DeWEB hub's `send` (TAP-10 §13.5): only the holder of an opened circuit writes, as its
+/// container; the payload lives only in the Sent event.
+contract HubLocal {
+    OpenerLocal public immutable opener;
+    mapping(bytes32 => uint256) public inboxCount;
+    mapping(address => uint256) public outboxCount;
+
+    event Sent(bytes32 indexed to, address indexed from, bytes32 indexed ref, uint256 inboxIndex, uint256 outboxIndex, bytes payload);
+
+    constructor(OpenerLocal o) {
+        opener = o;
+    }
+
+    function send(address circuits, uint256 tokenId, bytes32 to, bytes32 ref, bytes calldata payload) external returns (uint256 inboxIndex) {
+        require(uint256(to) >> 224 == 0 && uint64(uint256(to) >> 160) != 0 && address(uint160(uint256(to))) != address(0), "BadEndpoint");
+        require(payload.length > 0 && payload.length <= 16000, "payload");
+        require(IOwnerOf(circuits).ownerOf(tokenId) == msg.sender, "NotHolder");
+        address from = opener.accountOf(circuits, tokenId);
+        require(from != address(0), "NotOpened");
+        inboxIndex = inboxCount[to]++;
+        emit Sent(to, from, ref, inboxIndex, outboxCount[from]++, payload);
     }
 }

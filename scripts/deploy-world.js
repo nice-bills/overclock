@@ -4,13 +4,17 @@
 //
 //   RPC_URL=https://testrpc.xlayer.tech PRIVATE_KEY=0x... node scripts/deploy-world.js \
 //     [--processor 0x...] [--beats 20] [--epochs 20] [--price 0.0005] [--job-fee 0.0001] [--tip 0.00002] [--fund 0.002]
+//     [--hub 0x...] [--adopt 0xOpener]
 //
 // The processor defaults to the one holding this network's ready-made machines.
+// On X Layer mainnet the world announces each season over TapeSend (--hub defaults to TapeOut's hub there), and
+// --adopt hands the world circuit to World and opens its container (TapeOut's opener fee, 0.08 OKB), so every
+// epoch is posted by the circuit's own account and the season message comes from it.
 
 import { JsonRpcProvider, Wallet, Contract, ContractFactory, parseEther, formatEther } from 'ethers';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { artifact } from '../src/chain.js';
-import { CIRCUITS_FULL_ABI, TRANSISTORS_ABI, mint, burnCost, tapeout } from '../src/tapeout.js';
+import { CIRCUITS_FULL_ABI, TRANSISTORS_ABI, OPENER_ABI, mint, burnCost, tapeout } from '../src/tapeout.js';
 import { colourCellCircuit, worldCircuit } from '../src/world.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
@@ -42,16 +46,26 @@ const params = {
   epochBeats: Number(arg('beats', 20)), epochsPerSeason: Number(arg('epochs', 20)),
   cellPrice: parseEther(arg('price', '0.0005')), jobFee: parseEther(arg('job-fee', '0.0001')), keeperTip: parseEther(arg('tip', '0.00002')),
 };
+const HUBS = { 196: '0xe61A9C7213a6Aa616C246a2B569e555B417b25ee' };
+const hub = arg('hub', HUBS[Number(net.chainId)] ?? '0x0000000000000000000000000000000000000000');
 const a = artifact('World');
-const world = await new ContractFactory(a.abi, a.bytecode, me).deploy(dep.overclock, processor, worldId, params.epochBeats, params.epochsPerSeason, params.cellPrice, params.jobFee, params.keeperTip);
+const world = await new ContractFactory(a.abi, a.bytecode, me).deploy(dep.overclock, processor, worldId, params.epochBeats, params.epochsPerSeason, params.cellPrice, params.jobFee, params.keeperTip, hub);
 await world.waitForDeployment();
 const address = await world.getAddress();
 console.log(`World: ${address}`);
+let container = null;
+if (arg('adopt')) {
+  const opener = new Contract(arg('adopt'), OPENER_ABI, me);
+  await (await circuits.transferFrom(me.address, address, worldId)).wait();
+  await (await world.adopt(opener, parseEther('0.0013'), { value: await opener.FEE() })).wait();
+  container = await world.container();
+  console.log(`World holds circuit #${worldId}; its container is ${container}`);
+}
 const fund = parseEther(arg('fund', '0.002'));
 if (fund > 0n) await (await world.fund({ value: fund })).wait();
 
 dep.world = {
-  address, processor, cellId, circuitId: worldId, w: 16, h: 16,
+  address, processor, cellId, circuitId: worldId, w: 16, h: 16, hub, container,
   epochBeats: params.epochBeats, epochsPerSeason: params.epochsPerSeason,
   cellPrice: params.cellPrice.toString(), jobFee: params.jobFee.toString(), keeperTip: params.keeperTip.toString(),
 };

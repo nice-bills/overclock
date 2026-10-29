@@ -36,6 +36,7 @@ export const CIRCUITS_FULL_ABI = [
   'function step(uint256 id, bytes state, bytes inputs) view returns (bytes newState, bytes outputs)',
   'function nextId() view returns (uint256)',
   'function ownerOf(uint256 id) view returns (address)',
+  'function transferFrom(address from, address to, uint256 id)',
   'function transistors() view returns (address)',
   'event TapedOut(uint256 indexed circuitId, address indexed author, uint32 gateCount, uint32 nState)',
 ];

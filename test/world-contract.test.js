@@ -12,6 +12,7 @@ const art = (n) => JSON.parse(readFileSync(new URL(`../build/${n}.json`, import.
 const BOND = parseEther('0.01'), WINDOW = 60, BEATS = 4, EPOCHS = 2;
 const PRICE = parseEther('0.01'), JOB_FEE = parseEther('0.001'), TIP = parseEther('0.0001');
 const W = 16, H = 16;
+const ZERO = '0x0000000000000000000000000000000000000000';
 
 let provider, op, red, blue, keeper, oc, world, worldC, cpuAddr, worldId;
 const deploy = async (name, signer, ...args) => {
@@ -50,7 +51,7 @@ before(async () => {
   worldId = Number(await cpu.nextId());
   await (await cpu.store(bytesToHex(wd.netlist), wd.nIn, wd.nOut, worldC.nState, worldC.nGates)).wait();
   oc = await deploy('Overclock', op, BOND, WINDOW, '0x0000000000000000000000000000000000000000', await op.getAddress(), 0);
-  world = await deploy('World', op, await oc.getAddress(), cpuAddr, worldId, BEATS, EPOCHS, PRICE, JOB_FEE, TIP);
+  world = await deploy('World', op, await oc.getAddress(), cpuAddr, worldId, BEATS, EPOCHS, PRICE, JOB_FEE, TIP, ZERO);
 });
 
 test('world: a season of Red vs Blue, run by Overclock jobs, pays the winning team', async () => {
@@ -102,4 +103,69 @@ test('world: a season of Red vs Blue, run by Overclock jobs, pays the winning te
   await (await world.connect(keeper).advance()).wait();
   assert.deepEqual((await cellsOf()).filter(Boolean), [1, 1, 1]);
   assert.equal((await world.seasonInfo(1))[0], (PRICE * 3n) / 2n);
+});
+
+// The same game with real TapeOut flow (contracts/TapeOutLocal.sol): the world holds its own circuit, its
+// container posts the epochs, and the season ends with a TapeSend message from that container.
+test('world: adopted by its circuit, it posts through its own container and announces the season over TapeSend', async () => {
+  const { createCPU, mint, burnCost, tapeout } = await import('../src/tapeout.js');
+  const factory = await deploy('TapeOutFactoryLocal', op);
+  const proc = await createCPU(op, await factory.getAddress(), { name: 'World', symbol: 'W', story: '', supply: 100000, mintPrice: 1n });
+  const addr = (await proc.circuits.getAddress()).toLowerCase();
+  const put = async (c) => {
+    const need = burnCost(c.netlist, c.nIn);
+    await mint(proc.transistors, 0, need.nand);
+    if (need.latch) await mint(proc.transistors, 1, need.latch);
+    return Number((await tapeout(proc.circuits, c)).id);
+  };
+  const cellId = await put(colourCellCircuit());
+  const id = await put(worldCircuit(W, H, addr, cellId));
+  const cell = colourCellCircuit();
+  const cc = load(cell.netlist, cell.nIn, cell.nOut);
+  const wd = worldCircuit(W, H, addr, cellId);
+  const wc = load(wd.netlist, wd.nIn, wd.nOut, (a, i) => (a.toLowerCase() === addr && Number(i) === cellId ? cc : null));
+  const opener = await deploy('OpenerLocal', op, await factory.getAddress());
+  const hub = await deploy('HubLocal', op, await opener.getAddress());
+  const oc2 = await deploy('Overclock', op, BOND, WINDOW, await factory.getAddress(), await op.getAddress(), 0);
+  const w2 = await deploy('World', op, await oc2.getAddress(), addr, id, 2, 1, PRICE, JOB_FEE, TIP, await hub.getAddress());
+  const EXEC = parseEther('0.0013');
+
+  await assert.rejects(w2.adopt(await opener.getAddress(), EXEC, { value: parseEther('0.08') })); // not the holder yet
+  await (await proc.circuits.connect(op).transferFrom(await op.getAddress(), await w2.getAddress(), id)).wait();
+  await assert.rejects(w2.connect(red).adopt(await opener.getAddress(), EXEC, { value: parseEther('0.08') })); // only the deployer
+  await (await w2.adopt(await opener.getAddress(), EXEC, { value: parseEther('0.08') })).wait();
+  await assert.rejects(w2.adopt(await opener.getAddress(), EXEC)); // once
+  const container = await w2.container();
+  assert.equal(container, await opener.accountOf(addr, id));
+
+  // a blinker for blue and a block for red; one epoch of 2 generations is the whole season
+  await (await w2.connect(blue).place(2, mask([[3, 3], [4, 3], [5, 3]]), { value: PRICE * 3n })).wait();
+  await (await w2.connect(red).place(1, mask([[10, 10], [11, 10], [10, 11], [11, 11]]), { value: PRICE * 4n })).wait();
+  await (await w2.fund({ value: parseEther('0.01') })).wait();
+  const rc = await (await w2.connect(keeper).advance()).wait();
+  const started = rc.logs.map((l) => { try { return w2.interface.parseLog(l); } catch { return null; } }).find((x) => x?.name === 'EpochStarted');
+  const jobId = started.args.jobId;
+  const j = await oc2.jobs(jobId);
+  assert.equal(j.poster, container, 'the circuit\'s own account posted the epoch');
+  assert.equal(j.fee, JOB_FEE);
+
+  const t = traceJob(wc, { state: unpack(hexToBytes(j.state), 2 * W * H), beats: 2 });
+  await (await oc2.connect(op).claim(jobId, buildTree(t.leaves).root, bytesToHex(pack(t.outputs)), bytesToHex(pack(t.newState)), { value: BOND })).wait();
+  await warp(WINDOW + 1);
+  await (await oc2.connect(op).finalize(jobId, { gasLimit: 3_000_000 })).wait();
+
+  const end = await (await w2.connect(keeper).advance()).wait();
+  const sent = end.logs.map((l) => { try { return hub.interface.parseLog(l); } catch { return null; } }).find((x) => x?.name === 'Sent');
+  assert.ok(sent, 'the season was announced');
+  assert.equal(sent.args.from, container);
+  const payload = hexToBytes(sent.args.payload);
+  assert.deepEqual([...payload.slice(0, 4)], [0x54, 0x53, 0x02, 0x00], 'a public TapeSend payload');
+  const msg = JSON.parse(new TextDecoder().decode(payload.slice(4)));
+  assert.equal(msg.v, 1);
+  assert.equal(msg.kind, 'message');
+  assert.match(msg.subject, /season 0: Red wins/);
+  assert.equal(msg.body.split('\n').length, 18); // 16 rows, a blank line, the score
+  assert.equal([...msg.body].filter((c) => c === '🟥').length, 4);
+  assert.match(msg.body, /Red 4 cells, Blue 3 cells\. Pot 0\.035000 OKB/);
+  assert.equal(await w2.owed(), PRICE * 7n / 2n);
 });
