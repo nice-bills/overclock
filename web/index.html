@@ -7,46 +7,27 @@
 <meta name="description" content="Run TapeOut circuits too big for the chain. Settle them on X Layer, and prove any wrong gate in one transaction.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400;500&display=swap">
 <style>
+/* Dark by default: the fab floor. Acid lime is the signal, red is the lie. data-theme="light" keeps a light sheet. */
 :root {
-  --bg: #fafaf9;
-  --sheet: #ffffff;
-  --ink: #141414;
-  --muted: #6e6e6b;
-  --faint: #a8a8a3;
-  --line: #e6e5e1;
-  --accent: #2c6e57;
-  --accent-soft: #e4efe9;
-  --lie: #b42d3a;
-  --lie-soft: #f6e3e4;
-  --warn: #8a5a1c;
-  --warn-soft: #f3ebdd;
-  --cell: #141414;
-  --cell-off: #e9e8e4;
-  --pkg: #161616;
-  --pkg-edge: #161616;
-  --pin: #b8b7b1;
-  --red: #c23f35; --red-soft: #f6dedb; --blue: #2d5fc4; --blue-soft: #dde6f7;
+  --bg: #07080a; --sheet: #0d0f11; --ink: #f1f2ec; --muted: #8d918a; --faint: #4c504b; --line: #1d201f;
+  --accent: #c8ff3a; --accent-ink: #0a0c05; --accent-soft: #1b2409; --lie: #ff4d5e; --lie-soft: #2b0e13; --warn: #ffb648; --warn-soft: #2c2111;
+  --cell: #f1f2ec; --cell-off: #15181a; --pkg: #0f1110; --pkg-edge: #2b2f2c; --pin: #3a3e3a;
+  --red: #ff5a4e; --red-soft: #33130f; --blue: #5b8cff; --blue-soft: #121c38;
+  --glow: rgba(200, 255, 58, .16);
   --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: "Geist Mono", ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0f0f0f; --sheet: #161616; --ink: #ecebe8; --muted: #9b9a96; --faint: #5f5e5b; --line: #252524;
-    --accent: #7fc4a6; --accent-soft: #17291f; --lie: #f0838d; --lie-soft: #351a1d; --warn: #e0b072; --warn-soft: #2e2416;
-    --cell: #ecebe8; --cell-off: #262625; --pkg: #1b1b1b; --pkg-edge: #2c2c2b; --pin: #4b4b49; color-scheme: dark;
-    --red: #f07a6e; --red-soft: #3a1d1a; --blue: #7aa3f2; --blue-soft: #18223a;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0f0f0f; --sheet: #161616; --ink: #ecebe8; --muted: #9b9a96; --faint: #5f5e5b; --line: #252524;
-  --accent: #7fc4a6; --accent-soft: #17291f; --lie: #f0838d; --lie-soft: #351a1d; --warn: #e0b072; --warn-soft: #2e2416;
-  --cell: #ecebe8; --cell-off: #262625; --pkg: #1b1b1b; --pkg-edge: #2c2c2b; --pin: #4b4b49; color-scheme: dark;
-  --red: #f07a6e; --red-soft: #3a1d1a; --blue: #7aa3f2; --blue-soft: #18223a;
+:root[data-theme="light"] {
+  --bg: #fafaf9; --sheet: #ffffff; --ink: #141414; --muted: #6e6e6b; --faint: #a8a8a3; --line: #e6e5e1;
+  --accent: #3d6b00; --accent-ink: #ffffff; --accent-soft: #e8f2d6; --lie: #b42d3a; --lie-soft: #f6e3e4; --warn: #8a5a1c; --warn-soft: #f3ebdd;
+  --cell: #141414; --cell-off: #e9e8e4; --pkg: #161616; --pkg-edge: #161616; --pin: #b8b7b1;
+  --red: #c23f35; --red-soft: #f6dedb; --blue: #2d5fc4; --blue-soft: #dde6f7; --glow: transparent; color-scheme: light;
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 15px/1.6 var(--sans); font-feature-settings: "ss01"; -webkit-font-smoothing: antialiased; }
 .wrap { max-width: 1160px; margin: 0 auto; padding-bottom: 80px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
@@ -62,12 +43,13 @@ a:hover { text-decoration-color: currentColor; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 
 /* top bar */
-nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 72px; }
-.mark { font-weight: 600; letter-spacing: -0.01em; text-decoration: none; }
+nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 72px; margin: 0 -20px; padding: 0 20px; background: color-mix(in srgb, var(--bg) 72%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); }
+.mark { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; font-size: 16px; }
+.mark svg { width: 22px; height: 22px; }
 .tabs { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
 .tabs a { font-size: 14px; text-decoration: none; color: var(--muted); padding: 6px 14px; border-radius: 999px; }
 .tabs a:hover { color: var(--ink); }
-.tabs a[aria-current="page"] { background: var(--ink); color: var(--bg); }
+.tabs a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); font-weight: 500; }
 nav .gh { font-size: 14px; color: var(--muted); text-decoration: none; }
 nav .gh:hover { color: var(--ink); }
 
@@ -194,107 +176,196 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 .axis span { position: absolute; top: 6px; transform: translateX(-50%); font: 400 11px/1 var(--mono); color: var(--faint); }
 
 /* landing view */
-#home { padding-top: 0; gap: 0; }
-#home .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 64px; align-items: center; padding: 112px 0 160px; }
-#home .eyebrow { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
-#home .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-#home h1 { font-size: clamp(40px, 5.2vw, 66px); font-weight: 500; line-height: 1; letter-spacing: -0.045em; margin-top: 28px; }
-#home .dim { color: var(--faint); }
-#home h1 .dim { display: block; }
-#home .lede { font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 30em; margin-top: 24px; text-wrap: pretty; }
-#home .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
-.btn { display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 999px; font-size: 14px; font-weight: 500; text-decoration: none; border: 1px solid var(--line); transition: border-color .15s, opacity .15s; }
+#home { padding-top: 0; gap: 0; grid-template-columns: minmax(0, 1fr); }
+.view > * { min-width: 0; }
+.btn { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 20px; border-radius: 999px; font-size: 14px; font-weight: 500; text-decoration: none; border: 1px solid var(--line); background: transparent; color: var(--ink); transition: border-color .15s, opacity .15s, box-shadow .2s, transform .2s; }
 .btn:hover { border-color: var(--faint); }
-.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.btn.primary:hover { opacity: .86; }
-#home .herolive { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 6px 12px 6px 10px; border: 1px solid var(--line); border-radius: 999px; font: 400 12px/1.4 var(--mono); color: var(--muted); text-decoration: none; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; box-shadow: 0 0 0 0 var(--glow); }
+.btn.primary:hover { opacity: 1; box-shadow: 0 0 28px 2px var(--glow), 0 0 0 4px var(--glow); transform: translateY(-1px); }
+.btn .arr { font-family: var(--mono); transition: transform .2s; }
+.btn:hover .arr { transform: translateX(3px); }
+.dim { color: var(--faint); }
+
+/* hero: a live Game of Life fills the floor behind it, the chip sits on top and catches the lie */
+#home .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 56px; align-items: center; min-height: min(calc(100svh - 72px), 900px); padding: 40px 0 132px; isolation: isolate; }
+.field { position: absolute; z-index: -1; top: -72px; bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%); pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 8%, rgba(0,0,0,.25) 38%, #000 62%), linear-gradient(transparent 0, #000 12%, #000 70%, transparent 100%); -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, transparent 8%, rgba(0,0,0,.25) 38%, #000 62%), linear-gradient(transparent 0, #000 12%, #000 70%, transparent 100%); mask-composite: intersect; }
+.field canvas { width: 100%; height: 100%; display: block; }
+#home .eyebrow { display: inline-flex; align-items: center; gap: 10px; font: 400 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+#home .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+#home h1 { font-size: clamp(46px, 6.4vw, 92px); font-weight: 650; line-height: .92; letter-spacing: -0.055em; margin-top: 28px; }
+#home h1 .l { display: block; }
+#home h1 .hl { display: block; color: var(--accent); text-shadow: 0 0 42px var(--glow); }
+#home h1 .strike { position: relative; white-space: nowrap; }
+#home h1 .strike::after { content: ""; position: absolute; left: -2%; right: -2%; top: 54%; height: .09em; background: var(--lie); transform-origin: left; transform: scaleX(0); animation: strike .5s 1.3s cubic-bezier(.7,0,.2,1) forwards; box-shadow: 0 0 18px var(--lie); }
+@keyframes strike { to { transform: scaleX(1); } }
+#home .lede { font-size: clamp(16px, 1.4vw, 19px); line-height: 1.55; color: var(--muted); max-width: 31em; margin-top: 28px; text-wrap: pretty; }
+#home .lede b { color: var(--ink); font-weight: 500; }
+#home .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
+#home .herolive { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; padding: 7px 14px 7px 10px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 7%, transparent); border-radius: 999px; font: 400 12px/1.4 var(--mono); color: var(--ink); text-decoration: none; }
 #home .herolive span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #home .herolive[hidden], #home .eyebrow[hidden] { display: none; }
-#home .herolive:hover { color: var(--ink); border-color: var(--faint); }
+#home .herolive:hover { border-color: var(--accent); }
 #home .herolive i { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 var(--accent); animation: ping 2s infinite; }
-@keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 80%, 100% { box-shadow: 0 0 0 6px transparent; } }
-@media (prefers-reduced-motion: reduce) { #home .herolive i { animation: none; } }
-#home .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
-.chipwrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; justify-self: end; width: 100%; max-width: 440px; }
-.chip { width: 100%; aspect-ratio: 1; display: block; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 80%, 100% { box-shadow: 0 0 0 7px transparent; } }
+.chipwrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; justify-self: end; width: 100%; max-width: 500px; }
+.chipwrap::before { content: ""; position: absolute; inset: -14%; z-index: -1; background: radial-gradient(closest-side, var(--glow), transparent 70%); filter: blur(10px); animation: breathe 4.5s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: .55; transform: scale(.96); } }
+.chip { width: 100%; aspect-ratio: 1; display: block; filter: drop-shadow(0 30px 60px rgba(0,0,0,.6)); }
 .chipcap { white-space: nowrap; display: flex; flex-wrap: wrap; row-gap: 2px; justify-content: space-between; gap: 12px; font: 400 11px/1.5 var(--mono); color: var(--muted); letter-spacing: 0.02em; }
-.chipcap b { font-weight: 400; color: var(--ink); }
+.chipcap b { font-weight: 500; color: var(--accent); }
 .chipcap .lie { color: var(--lie); }
-#home .sheet { border-top: 1px solid var(--ink); }
+/* the proof strip pinned to the bottom of the first screen */
+.proof { position: absolute; left: 0; right: 0; bottom: 28px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--bg) 78%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.proof > * { padding: 16px 20px; display: grid; gap: 4px; text-decoration: none; min-width: 0; }
+.proof > * + * { border-left: 1px solid var(--line); }
+.proof b { font: 600 clamp(20px, 2.2vw, 30px)/1 var(--sans); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.proof b.hot { color: var(--accent); }
+.proof b.lie { color: var(--lie); }
+.proof span { font: 400 11px/1.35 var(--mono); color: var(--muted); letter-spacing: .02em; }
+.proof a:hover span { color: var(--ink); }
+
+/* ticker */
+.ticker { position: relative; left: 50%; width: 100vw; transform: translateX(-50%); border-block: 1px solid var(--line); overflow: hidden; background: var(--sheet); }
+.ticker .tr { display: flex; width: max-content; animation: tick 48s linear infinite; }
+.ticker:hover .tr { animation-play-state: paused; }
+.ticker span { padding: 14px 28px; font: 400 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.ticker span b { color: var(--accent); font-weight: 500; }
+.ticker span b.lie { color: var(--lie); }
+.ticker span::before { content: "◆"; margin-right: 28px; color: var(--faint); font-size: 9px; vertical-align: 1px; }
+@keyframes tick { to { transform: translateX(-50%); } }
+
+/* the big number */
+.versus { padding: 150px 0 0; display: grid; gap: 40px; }
+.versus .x { font: 700 clamp(84px, 17vw, 248px)/.82 var(--sans); letter-spacing: -0.07em; color: var(--accent); text-shadow: 0 0 80px var(--glow); font-variant-numeric: tabular-nums; }
+.versus .x small { display: block; font-size: .2em; font-weight: 600; letter-spacing: -0.03em; color: var(--ink); margin-top: .35em; text-shadow: none; }
+.versus .what { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; }
+.versus .what p { font-size: clamp(18px, 2vw, 24px); line-height: 1.35; letter-spacing: -0.015em; max-width: 30em; color: var(--muted); }
+.versus .what p b { color: var(--ink); font-weight: 500; }
+.bars { display: grid; gap: 14px; }
+.bar { display: grid; grid-template-columns: minmax(150px, 15em) minmax(0, 1fr); gap: 20px; align-items: center; }
+.bar .n { font-size: 14px; line-height: 1.35; }
+.bar .n small { display: block; color: var(--muted); font: 400 11px/1.5 var(--mono); }
+.bar .t { position: relative; height: 44px; border-radius: 8px; background: var(--cell-off); overflow: hidden; }
+.bar .t i { position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 8px; transform-origin: left; transform: scaleX(0); transition: transform 1.6s cubic-bezier(.2,.7,.2,1); }
+.versus.in .bar .t i { transform: scaleX(1); }
+.bar.direct .t i { background: repeating-linear-gradient(-45deg, #3a2a2c 0 8px, #2a1d1f 8px 16px); box-shadow: inset 0 0 0 1px #4a2e32; }
+.bar.oc .t i { background: var(--accent); box-shadow: 0 0 22px var(--glow); min-width: 4px; }
+.bar .t em { position: absolute; top: 50%; transform: translateY(-50%); font: 500 13px/1 var(--mono); font-style: normal; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bar.direct .t em { right: 16px; color: #ff9aa4; }
+.bar.oc .t em { left: 18px; color: var(--ink); }
+
+/* datasheet */
+#home .sheet { border-top: 1px solid var(--faint); }
 #home .sheet-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding: 14px 0; border-bottom: 1px solid var(--line); font: 400 11px/1.5 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-#home .row { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+#home .row { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line); align-items: baseline; transition: background .2s; }
+#home .row:not(.th):hover { background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 4%, transparent), transparent); }
 #home .row.th { padding: 12px 0; font-size: 12px; color: var(--muted); }
 #home .row .m { font-weight: 500; }
 #home .row .m small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
-#home .row .v { font: 400 24px/1.2 var(--sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-#home .row .v small { display: block; font-size: 12px; letter-spacing: 0; color: var(--muted); margin-top: 4px; }
+#home .row .v { font: 500 28px/1.1 var(--sans); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+#home .row .v small { display: block; font: 400 11px/1.4 var(--mono); letter-spacing: 0; color: var(--muted); margin-top: 6px; }
 #home .row .v.win { color: var(--accent); }
+#home .row .v.gone { color: var(--muted); }
+#home .row .v.gone > span { text-decoration: line-through; text-decoration-color: var(--lie); text-decoration-thickness: 2px; }
 #home .row .k { display: none; }
 #home .sheet-foot { padding: 14px 0 0; font-size: 13px; color: var(--muted); max-width: none; }
-#home h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 500; line-height: 1.08; letter-spacing: -0.035em; max-width: 20em; }
-#home .sec-intro { display: grid; gap: 16px; margin-bottom: 48px; }
-.sec-label { font: 500 11px/1.4 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+#home h2 { font-size: clamp(32px, 4.6vw, 60px); font-weight: 600; line-height: 1; letter-spacing: -0.045em; max-width: 18em; }
+#home .sec-intro { display: grid; gap: 18px; margin: 120px 0 40px; }
+.sec-label { font: 500 11px/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .sec-label b { color: var(--accent); font-weight: 500; margin-right: 10px; }
-#home .app { padding: 160px 0 0; display: grid; gap: 28px; }
-#home .app .lead p { color: var(--muted); margin-top: 12px; max-width: 34em; font-size: 16px; }
+#home .app { padding: 150px 0 0; display: grid; gap: 28px; }
+#home .app .lead p { color: var(--muted); margin-top: 16px; max-width: 34em; font-size: 17px; }
 .diagram { width: 100%; height: auto; display: block; overflow: visible; }
 .diagram text { font-family: var(--mono); fill: var(--ink); }
 .diagram .m { fill: var(--muted); }
-.diagram .box { fill: var(--bg); stroke: var(--line); stroke-width: 1.25; transition: stroke .3s; }
-.diagram .box.on { stroke: var(--ink); }
+.diagram .box { fill: var(--sheet); stroke: var(--line); stroke-width: 1.25; transition: stroke .3s, filter .3s; }
+.diagram .box.on { stroke: var(--accent); filter: drop-shadow(0 0 10px var(--glow)); }
 .diagram .pkg { fill: var(--pkg); stroke: var(--pkg-edge); }
 .diagram .pkg-t { fill: #ecebe8; }
 .diagram .pins rect { fill: var(--pin); transition: fill .2s; }
 .diagram .pins.on rect { fill: var(--accent); }
 .diagram .ln { stroke: var(--line); stroke-width: 1.5; fill: none; transition: stroke .3s; }
-.diagram .ln.on { stroke: var(--ink); }
+.diagram .ln.on { stroke: var(--accent); }
 .diagram .ln.on.lie { stroke: var(--lie); }
 .diagram .lbl { transition: fill .3s; }
 .diagram .lbl.on { fill: var(--ink); }
 .diagram .lbl.on.lie { fill: var(--lie); }
-.diagram .dot { fill: var(--ink); }
-.diagram .dot.lie { fill: var(--lie); }
-.pinout { display: grid; border-top: 1px solid var(--ink); }
+.diagram .dot { fill: var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+.diagram .dot[cx="-20"] { opacity: 0; }
+.diagram .dot.lie { fill: var(--lie); filter: drop-shadow(0 0 6px var(--lie)); }
+.pinout { display: grid; border-top: 1px solid var(--faint); }
 .pinout .pr { display: grid; grid-template-columns: 48px 130px 1fr; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); align-items: baseline; transition: background .3s; }
 .pinout .pr span { font: 400 13px/1.5 var(--mono); color: var(--faint); transition: color .3s; }
 .pinout .pr b { font: 500 13px/1.5 var(--mono); letter-spacing: 0.04em; transition: color .3s; }
 .pinout .pr p { margin: 0; color: var(--muted); max-width: none; }
+.pinout .pr.on { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%); }
+.pinout .pr.on.lie { background: linear-gradient(90deg, color-mix(in srgb, var(--lie) 8%, transparent), transparent 60%); }
 .pinout .pr.on span, .pinout .pr.on b { color: var(--accent); }
 .pinout .pr.on.lie span, .pinout .pr.on.lie b { color: var(--lie); }
+/* doors into the app */
+.doors { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.door { position: relative; display: grid; gap: 10px; align-content: start; min-height: 190px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--sheet); text-decoration: none; overflow: hidden; transition: border-color .2s, transform .2s; }
+.door::after { content: "→"; position: absolute; right: 20px; bottom: 18px; font: 400 18px/1 var(--mono); color: var(--faint); transition: color .2s, transform .2s; }
+.door:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); transform: translateY(-2px); }
+.door:hover::after { color: var(--accent); transform: translateX(4px); }
+.door span { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.door b { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.door p { color: var(--muted); font-size: 14px; line-height: 1.5; padding-right: 20px; }
 /* motion */
-.rise { opacity: 0; transform: translateY(10px); animation: rise .8s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: var(--d, 0s); }
+.rise { opacity: 0; transform: translateY(14px); animation: rise .9s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: var(--d, 0s); }
 @keyframes rise { to { opacity: 1; transform: none; } }
-.reveal { opacity: 0; transform: translateY(16px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
 .reveal.in { opacity: 1; transform: none; }
 #home .row.reveal { transition-delay: var(--d, 0s); }
 @media (prefers-reduced-motion: reduce) {
   .rise, .reveal { opacity: 1; transform: none; animation: none; transition: none; }
+  .ticker .tr, .chipwrap::before, #home .herolive i { animation: none; }
+  #home h1 .strike::after { animation: none; transform: scaleX(1); }
+  .bar .t i { transition: none; transform: scaleX(1); }
 }
-#home .close { padding-top: 160px; }
-#home .closer { border-top: 1px solid var(--line); padding-top: 64px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 32px; }
-#home .closer p { color: var(--muted); margin-top: 12px; max-width: 28em; font-size: 16px; }
+#home .close { padding-top: 150px; }
+#home .closer { position: relative; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 20px; padding: 56px; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 32px;
+  background: radial-gradient(80% 140% at 100% 100%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%), var(--sheet); }
+#home .closer p { color: var(--muted); margin-top: 16px; max-width: 30em; font-size: 17px; }
+#home .closer .cta { margin-top: 0; }
+@media (max-width: 980px) {
+  .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proof { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .proof > :nth-child(3) { border-left: 0; }
+  .proof > :nth-child(n+3) { border-top: 1px solid var(--line); }
+}
 @media (max-width: 820px) {
-  #home .hero { grid-template-columns: minmax(0, 1fr); gap: 48px; padding: 48px 0 72px; }
-  .chipwrap { justify-self: start; max-width: 360px; }
-  #home .app { padding-top: 80px; }
+  #home .hero { grid-template-columns: minmax(0, 1fr); gap: 36px; min-height: 0; padding: 28px 0 40px; }
+  .chipwrap { justify-self: center; max-width: 380px; }
+  .field { opacity: .4; }
+  .proof { position: static; grid-column: 1; }
+  #home .app { padding-top: 96px; }
+  .versus { padding-top: 96px; }
+  .versus .what { grid-template-columns: 1fr; }
   .pinout .pr { grid-template-columns: 28px 1fr; gap: 4px 12px; }
   .diagram { display: none; }
   .pinout .pr p { grid-column: 2; }
+  #home .closer { padding: 32px 24px; }
 }
 @media (max-width: 640px) {
   #home .row { grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; }
   #home .row.th { display: none; }
   #home .row .m { grid-column: 1 / -1; margin-bottom: 6px; }
-  #home .row .v { font-size: 18px; }
-  #home .row .k { display: block; font-size: 11px; color: var(--muted); }
+  #home .row .v { font-size: 19px; }
+  #home .row .k { display: block; font: 400 10px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-style: normal; }
+  .bar { grid-template-columns: 1fr; gap: 6px; }
+  .doors { grid-template-columns: 1fr; }
+  .door { min-height: 0; }
+  #home .sec-intro { margin-top: 88px; }
 }
 
-footer { border-top: 1px solid var(--line); margin-top: 72px; padding-top: 24px; display: flex; flex-wrap: wrap; gap: 8px 32px; justify-content: space-between; color: var(--muted); font-size: 13px; }
+footer { border-top: 1px solid var(--line); margin-top: 120px; padding-top: 24px; display: flex; flex-wrap: wrap; gap: 8px 32px; justify-content: space-between; color: var(--muted); font-size: 13px; }
 footer a { text-decoration: none; }
 footer a:hover { color: var(--ink); }
 
 @media (max-width: 640px) {
-  nav { height: auto; padding: 16px 0 0; flex-wrap: wrap; }
+  nav { height: auto; padding: 12px 20px; flex-wrap: wrap; }
   nav .gh { display: none; }
   .view { padding-top: 32px; gap: 44px; }
   .card { padding: 18px; }
@@ -415,7 +486,7 @@ footer a:hover { color: var(--ink); }
 
 <div class="wrap">
   <nav>
-    <a class="mark" href="#">Overclock</a>
+    <a class="mark" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.5v2.5M12 1.5v2.5M16 1.5v2.5M8 20v2.5M12 20v2.5M16 20v2.5M1.5 8h2.5M1.5 12h2.5M1.5 16h2.5M20 8h2.5M20 12h2.5M20 16h2.5" stroke="currentColor" stroke-width="1.6"/><rect x="9" y="9" width="6" height="6" rx="1" fill="#c8ff3a"/></svg>Overclock</a>
     <div class="tabs">
       <a href="#board" id="tab-board">Job board</a>
       <a href="#replay" id="tab-replay">Replay</a>
@@ -428,38 +499,62 @@ footer a:hover { color: var(--ink); }
 
   <main class="view" id="home">
     <header class="hero">
+      <div class="field" aria-hidden="true"><canvas id="field"></canvas></div>
       <div>
-        <span class="eyebrow rise" id="heroTag"><i></i>OVC-1 · live on X Layer · built on TapeOut</span>
+        <span class="eyebrow rise" id="heroTag"><i></i>Live on X Layer mainnet · built on TapeOut</span>
         <a class="herolive rise" id="heroLive" href="#board" hidden style="--d:.36s"></a>
-        <h1 class="rise" style="--d:.08s">Run circuits too big for the chain. <span class="dim">Catch any wrong gate.</span></h1>
-        <p class="lede rise" style="--d:.16s">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If a single gate in millions is wrong, anyone can prove it in one transaction and take the bond.</p>
+        <h1 class="rise" style="--d:.08s"><span class="l">Too big for</span><span class="l">the <span class="strike">chain</span>.</span><span class="hl">Not too big to check.</span></h1>
+        <p class="lede rise" style="--d:.16s">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If <b>one gate in millions</b> is wrong, anyone can prove it in <b>one transaction</b> and take the liar's bond.</p>
         <div class="cta rise" style="--d:.24s">
-          <a class="btn primary" href="#board">Open the job board</a>
-          <a class="btn" href="#replay">Watch a cheat get caught</a>
+          <a class="btn primary" href="#replay">Watch a cheat get caught <span class="arr">→</span></a>
+          <a class="btn" href="#run">Run a job yourself</a>
         </div>
       </div>
       <figure class="chipwrap rise" style="margin:0;--d:.3s">
         <canvas class="chip" id="chip" role="img" aria-label="Circuit #5, the 8 by 8 Life board taped out on TapeOut, drawn as a chip. A dispute halves the gates until one wrong NAND is left."></canvas>
         <figcaption class="chipcap"><span>TapeOut circuit #5 · <b>tap a gate to cheat</b></span><span id="chipState">&nbsp;</span></figcaption>
       </figure>
+      <div class="proof rise" style="--d:.45s">
+        <a href="https://www.oklink.com/x-layer/tx/0xf9e3738e5cc9ce905197526b755579d2da0d416b6ba07d5cdbe0a717bfd2ea6d"><b class="hot">42,003×</b><span>less gas: a 4-bit CPU, 10,000 beats</span></a>
+        <a href="https://www.oklink.com/x-layer/tx/0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff"><b class="lie">1 NAND</b><span>corrupted, caught, bond slashed</span></a>
+        <a href="#try"><b>11,074</b><span>TapeOut circuits counted on mainnet</span></a>
+        <a href="https://github.com/nice-bills/overclock/blob/main/docs/live-check.json"><b>688/688</b><span>samples match TapeOut's own eval</span></a>
+      </div>
     </header>
 
+    <div class="ticker" aria-hidden="true"><div class="tr">
+      <span>Job 2 · 4-bit CPU · <b>10,000 beats</b> · finalized</span><span>34.3B gas direct → <b>816K</b> through Overclock</span><span>AlephTape digit net · 161,080 gates · <b>173× less</b></span><span>Cheat flips one NAND · <b class="lie">challenged</b></span><span>38 txs of bisection → <b>1 gate</b></span><span>resolveLeaf · 347,509 gas · <b class="lie">liar slashed</b></span><span>Game of Life · 181,840 steps · <b>honest result final</b></span><span>No ceremony · no recompiling · <b>any circuit</b></span>
+      <span>Job 2 · 4-bit CPU · <b>10,000 beats</b> · finalized</span><span>34.3B gas direct → <b>816K</b> through Overclock</span><span>AlephTape digit net · 161,080 gates · <b>173× less</b></span><span>Cheat flips one NAND · <b class="lie">challenged</b></span><span>38 txs of bisection → <b>1 gate</b></span><span>resolveLeaf · 347,509 gas · <b class="lie">liar slashed</b></span><span>Game of Life · 181,840 steps · <b>honest result final</b></span><span>No ceremony · no recompiling · <b>any circuit</b></span>
+    </div></div>
+
+    <section class="versus reveal">
+      <span class="sec-label"><b>01</b>Measured on X Layer mainnet</span>
+      <div class="x">42,003×<small>less gas</small></div>
+      <div class="what">
+        <p>A 4-bit CPU taped out on TapeOut ran a Fibonacci program for <b>10,000 beats</b>. Straight through <code>step()</code> that is <b>163 full blocks</b>. Through Overclock it took three transactions.</p>
+      </div>
+      <div class="bars">
+        <div class="bar direct"><span class="n">Run it directly<small>TapeOut step(), 163 blocks</small></span><span class="t"><i style="--w:100%"></i><em>34,277,810,000 gas</em></span></div>
+        <div class="bar oc"><span class="n">Overclock<small>post + claim + finalize</small></span><span class="t"><i style="--w:0.0024%"></i><em>816,083 gas</em></span></div>
+      </div>
+    </section>
+
     <div class="sec-intro reveal">
-      <span class="sec-label"><b>01</b>Electrical characteristics</span>
+      <span class="sec-label"><b>02</b>Electrical characteristics</span>
       <h2>The honest cost stays flat. <span class="dim">However big the circuit gets.</span></h2>
     </div>
     <div class="sheet">
       <div class="sheet-head"><span>Gas per job</span><span>Measured on X Layer mainnet</span></div>
       <div class="row th"><span>Machine</span><span>Run directly on TapeOut</span><span>Overclock, honest</span><span>Prove one wrong gate</span></div>
-      <div class="row reveal" style="--d:0.00s"><span class="m">Game of Life board<small>Circuit #5 · 3,712 gates × 40 beats</small></span><span class="v"><i class="k">Direct</i><span data-n="441085640">441M</span><small>2.1 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182011">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="347509">348K</span><small>1 tx</small></span></div>
-      <div class="row reveal" style="--d:0.12s"><span class="m">4-bit CPU<small>Circuit #6 · 1,437 gates × 10,000 beats</small></span><span class="v"><i class="k">Direct</i><span data-n="34277810000">34.3B</span><small>163 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182227">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="887491">887K</span><small>1 tx</small></span></div>
-      <div class="row reveal" style="--d:0.24s"><span class="m">Digit-recognition net<small>AlephTape's circuit #11 · 161,080 gates</small></span><span class="v"><i class="k">Direct</i><span data-n="388354847">388M</span><small>1.85 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="161979">162K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="2065659">2.07M</span><small>1 tx</small></span></div>
+      <div class="row reveal" style="--d:0.00s"><span class="m">Game of Life board<small>Circuit #5 · 3,712 gates × 40 beats</small></span><span class="v gone"><i class="k">Direct</i><span data-n="441085640">441M</span><small>2.1 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182011">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="347509">348K</span><small>1 tx</small></span></div>
+      <div class="row reveal" style="--d:0.12s"><span class="m">4-bit CPU<small>Circuit #6 · 1,437 gates × 10,000 beats</small></span><span class="v gone"><i class="k">Direct</i><span data-n="34277810000">34.3B</span><small>163 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="182227">182K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="887491">887K</span><small>1 tx</small></span></div>
+      <div class="row reveal" style="--d:0.24s"><span class="m">Digit-recognition net<small>AlephTape's circuit #11 · 161,080 gates</small></span><span class="v gone"><i class="k">Direct</i><span data-n="388354847">388M</span><small>1.85 blocks</small></span><span class="v win"><i class="k">Overclock</i><span data-n="161979">162K</span><small>2 txs</small></span><span class="v"><i class="k">Proof</i><span data-n="2065659">2.07M</span><small>1 tx</small></span></div>
       <p class="sheet-foot">Honest path: one claim, one finalize. A block holds 210M gas.</p>
     </div>
 
     <section class="app reveal">
       <div class="lead">
-        <span class="sec-label"><b>02</b>Typical application</span>
+        <span class="sec-label"><b>03</b>Typical application</span>
         <h2 style="margin-top:16px">Nobody pays to check a result <span class="dim">unless someone disagrees.</span></h2>
         <p>A TapeOut circuit is NAND and LATCH transistors burned into a netlist that lives on-chain and never changes. So any single gate of any circuit, at any size, is a step a contract can re-check.</p>
       </div>
@@ -493,12 +588,22 @@ footer a:hover { color: var(--ink); }
     </section>
 
     <section class="close reveal">
+      <div class="sec-intro" style="margin:0 0 8px">
+        <span class="sec-label"><b>04</b>Try it now</span>
+        <h2>Don't take our word for it. <span class="dim">Everything here is on-chain.</span></h2>
+      </div>
+      <div class="doors">
+        <a class="door" href="#replay"><span>Replay</span><b>Watch the lie get found</b><p>Step from the corrupted NAND to the one transaction that proved it.</p></a>
+        <a class="door" href="#run"><span>Run a job</span><b>Post one from your wallet</b><p>Life or the 4-bit CPU, settled by a live operator in minutes.</p></a>
+        <a class="door" href="#board"><span>Job board</span><b>Every job on mainnet</b><p>Claims, challenges and slashed bonds, read live from the contract.</p></a>
+        <a class="door" href="#try"><span>Your circuit</span><b>Bring any circuit</b><p>Paste a processor and ID. We run it in your browser and price it.</p></a>
+      </div>
       <div class="closer">
         <div>
           <h2>Every job, claim and dispute. <span class="dim">Live.</span></h2>
           <p>The job board reads the Overclock contract straight from X Layer. Nothing in between.</p>
         </div>
-        <a class="btn primary" href="#board">Open the job board</a>
+        <div class="cta"><a class="btn primary" href="#board">Open the job board <span class="arr">→</span></a><a class="btn" href="https://github.com/nice-bills/overclock">GitHub</a></div>
       </div>
     </section>
   </main>
@@ -853,7 +958,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     for (let y = 0; y < G; y++) for (let x = 0; x < G; x++) {
       const k = kind(x, y); if (!k) continue;
       const on = inR(x, y), cx = px(x), cy = px(y);
-      if (k === 2) { add(on || latchOn ? '#6cc19c' : '#2f4a3e', (q) => q.rect(cx - sq / 2, cy - sq / 2, sq, sq)); continue; }
+      if (k === 2) { add(on || latchOn ? '#c8ff3a' : '#33421a', (q) => q.rect(cx - sq / 2, cy - sq / 2, sq, sq)); continue; }
       let col = on ? '#efeeea' : '#474745';
       if (sweep >= 0) { const ci = Math.floor(y / CELL) * CELL + Math.floor(x / CELL); col = ci < sweep ? '#9a9995' : ci === sweep ? '#ffffff' : '#474745'; }
       if (hover && hover.x === x && hover.y === y && phase !== 'found') col = '#ff6b6b';
@@ -936,6 +1041,68 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   caption();
   requestAnimationFrame(loop);
   timer = setTimeout(tick, RUN);
+})();
+</script>
+<script>
+// The hero floor: Conway's Life on a torus behind the headline, the same rule circuit #5 runs. Now and then one
+// cell goes red, the way a cheat's corrupted gate would, and a frame closes in on it.
+(function () {
+  const cv = document.getElementById('field'); if (!cv) return;
+  const ctx = cv.getContext('2d'), home = document.getElementById('home');
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const P = 14;
+  let W = -1, H = -1, c = null, age = null, gen = 0, fault = null, last = 0;
+  function seed() {
+    c = new Uint8Array(W * H); age = new Uint8Array(W * H);
+    for (let i = 0; i < c.length; i++) c[i] = Math.random() < 0.18 ? 1 : 0;
+    gen = 0;
+  }
+  function size() {
+    const b = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(b.width * dpr); cv.height = Math.round(b.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const w = Math.ceil(b.width / P), h = Math.ceil(b.height / P);
+    if (w !== W || h !== H) { W = w; H = h; seed(); }
+  }
+  function step() {
+    const o = new Uint8Array(W * H); let pop = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) n += c[((y + dy + H) % H) * W + ((x + dx + W) % W)];
+      const i = y * W + x, v = n === 3 || (n === 2 && c[i]) ? 1 : 0;
+      o[i] = v; age[i] = v ? Math.min(age[i] + 1, 30) : 0; pop += v;
+    }
+    c = o; gen++;
+    if (pop < W * H * 0.03 || gen > 420) seed();
+    if (!fault && gen % 28 === 0) { const live = []; for (let i = 0; i < c.length; i++) if (c[i]) live.push(i); if (live.length) fault = { i: live[(Math.random() * live.length) | 0], t: 0 }; }
+  }
+  function draw() {
+    const b = cv.getBoundingClientRect();
+    ctx.clearRect(0, 0, b.width, b.height);
+    const s = P - 4;
+    ctx.fillStyle = 'rgba(241,242,236,.045)';
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) ctx.fillRect(x * P + P / 2 - 1, y * P + P / 2 - 1, 2, 2);
+    for (let i = 0; i < c.length; i++) if (c[i]) {
+      ctx.fillStyle = age[i] < 2 ? 'rgba(200,255,58,.55)' : 'rgba(200,255,58,.2)';
+      ctx.fillRect((i % W) * P + 2, ((i / W) | 0) * P + 2, s, s);
+    }
+    if (fault) {
+      const x = (fault.i % W) * P, y = ((fault.i / W) | 0) * P, k = fault.t / 16, r = P * (6 - 5 * Math.min(1, k));
+      ctx.fillStyle = 'rgba(255,77,94,.9)'; ctx.fillRect(x + 2, y + 2, s, s);
+      ctx.strokeStyle = `rgba(255,77,94,${0.7 * (1 - Math.max(0, k - 1))})`; ctx.lineWidth = 1;
+      ctx.strokeRect(x + P / 2 - r, y + P / 2 - r, r * 2, r * 2);
+      if (++fault.t > 32) fault = null;
+    }
+  }
+  size(); draw();
+  addEventListener('resize', () => { size(); draw(); });
+  addEventListener('hashchange', () => setTimeout(() => { size(); draw(); }));
+  if (still) return;
+  const loop = (now) => {
+    if (!document.hidden && !home.hidden && now - last > 110) { last = now; step(); draw(); }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
 })();
 </script>
 <script>
