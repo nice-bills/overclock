@@ -157,7 +157,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 
 ```sh
 npm install
-npm test             # 65 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
+npm test             # 74 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server
 npm run demo         # 16x16 board, 100 generations (about 90 s); --w --h --beats to change
 node scripts/build-web.js   # inline the run into web/overclock.html
 ```
