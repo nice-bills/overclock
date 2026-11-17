@@ -37,17 +37,42 @@ function fakePage(url, address) {
       }
       await new Promise((r) => setTimeout(r, 50));
     }
-  })();
+  })().catch((e) => { p.error = e; }); // surface it in after(); a bare rejection would escape as unhandled
   return p;
 }
 
-const call = async (name, args = {}) => {
+// One tool call, exactly as the server answers it. A transaction tool returns "waiting for
+// approval" when the wallet takes longer than OVERCLOCK_APPROVAL_WAIT_MS; that reply only exists
+// to keep a chat from hanging, so most tests should not assert on it. Use call() for a result.
+const callRaw = async (name, args = {}) => {
   const t0 = Date.now();
   const r = await client.callTool({ name, arguments: args }, undefined, { timeout: 600000 });
   if (process.env.MCP_DEBUG) console.error(name, Date.now() - t0, 'ms');
   const text = r.content[0].text;
   if (r.isError) throw new Error(`${name}: ${text}`);
   return JSON.parse(text);
+};
+
+// A tool call whose result matters: follow the documented waiting path through transaction_status
+// as a client would, instead of assuming the transaction finished inside the approval wait. That
+// keeps the tests independent of how long the chain takes (the seconds the server hands back the
+// link are deliberately short so the waiting path shows up at all).
+const call = async (name, args = {}) => {
+  let r = await callRaw(name, args);
+  for (let i = 0; r?.status === 'waiting for approval'; i++) {
+    assert.ok(i < 10, `${name} is still waiting for approval after 10 transaction_status calls`);
+    r = await callRaw('transaction_status', { requestId: r.requestId, waitSeconds: 120 });
+  }
+  return r;
+};
+
+// A tool call that must fail: it may fail at once (revert while estimating, a rejected wallet
+// request) or only after returning "waiting for approval", so finish that request as a client would.
+const callFails = async (name, args, re) => {
+  let r;
+  try { r = await callRaw(name, args); } catch (e) { assert.match(e.message, re); return; }
+  assert.equal(r?.status, 'waiting for approval', `${name} should have failed, not returned a result`);
+  await assert.rejects(callRaw('transaction_status', { requestId: r.requestId, waitSeconds: 30 }), re);
 };
 
 before(async () => {
@@ -82,7 +107,7 @@ before(async () => {
   await client.connect(new StdioClientTransport({
     command: process.execPath,
     args: [new URL('../bin/overclock-mcp.js', import.meta.url).pathname, '--no-open'],
-    env: { ...process.env, RPC_URL: url, OVERCLOCK: await oc.getAddress(), FACTORY: factoryAddr, OVERCLOCK_APPROVAL_WAIT_MS: '2000' },
+    env: { ...process.env, RPC_URL: url, OVERCLOCK: await oc.getAddress(), FACTORY: factoryAddr, OVERCLOCK_APPROVAL_WAIT_MS: process.env.TEST_APPROVAL_WAIT_MS ?? '2000' },
     stderr: process.env.MCP_DEBUG ? 'inherit' : 'ignore',
   }));
 });
@@ -91,6 +116,7 @@ after(async () => {
   if (page) { page.stop = true; await page.loop; }
   await client?.close();
   await server?.close();
+  if (page?.error) throw page.error;
 });
 
 test('transactions wait for a connected wallet; no private key needed', async () => {
@@ -104,7 +130,7 @@ test('transactions wait for a connected wallet; no private key needed', async ()
   assert.equal(info.wallet.connected, false);
 
   // read-only tools work with no wallet; a transaction tool hands back the approval link and waits
-  const w = await call('finalize_job', { jobId: 0 });
+  const w = await callRaw('finalize_job', { jobId: 0 });
   assert.equal(w.status, 'waiting for approval');
   assert.match(w.approve, /^http:\/\/127\.0\.0\.1:\d+\/wallet\/[0-9a-f]{32}$/);
   const { approvalPage, connected } = await call('connect_wallet', { waitSeconds: 0 });
@@ -120,15 +146,15 @@ test('transactions wait for a connected wallet; no private key needed', async ()
   assert.equal(c.connected, true);
   assert.equal(c.address, me);
   // the waiting transaction carries on once a wallet connects (here it reverts: there is no job 0)
-  await assert.rejects(call('transaction_status', { requestId: w.requestId }), /revert/i);
-  await assert.rejects(call('transaction_status', { requestId: w.requestId }), /No transaction request/);
+  await assert.rejects(callRaw('transaction_status', { requestId: w.requestId }), /revert/i);
+  await assert.rejects(callRaw('transaction_status', { requestId: w.requestId }), /No transaction request/);
   info = await call('overclock_info');
   assert.equal(info.wallet.address, me);
 });
 
 test('a transaction left in the wallet returns a request id, and transaction_status finishes it', async () => {
   page.mode = 'hold';
-  const w = await call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' });
+  const w = await callRaw('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' });
   assert.equal(w.status, 'waiting for approval');
   page.mode = 'approve';
   const r = await call('transaction_status', { requestId: w.requestId, waitSeconds: 30 });
@@ -138,9 +164,9 @@ test('a transaction left in the wallet returns a request id, and transaction_sta
 
 test('a rejected or swapped transaction fails the tool and sends nothing else', async () => {
   page.mode = 'reject';
-  await assert.rejects(call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' }), /Wallet: User rejected/);
+  await callFails('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' }, /Wallet: User rejected/);
   page.mode = 'swap';
-  await assert.rejects(call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' }), /not the one that was requested/);
+  await callFails('post_job', { processor: cpuAddr, circuitId: boardId, beats: 1, fee: '0.05' }, /not the one that was requested/);
   page.mode = 'approve';
   assert.match(page.seen.at(-1).label, /^post_job · 0\.05 OKB to 0x/);
   assert.equal(Number(await oc.jobCount()), 1);
@@ -192,22 +218,36 @@ test('challenge_claim catches a cheat down to one gate and takes the bond', asyn
   const L = layout(bdC, BEATS);
   const leaf = 2 * L.B + 2 + bdC.nState + 7 * (flatSize(cellC) + 1) + flatSize(cellC) - 1; // one cell rule's last NAND, beat 2
   const cheatSigner = new Wallet(keys[2], provider);
-  const cheat = new Operator({ oc, signer: cheatSigner, name: 'cheat', lie: (j) => (Number(j.jobId) === jobId ? leaf : null) });
+  // The cheat tells one lie, then only defends that claim while the bisection runs. It must not
+  // claim again after the claim is thrown out: that would race the test's "the job reopened" check
+  // and leave a fresh claim (and bond) behind, which is not what this test is about.
+  let lied = false;
+  const cheat = new Operator({ oc, signer: cheatSigner, name: 'cheat', lie: (j) => (Number(j.jobId) === jobId && !lied ? leaf : null) });
   cheat.only = new Set([jobId]);
   await cheat.tick();
+  lied = true;
   assert.match((await call('verify_claim', { jobId })).verdict, /^wrong/);
 
   const before = await provider.getBalance(me);
   let stop = false;
-  const loop = (async () => { while (!stop) { await cheat.tick(); await new Promise((r) => setTimeout(r, 300)); } })();
-  let res = await call('challenge_claim', { jobId, waitSeconds: 120 });
-  const actions = [...res.actions];
-  for (let i = 0; i < 5 && res.openDisputes.length; i++) {
-    res = await call('advance_disputes', { waitSeconds: 120 });
+  let loopError = null;
+  const loop = (async () => { while (!stop) { try { await cheat.tick(); } catch (e) { if (!stop) loopError = e; } await new Promise((r) => setTimeout(r, 300)); } })();
+  let res;
+  const actions = [];
+  try {
+    res = await call('challenge_claim', { jobId, waitSeconds: 120 });
     actions.push(...res.actions);
+    for (let i = 0; i < 5 && res.openDisputes.length; i++) {
+      res = await call('advance_disputes', { waitSeconds: 120 });
+      actions.push(...res.actions);
+    }
+  } finally {
+    // Always stop the cheat's poll loop, even when a call throws: otherwise it keeps ticking
+    // against a closed ganache and surfaces as an unhandled ECONNREFUSED after the test ended.
+    stop = true;
+    await loop;
   }
-  stop = true;
-  await loop;
+  if (loopError) throw loopError;
   assert.equal(res.openDisputes.length, 0);
   assert.ok(actions.some((a) => a.fn === 'resolveLeaf'), 'proved the wrong step');
   const j = await call('get_job', { jobId });
