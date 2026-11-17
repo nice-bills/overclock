@@ -115,7 +115,7 @@ try {
     const fakeLeaf = Math.floor(BEATS * 0.81) * L.B + 100;
     const fake = await stage('griefer builds a doctored trace', () => StreamTrace.build(c, { state: toState(m0), beats: BEATS, fault: fakeLeaf, workers: WORKERS, dir }));
     await stage('griefer challenges, bisects and loses', async () => {
-      const rc0 = await (await oc.connect(watcherS).challenge(jobId, { value: parseEther('1') })).wait();
+      const rc0 = await (await oc.connect(watcherS).challenge(jobId, { value: await oc.bondFor(jobId) })).wait();
       const gameId = rc0.logs.map((l) => oc.interface.parseLog(l)).find((e) => e?.name === 'Challenged').args.gameId;
       const bis = new Bisector(fake);
       let level = claimed.depth, index = 0;

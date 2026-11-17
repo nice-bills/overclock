@@ -220,7 +220,7 @@ test('an honest streamed claim survives a challenge from a griefer who bisects a
     assert.equal((await oc.jobs(jobId)).traceRoot, claimed.root, 'the operator claimed the streamed root');
     const fakeLeaf = 25_000;
     const fake = await StreamTrace.build(c, { state: toState(m0), beats: BEATS, fault: fakeLeaf, workers: 2 });
-    const rc0 = await (await oc.connect(watcherS).challenge(jobId, { value: parseEther('1') })).wait();
+    const rc0 = await (await oc.connect(watcherS).challenge(jobId, { value: await oc.bondFor(jobId) })).wait();
     const gameId = rc0.logs.map((l) => oc.interface.parseLog(l)).find((e) => e?.name === 'Challenged').args.gameId;
     const bis = new Bisector(fake);
     let level = claimed.depth, index = 0;

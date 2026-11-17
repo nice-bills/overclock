@@ -118,8 +118,8 @@ export function createServer(ctx) {
     return {
       jobId: Number(jobId), status: status(j, t, wait), processor: j.cpu, circuitId: Number(j.id), beats: j.beats,
       fee: formatEther(j.fee), claimant: j.claimant === ZERO ? null : j.claimant,
-      challengeWindowEndsIn: j.claimant !== ZERO && !j.finalized ? Math.max(0, j.claimedAt + wait - t) : null,
-      ...(forced ? { note: 'the forced-error runner committed to this claim: it is final for anyone else only after two challenge windows' } : {}),
+      challengeWindowEndsIn: j.claimant !== ZERO && !j.finalized ? Math.max(0, j.claimedAt + window - t) : null,
+      ...(forced ? { finalizableIn: Math.max(0, j.claimedAt + wait - t), note: 'the forced-error runner committed to this claim: it is final for anyone else only after two challenge windows' } : {}),
     };
   }
 
