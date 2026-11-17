@@ -1,3 +1,5 @@
+// NOT LAUNCHED. Overclock World is cut from the site (PLAN.md J2): web/index.html no longer has the #world view, and
+// scripts/build-web.js neither inlines this file nor builds its #world-config. Kept for reference only.
 // "World": Overclock World, Red vs Blue on a shared 16x16 Game of Life (contracts/World.sol). Shows the live
 // board, lets you pick a team and buy cells with OKX Wallet (or any injected wallet), follows the epoch that is
 // running as an Overclock job, lets anyone move the world on for the keeper tip, and pays out won seasons.

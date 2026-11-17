@@ -80,13 +80,14 @@
   let wallet = null, walletName = '', account = null;
   addEventListener('eip6963:announceProvider', (e) => { found.set(e.detail.info.uuid, e.detail); drawWallet(); });
   dispatchEvent(new Event('eip6963:requestProvider'));
-  setTimeout(() => {
-    if (!found.size) {
-      if (window.okxwallet) found.set('okx', { info: { name: 'OKX Wallet', icon: '' }, provider: window.okxwallet });
-      else if (window.ethereum) found.set('injected', { info: { name: 'Browser wallet', icon: '' }, provider: window.ethereum });
-    }
-    drawWallet();
-  }, 400);
+  const fallbackWallets = () => {
+    if (found.size) return;
+    if (window.okxwallet) found.set('okx', { info: { name: 'OKX Wallet', icon: '' }, provider: window.okxwallet });
+    else if (window.ethereum) found.set('injected', { info: { name: 'Browser wallet', icon: '' }, provider: window.ethereum });
+  };
+  setTimeout(() => { fallbackWallets(); drawWallet(); }, 400);
+  // Shared with the owner lookup (web/floor.js), which reads the wallets found here.
+  window.OCWallet = { wallets: () => { fallbackWallets(); return [...found.values()]; } };
   function drawWallet() {
     const el = $('runWallet');
     if (account) {
@@ -124,6 +125,7 @@
       const [a] = await wallet.request({ method: 'eth_requestAccounts' });
       await ensureChain();
       account = a;
+      dispatchEvent(new CustomEvent('oc:account', { detail: a }));
       drawWallet();
       $('runPost').disabled = false;
     } catch (e) { setStatus(e.message || String(e), true); }
