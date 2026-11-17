@@ -6,15 +6,18 @@
 // Challenger: re-runs every claim, challenges any whose trace root or result differs from its own,
 // plays the bisection, and proves the one wrong step.
 
-import { traceJob, Tree } from './trace.js';
+import { traceJob, Tree, layout } from './trace.js';
 import { depsOf, resultPos, Bisector } from './game.js';
 import { pack, bytesToHex, hexToBytes, unpack } from './tap02.js';
 import { loadCircuit, readJob, readGame, isStale, Turn, CLOSED } from './chain.js';
 
 class Agent {
   // settle(receipt): optional wait after each transaction, for RPCs whose reads can lag a block
-  constructor({ oc, signer, name, log = () => {}, circuits = new Map(), settle = null }) {
+  // stream: jobs with more than `above` trace leaves use the streaming engine (src/stream-trace.js)
+  // instead of holding the whole trace in memory; its other keys (dir, workers, ...) go to it
+  constructor({ oc, signer, name, log = () => {}, circuits = new Map(), settle = null, stream = { above: 2 ** 27 } }) {
     this.settle = settle;
+    this.stream = stream;
     this.oc = oc.connect(signer);
     this.signer = signer;
     this.name = name;
@@ -38,6 +41,12 @@ class Agent {
     if (!this.traces.has(k)) {
       const c = await loadCircuit(this.oc.runner, job.cpu, job.id, this.circuits);
       const started = Date.now();
+      if (this.stream && layout(c, job.beats).n > this.stream.above) {
+        const { above, ...opts } = this.stream;
+        const { streamedTrace } = await import('./stream-trace.js');
+        this.traces.set(k, await streamedTrace(c, job, { ...opts, fault }));
+        return this.traces.get(k);
+      }
       const t = traceJob(c, { state: job.stateBits, inputs: job.inputBits, beats: job.beats, perBeat: job.perBeat, fault });
       const tree = new Tree(t.leaves);
       this.traces.set(k, { t, tree, c, ms: Date.now() - started });
@@ -47,7 +56,7 @@ class Agent {
 
   // Drop a settled job's traces: a big job's trace and tree take hundreds of MB.
   forget(jobId) {
-    for (const k of this.traces.keys()) if (k.startsWith(`${jobId}:`)) this.traces.delete(k);
+    for (const [k, v] of this.traces) if (k.startsWith(`${jobId}:`)) { v.tree.release?.(); this.traces.delete(k); }
   }
 
   async send(what, fn, ...args) {
