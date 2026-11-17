@@ -77,7 +77,7 @@ export class Builder {
   }
 }
 
-function encode(records) {
+export function encode(records) {
   const bytes = [];
   const u24 = (v) => bytes.push((v >> 16) & 255, (v >> 8) & 255, v & 255);
   for (const r of records) {
