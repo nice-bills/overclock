@@ -197,7 +197,7 @@ let oc;
 if (arg('overclock', null)) {
   oc = new Contract(arg('overclock'), artifact('Overclock').abi, deployer);
   say(`using Overclock at ${arg('overclock')}`);
-} else oc = await deploy('Overclock', BOND, WINDOW, factoryAddr, await deployer.getAddress(), FEE_BPS, BOND_BPS);
+} else oc = await deploy('Overclock', BOND, WINDOW, factoryAddr, await deployer.getAddress(), FEE_BPS, BOND_BPS, 0);
 const ocAddr = await oc.getAddress();
 if ((await oc.bond()) !== BOND || (await oc.bondBps()) !== BOND_BPS || Number(await oc.window()) !== WINDOW) throw new Error(`Overclock at ${ocAddr} has a different bond, bond-bps or window`);
 const job0 = Number(await oc.jobCount()), game0 = Number(await oc.gameCount());
@@ -293,6 +293,13 @@ const summary = {
 say(`gas: honest path ${(summary.claim + summary.finalize).toLocaleString()} (claim + finalize); dispute ${summary.disputeTotal.toLocaleString()} over ${summary.disputeTxs} transactions, largest ${summary.disputeMaxTx.toLocaleString()}`);
 say(`      direct evaluation of the same job: ${summary.directTotal.toLocaleString()} (${Math.round(summary.directTotal / (summary.claim + summary.finalize)).toLocaleString()}x the honest path)`);
 
+// the contract's worst-case bound for a one-step check must cover the check we measured
+const leafBound = Number(await oc.leafGasBound.staticCall(cpuAddr, boardId).catch(() => 0));
+if (leafBound) {
+  say(`      one-step check: ${summary.resolveLeaf.toLocaleString()} gas used, bound ${leafBound.toLocaleString()}`);
+  if (summary.resolveLeaf >= leafBound) throw new Error('the one-step gas bound is below a measured check');
+  summary.leafGasBound = leafBound;
+}
 const steps = log.filter((e) => e.fn === 'pick16').map((e) => {
   const p = e.events.find((x) => x.name === 'Picked').args;
   const level = Number(p.level), index = Number(p.index);

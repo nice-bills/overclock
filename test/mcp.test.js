@@ -75,7 +75,7 @@ before(async () => {
   boardId = Number((await tapeout(cpu.circuits, bd)).id);
   cellC = load(cell.netlist, 9, 1);
   bdC = load(bd.netlist, 0, W * H, () => cellC);
-  oc = await deploy('Overclock', parseEther('1'), WINDOW, await factory.getAddress(), owner.address, 200, 0);
+  oc = await deploy('Overclock', parseEther('1'), WINDOW, await factory.getAddress(), owner.address, 200, 0, 0);
   start = board(W, H, [[PATTERNS.glider, 0, 0]]);
 
   client = new Client({ name: 'overclock-test', version: '1.0.0' });

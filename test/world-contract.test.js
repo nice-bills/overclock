@@ -50,7 +50,7 @@ before(async () => {
   worldC = load(wd.netlist, wd.nIn, wd.nOut, (a, i) => (a.toLowerCase() === cpuAddr && Number(i) === cellId ? cc : null));
   worldId = Number(await cpu.nextId());
   await (await cpu.store(bytesToHex(wd.netlist), wd.nIn, wd.nOut, worldC.nState, worldC.nGates)).wait();
-  oc = await deploy('Overclock', op, BOND, WINDOW, '0x0000000000000000000000000000000000000000', await op.getAddress(), 0, 0);
+  oc = await deploy('Overclock', op, BOND, WINDOW, '0x0000000000000000000000000000000000000000', await op.getAddress(), 0, 0, 0);
   world = await deploy('World', op, await oc.getAddress(), cpuAddr, worldId, BEATS, EPOCHS, PRICE, JOB_FEE, TIP, ZERO);
 });
 
@@ -126,7 +126,7 @@ test('world: adopted by its circuit, it posts through its own container and anno
   const wc = load(wd.netlist, wd.nIn, wd.nOut, (a, i) => (a.toLowerCase() === addr && Number(i) === cellId ? cc : null));
   const opener = await deploy('OpenerLocal', op, await factory.getAddress());
   const hub = await deploy('HubLocal', op, await opener.getAddress());
-  const oc2 = await deploy('Overclock', op, BOND, WINDOW, await factory.getAddress(), await op.getAddress(), 0, 0);
+  const oc2 = await deploy('Overclock', op, BOND, WINDOW, await factory.getAddress(), await op.getAddress(), 0, 0, 0);
   const w2 = await deploy('World', op, await oc2.getAddress(), addr, id, 2, 1, PRICE, JOB_FEE, TIP, await hub.getAddress());
   const EXEC = parseEther('0.0013');
 

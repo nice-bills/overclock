@@ -42,6 +42,18 @@ contract Overclock {
     address public immutable treasury;
     uint256 public immutable feeBps; // protocol share of each job fee
     uint256 public constant CALLBACK_GAS = 300_000;
+    /// The most gas the one-step check (resolveLeaf) may need on a circuit this contract accepts,
+    /// by the bound in leafGasBound. 0 at deploy means DEFAULT_MAX_LEAF_GAS.
+    uint256 public constant DEFAULT_MAX_LEAF_GAS = 30_000_000;
+    uint256 public immutable maxLeafGas;
+    // Worst-case gas model of the check, per circuit on the path from the top to the disputed leaf:
+    // a fixed cost for the external reads, plus a walk's cost per netlist record and per byte
+    // (the check walks a circuit's netlist up to three times). Calibrated against measured
+    // checks in test/audit.test.js, which fails if a measured check ever exceeds the bound.
+    uint256 internal constant LEAF_LEVEL_GAS = 40_000;
+    uint256 internal constant LEAF_RECORD_GAS = 1_500;
+    uint256 internal constant LEAF_BYTE_GAS = 30;
+    uint256 internal constant LEAF_FIXED_GAS = 300_000; // proofs of the dependencies, result lookup
 
     struct Job {
         address cpu;
@@ -89,6 +101,7 @@ contract Overclock {
     Game[] public games;
     mapping(address => mapping(uint256 => uint256)) internal _flat; // flatSize + 1, 0 = not computed
     mapping(address => mapping(uint256 => uint256)) internal _nStateOf; // nState, set with _flat
+    mapping(address => mapping(uint256 => uint256)) internal _leafGas; // gas bound of the check inside this circuit, set with _flat
     /// Claims ever made on each job. A game belongs to the claim that was current when it opened
     /// (gameClaim); once that claim is overturned, its other games are stale and only refund.
     mapping(uint256 => uint256) public claimCount;
@@ -106,10 +119,11 @@ contract Overclock {
     event Finalized(uint256 indexed jobId, bytes outputs);
     event Continued(uint256 indexed jobId, uint256 indexed parentJobId);
 
-    constructor(uint256 bond_, uint256 window_, ITapeOutFactory factory_, address treasury_, uint256 feeBps_, uint256 bondBps_) {
+    constructor(uint256 bond_, uint256 window_, ITapeOutFactory factory_, address treasury_, uint256 feeBps_, uint256 bondBps_, uint256 maxLeafGas_) {
         require(feeBps_ <= 1000, "fee");
         require(bondBps_ <= 100_000, "bond bps"); // at most 10x the fee on top of the minimum
         (bond, window, factory, treasury, feeBps, bondBps) = (bond_, window_, factory_, treasury_, feeBps_, bondBps_);
+        maxLeafGas = maxLeafGas_ == 0 ? DEFAULT_MAX_LEAF_GAS : maxLeafGas_;
     }
 
     /// What claiming, challenging or disputing job `jobId` puts at stake: the minimum bond plus a
@@ -147,6 +161,7 @@ contract Overclock {
         require(beats >= 1, "beats");
         require(address(factory) == address(0) || factory.isCPU(cpu), "not a TapeOut processor");
         uint256 f = flatSize(cpu, id); // reverts on a malformed or missing circuit
+        require(leafGasBound(cpu, id) <= maxLeafGas, "check too costly");
         (uint32 nIn, uint32 nOut, uint32 nState,) = ICircuits(cpu).circuitInfo(id);
         require(inputs.length == _bytes(perBeat ? uint256(beats) * nIn : nIn), "inputs length");
         require(state.length == _bytes(nState), "state length");
@@ -563,8 +578,11 @@ contract Overclock {
         _nStateOf[cpu][id] = nState;
         uint256 n = 2 + nIn;
         uint256 off;
+        uint256 records;
+        uint256 deepest; // the costliest child: a check goes through one REF per level
         while (off < nl.length) {
             uint8 op = _op(nl, off);
+            records++;
             if (op == NAND) {
                 n += 1;
                 off += 7;
@@ -574,6 +592,8 @@ contract Overclock {
             } else if (op == REF) {
                 (address sub, uint256 sid, uint8 ni, uint8 no) = _refHeader(nl, off);
                 n += flatSize(sub, sid) + no;
+                uint256 g = _leafGas[sub][sid];
+                if (g > deepest) deepest = g;
                 off += 31 + 3 * uint256(ni);
             } else {
                 revert("bad opcode");
@@ -582,7 +602,16 @@ contract Overclock {
         require(off == nl.length, "truncated");
         require(n <= type(uint64).max, "too big"); // Job.flat is a uint64
         _flat[cpu][id] = n + 1;
+        _leafGas[cpu][id] = LEAF_LEVEL_GAS + LEAF_RECORD_GAS * records + LEAF_BYTE_GAS * nl.length + deepest;
         return n;
+    }
+
+    /// Worst-case gas of resolveLeaf on any leaf of this circuit's traces, from its netlists
+    /// (size of each circuit on the deepest REF path). postJob refuses circuits above maxLeafGas,
+    /// so a wrong claim can always be proven wrong inside one block.
+    function leafGasBound(address cpu, uint256 id) public returns (uint256) {
+        flatSize(cpu, id);
+        return LEAF_FIXED_GAS + _leafGas[cpu][id];
     }
 
     function _nState(address cpu, uint256 id) internal returns (uint256) {

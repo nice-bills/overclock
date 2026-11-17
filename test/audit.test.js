@@ -7,7 +7,7 @@ import solc from 'solc';
 import ganache from 'ganache';
 import { BrowserProvider, ContractFactory, parseEther } from 'ethers';
 import { load, pack, hexToBytes, bytesToHex } from '../src/tap02.js';
-import { traceBeat, buildTree, Tree } from '../src/trace.js';
+import { traceBeat, traceJob, buildTree, Tree } from '../src/trace.js';
 import { depsOf, sigPosOf, Bisector, revealNodes, span, rounds } from '../src/game.js';
 
 const vectors = JSON.parse(readFileSync(new URL('../vendor-tap02/vectors.json', import.meta.url)));
@@ -56,7 +56,7 @@ before(async () => {
   signers = await Promise.all([...Array(8).keys()].map((i) => provider.getSigner(i)));
   [attacker, accomplice, poster, operator, watcher] = signers;
   cpu = await deploy(art('MockProcessor'), poster);
-  oc = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS);
+  oc = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS, 0);
   const v = vectors.valid.find((x) => x.name === 'popcount8_3151');
   pop = load(hexToBytes(v.netlist), v.nIn, v.nOut);
   popId = Number(await cpu.nextId());
@@ -445,7 +445,76 @@ test('a lie on a big job costs more than a lie on a small one, and the split fol
 });
 
 test('a bond share above 10x the fee is refused at deploy', async () => {
-  await assert.rejects(deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, 100_001));
+  await assert.rejects(deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, 100_001, 0));
+});
+
+// ------------------------------------------------------------------ gas bound for the one-step check (A5, audit I-1)
+
+// level 0: one NAND of two constants; level k: one REF to level k - 1. A check at the bottom
+// NAND re-reads the netlist of every level on the way down.
+async function chain(depth) {
+  const addr = (await cpu.getAddress()).toLowerCase();
+  const byId = new Map();
+  const resolve = (a, i) => byId.get(Number(i)) ?? null;
+  let id = Number(await cpu.nextId());
+  let nl = '0x00000000000000';
+  let c = load(hexToBytes(nl), 0, 1, resolve);
+  await send(cpu.store(nl, 0, 1, 0, 1));
+  byId.set(id, c);
+  for (let k = 1; k <= depth; k++) {
+    nl = '0x02' + addr.slice(2) + BigInt(id).toString(16).padStart(16, '0') + '0001';
+    id = Number(await cpu.nextId());
+    c = load(hexToBytes(nl), 0, 1, resolve);
+    await send(cpu.store(nl, 0, 1, 0, 1));
+    byId.set(id, c);
+  }
+  return { id, c };
+}
+
+test('postJob refuses a circuit whose worst-case check would cost too much gas, and the bound covers the real check', async () => {
+  const cpuAddr = await cpu.getAddress();
+  const { id, c } = await chain(40);
+  const bound = await oc.leafGasBound.staticCall(cpuAddr, id);
+  assert.ok(bound > 1_500_000n && bound < 5_000_000n, `bound ${bound}`);
+  // a contract that tolerates at most 1.5M gas for a check refuses it; the default one accepts
+  const strict = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS, 1_500_000);
+  await assert.rejects(send(strict.postJob(cpuAddr, id, '0x', '0x', 1, false)));
+  const shallow = await chain(20);
+  assert.ok((await oc.leafGasBound.staticCall(cpuAddr, shallow.id)) < 1_500_000n);
+  await send(strict.postJob(cpuAddr, shallow.id, '0x', '0x', 1, false));
+  // the real check at the deepest leaf of the deep circuit is under its bound
+  const jobId = events(await send(oc.postJob(cpuAddr, id, '0x', '0x', 1, false)), 'JobPosted')[0].jobId;
+  const honest = traceJob(c, { beats: 1 });
+  const lieAt = 2 * 40 + 2; // the bottom NAND
+  const lied = traceJob(c, { beats: 1, fault: lieAt });
+  const H = new Tree(honest.leaves), C = new Tree(lied.leaves);
+  await claim(jobId, operator, C.root, honest.outputs);
+  const gameId = await challenge(jobId, watcher);
+  const b = new Bisector(H);
+  const q = await bisect(gameId, { claimant: operator, challenger: watcher }, C, (l, i, nodes) => b.choose(l, i, nodes));
+  assert.equal(q, lieAt);
+  const rc = await send(oc.connect(watcher).resolveLeaf(gameId, depsOf(c, q).map((pos) => ({ pos, bit: honest.leaves[pos], siblings: b.siblings(pos, q) }))));
+  console.log(`    depth-40 chain: resolveLeaf used ${rc.gasUsed} gas, bound ${bound}`);
+  assert.ok(rc.gasUsed < bound, `the check used ${rc.gasUsed} gas, over its bound ${bound}`);
+  assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the lie was provable');
+});
+
+test('the gas bound covers the real check on every leaf of the stateful REF circuit', async () => {
+  // popcount and a REF-with-state circuit: every measured check stays under the bound
+  const t = traceBeat(pop, [], INPUTS);
+  const bound = await oc.leafGasBound.staticCall(await cpu.getAddress(), popId);
+  for (const lieAt of [10, 40, t.leaves.length - 1]) {
+    const jobId = await post(INPUTS);
+    const lied = t.leaves.slice();
+    lied[lieAt] ^= 1;
+    const H = buildTree(t.leaves), C = buildTree(lied);
+    await claim(jobId, operator, C.root, t.outputs);
+    const gameId = await challenge(jobId, watcher);
+    const b = new Bisector(H);
+    const q = await bisect(gameId, { claimant: operator, challenger: watcher }, C, (l, i, nodes) => b.choose(l, i, nodes));
+    const rc = await send(oc.connect(watcher).resolveLeaf(gameId, depsOf(pop, q).map((pos) => ({ pos, bit: t.leaves[pos], siblings: b.siblings(pos, q) }))));
+    assert.ok(rc.gasUsed < bound, `leaf ${lieAt}: ${rc.gasUsed} gas, bound ${bound}`);
+  }
 });
 
 // ------------------------------------------------------------------ randomized solvency invariant

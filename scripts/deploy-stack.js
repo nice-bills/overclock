@@ -63,7 +63,7 @@ const boardId = await put('life 8x8 board', boardCircuit(8, 8, processor, cellId
 const cpuId = await put('4-bit CPU', cpuCircuit());
 
 const bond = arg('bond', '0.001'), window = Number(arg('window', 120)), BOND_BPS = Number(arg('bond-bps', 10000));
-const oc = await deploy('Overclock', parseEther(bond), window, await factory.getAddress(), me.address, 200, BOND_BPS);
+const oc = await deploy('Overclock', parseEther(bond), window, await factory.getAddress(), me.address, 200, BOND_BPS, 0);
 const out = {
   chainId: Number(net.chainId), overclock: await oc.getAddress(), factory: await factory.getAddress(),
   bond: parseEther(bond).toString(), window, feeBps: 200, bondBps: BOND_BPS, treasury: me.address, tapeout: 'TapeOutLocal stand-in',

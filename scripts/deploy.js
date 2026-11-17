@@ -20,7 +20,7 @@ const a = artifact('Overclock');
 const bond = parseEther(arg('bond', '0.001')), window = Number(arg('window', 600));
 const factory = arg('factory', XLAYER.factory), treasury = arg('treasury', wallet.address), feeBps = Number(arg('fee-bps', 200)), bondBps = Number(arg('bond-bps', 10000));
 console.log(`deploying Overclock to chain ${net.chainId} from ${wallet.address} (bond ${arg('bond', '0.001')}, window ${window}s, factory ${factory}, fee ${feeBps} bps, bond +${bondBps} bps of the fee)`);
-const c = await new ContractFactory(a.abi, a.bytecode, wallet).deploy(bond, window, factory, treasury, feeBps, bondBps);
+const c = await new ContractFactory(a.abi, a.bytecode, wallet).deploy(bond, window, factory, treasury, feeBps, bondBps, 0);
 await c.waitForDeployment();
 const rc = await c.deploymentTransaction().wait();
 const address = await c.getAddress();

@@ -79,7 +79,7 @@ const balance0 = LIVE ? await provider.getBalance(deployer.address) : null;
 let oc;
 if (arg('deploy', null) !== null) {
   const a = artifact('Overclock');
-  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200, 10000);
+  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200, 10000, 0);
   await oc.waitForDeployment();
   note('deploy Overclock', await oc.deploymentTransaction().wait());
 } else {
@@ -269,6 +269,12 @@ const gas = {
   directPerBeat: direct.perBeat,
   directTotal: direct.total,
 };
+const leafBound = Number(await oc.leafGasBound.staticCall(cpuAddr, circuitId).catch(() => 0));
+if (leafBound) {
+  say(`one-step check: ${gas.resolveLeaf.toLocaleString()} gas used, contract's bound ${leafBound.toLocaleString()}`);
+  if (gas.resolveLeaf >= leafBound) throw new Error('the one-step gas bound is below a measured check');
+  gas.leafGasBound = leafBound;
+}
 gas.honestPath = gas.post + gas.claim + gas.finalize;
 gas.ratio = Math.round(gas.directTotal / gas.honestPath);
 say(`gas: honest path ${gas.honestPath.toLocaleString()} (post + claim + finalize); whole dispute ${gas.disputeTotal.toLocaleString()} over ${gas.disputeTxs} transactions, largest ${gas.disputeMaxTx.toLocaleString()}`);
