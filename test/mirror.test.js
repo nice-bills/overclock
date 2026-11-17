@@ -203,7 +203,7 @@ describe('mainnet 8x8 Life board mirrored into TapeOutLocal', () => {
 
     const a = artifact('Overclock');
     const oc = await new ContractFactory(a.abi, a.bytecode, owner).deploy(
-      BOND, WINDOW, await factory.getAddress(), await treasury.getAddress(), 200,
+      BOND, WINDOW, await factory.getAddress(), await treasury.getAddress(), 200, 0, 0, '0x0000000000000000000000000000000000000000',
     );
     await oc.waitForDeployment();
     const state = bytesToHex(hexToBytes(live.generations[0]));

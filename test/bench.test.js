@@ -201,7 +201,7 @@ before(async () => {
   provider = new BrowserProvider(ganache.provider({ logging: { quiet: true }, chain: { hardfork: 'shanghai' }, wallet: { totalAccounts: 3, defaultBalance: 1000 } }));
   [claimant, challenger, poster] = await Promise.all([0, 1, 2].map((i) => provider.getSigner(i)));
   cpu = await deploy('MockProcessor', poster);
-  oc = await deploy('Overclock', poster, BOND, WINDOW, '0x0000000000000000000000000000000000000000', await poster.getAddress(), 0);
+  oc = await deploy('Overclock', poster, BOND, WINDOW, '0x0000000000000000000000000000000000000000', await poster.getAddress(), 0, 0, 0, '0x0000000000000000000000000000000000000000');
   const addr = await cpu.getAddress();
   E = registry(addr, async (nl, c) => {
     const id = Number(await cpu.nextId());

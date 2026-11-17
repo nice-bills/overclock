@@ -214,7 +214,7 @@ describe('e2e: the real 8x8 board and a real FabX miner, mirrored and run unatte
     cpu = await createCPU(owner, await factory.getAddress(), { name: 'Runner', symbol: 'RUN', story: '', supply: 10_000_000, mintPrice: 1n });
     processor = (await cpu.circuits.getAddress()).toLowerCase();
     const o = artifact('Overclock');
-    oc = await new ContractFactory(o.abi, o.bytecode, owner).deploy(BOND, WINDOW, await factory.getAddress(), await treasury.getAddress(), 200);
+    oc = await new ContractFactory(o.abi, o.bytecode, owner).deploy(BOND, WINDOW, await factory.getAddress(), await treasury.getAddress(), 200, 0, 0, '0x0000000000000000000000000000000000000000');
     await oc.waitForDeployment();
     mainnet = new JsonRpcProvider(MAINNET_RPC, undefined, { cacheTimeout: -1 });
     dir = tmp();
