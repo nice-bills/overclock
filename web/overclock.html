@@ -4,7 +4,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Overclock</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Run TapeOut circuits too big for the chain. Settle them on X Layer, and prove any wrong gate in one transaction.">
+<meta name="theme-color" content="#07080a">
+<meta name="description" content="Every machine on X Layer, running. Every design, proven. Overclock runs TapeOut circuits too big for the chain, settles them on X Layer, and proves any wrong gate in one transaction.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Overclock">
+<meta property="og:title" content="Overclock: every machine on X Layer, running. Every design, proven.">
+<meta property="og:description" content="Overclock runs TapeOut circuits too big for the chain, settles them on X Layer, and proves any wrong gate in one transaction. See every machine on the Floor.">
+<meta property="og:url" content="https://overclock-board.onrender.com/">
+<meta property="og:image" content="https://overclock-board.onrender.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Overclock: every machine on X Layer, running. Every design, proven.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Overclock: every machine on X Layer, running. Every design, proven.">
+<meta name="twitter:description" content="Overclock runs TapeOut circuits too big for the chain, settles them on X Layer, and proves any wrong gate in one transaction.">
+<meta name="twitter:image" content="https://overclock-board.onrender.com/og.png">
+<meta name="runs-url" content="runs.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307080a'/%3E%3Crect x='7' y='7' width='18' height='18' rx='3' fill='none' stroke='%23f1f2ec' stroke-width='2'/%3E%3Crect x='12' y='12' width='8' height='8' rx='1.5' fill='%23c8ff3a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400;500&display=swap">
@@ -193,12 +209,9 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 .field canvas { width: 100%; height: 100%; display: block; }
 #home .eyebrow { display: inline-flex; align-items: center; gap: 10px; font: 400 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 #home .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-#home h1 { font-size: clamp(46px, 6.6vw, 132px); font-weight: 650; line-height: .92; letter-spacing: -0.055em; margin-top: 28px; }
+#home h1 { font-size: clamp(40px, 5.2vw, 104px); font-weight: 650; line-height: .98; letter-spacing: -0.05em; margin-top: 28px; }
 #home h1 .l { display: block; }
 #home h1 .hl { display: block; color: var(--accent); text-shadow: 0 0 42px var(--glow); }
-#home h1 .strike { position: relative; white-space: nowrap; }
-#home h1 .strike::after { content: ""; position: absolute; left: -2%; right: -2%; top: 54%; height: .09em; background: var(--lie); transform-origin: left; transform: scaleX(0); animation: strike .5s 1.3s cubic-bezier(.7,0,.2,1) forwards; box-shadow: 0 0 18px var(--lie); }
-@keyframes strike { to { transform: scaleX(1); } }
 #home .lede { font-size: clamp(16px, 1.25vw, 22px); line-height: 1.55; color: var(--muted); max-width: 31em; margin-top: 28px; text-wrap: pretty; }
 #home .lede b { color: var(--ink); font-weight: 500; }
 #home .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
@@ -333,7 +346,6 @@ input[type="range"] { flex: 1 1 200px; accent-color: var(--ink); min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   .rise, .reveal { opacity: 1; transform: none; animation: none; transition: none; }
   .ticker .tr, .chipwrap::before, #home .herolive i { animation: none; }
-  #home h1 .strike::after { animation: none; transform: scaleX(1); }
   .bar .t i { transition: none; transform: scaleX(1); }
 }
 #home .close { padding-top: 150px; }
@@ -395,7 +407,7 @@ footer a:hover { color: var(--ink); }
 }
 /* your circuit */
 #try .dim { color: var(--faint); }
-.trylist td:last-child { text-align: right; }
+.trylist td:last-child, .trylist th:last-child { text-align: right; }
 .trylist .num, .trylist th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .tryform { grid-template-columns: 1fr 1fr; gap: 16px; }
 .tryform label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); min-width: 0; }
@@ -454,63 +466,47 @@ footer a:hover { color: var(--ink); }
 .steps li.now { color: var(--ink); }
 .steps li.now::before { border-color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 4px var(--accent-soft); } }
-@media (max-width: 640px) { .tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; } .tabs a { padding: 6px 10px; font-size: 13px; white-space: nowrap; } }
+@media (max-width: 640px) { nav { position: static; } .tabs { order: 3; flex: 1 1 100%; flex-wrap: wrap; justify-content: center; border-radius: 18px; } .tabs a { padding: 6px 11px; font-size: 13px; white-space: nowrap; } }
 
-/* World */
-.worldapp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 20px; align-items: start; }
-.worldapp .side { display: grid; gap: 20px; min-width: 0; }
-.worldapp h3 { font-size: 15px; }
-.wscore { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-size: 14px; }
-.wscore .n { font: 600 28px/1 var(--mono); }
-.wscore .r { color: var(--red); } .wscore .b { color: var(--blue); }
-.wscore .lead { margin-left: auto; font-size: 13px; color: var(--muted); }
-.wscore .lead.r { color: var(--red); } .wscore .lead.b { color: var(--blue); }
-.wgrid { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; width: 100%; max-width: 560px; aspect-ratio: 1; touch-action: manipulation; }
-.wgrid button { all: unset; box-sizing: border-box; aspect-ratio: 1; border-radius: 3px; background: var(--cell-off); cursor: pointer; }
-.wgrid button:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--faint); }
-.wgrid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.wgrid button:disabled { cursor: default; }
-.wgrid .r { background: var(--red); } .wgrid .b { background: var(--blue); }
-.wgrid .p1 { box-shadow: inset 0 0 0 2px var(--red); background: var(--red-soft); }
-.wgrid .p2 { box-shadow: inset 0 0 0 2px var(--blue); background: var(--blue-soft); }
-.wgrid .pick.t1 { background: var(--red-soft); box-shadow: inset 0 0 0 2px var(--red); outline: 2px dashed var(--red); outline-offset: -1px; }
-.wgrid .pick.t2 { background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); outline: 2px dashed var(--blue); outline-offset: -1px; }
-.wahead { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); max-width: 560px; }
-.wahead input { accent-color: var(--ink); width: 100%; }
-.wteams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.wteams .pick { text-align: left; border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
-.wteams .pick b { font-size: 15px; }
-#wTeam1 b { color: var(--red); } #wTeam2 b { color: var(--blue); }
-#wTeam1[aria-pressed="true"] { border-color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
-#wTeam2[aria-pressed="true"] { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
-.wteams .pick:disabled { opacity: .45; cursor: not-allowed; }
-#wBuy { width: 100%; justify-content: center; }
-#wBuy.t1:not(:disabled) { background: var(--red); border-color: var(--red); color: #fff; }
-#wBuy.t2:not(:disabled) { background: var(--blue); border-color: var(--blue); color: #fff; }
-#wBuy:disabled, #wAdvance:disabled { opacity: .5; cursor: default; }
-#wAdvance { width: 100%; justify-content: center; }
-#wEpoch { font-size: 14px; line-height: 1.5; }
-#wStatus { font-size: 13px; color: var(--muted); }
-#wStatus.bad { color: var(--lie); }
-.seasons { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 13px; }
-.seasons li { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
-.seasons li > span:first-child { color: var(--muted); min-width: 64px; }
-.seasons .tr { color: var(--red); } .seasons .tb { color: var(--blue); }
-.seasons .btn { height: 30px; padding: 0 12px; font-size: 13px; }
-#wWallet { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-#wWallet img { width: 18px; height: 18px; margin-right: 8px; }
-@media (max-width: 820px) { .worldapp { grid-template-columns: minmax(0, 1fr); } }
+/* the Floor, circuit pages, owner lookup */
+.tag.info { background: var(--blue-soft); color: var(--blue); }
+.back { font-size: 13px; color: var(--muted); text-decoration: none; justify-self: start; }
+.back:hover { color: var(--ink); }
+.titlerow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.card .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.floorbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.cells { display: flex; flex-wrap: wrap; gap: 3px; }
+.cell { width: 14px; height: 14px; border-radius: 3px; display: block; background: var(--cell-off); box-shadow: inset 0 0 0 1px var(--line); }
+.cell.s-running { background: var(--warn); box-shadow: none; }
+.cell.s-final { background: var(--blue); box-shadow: none; }
+.cell.s-certified { background: var(--accent); box-shadow: 0 0 8px var(--glow); }
+.cell:hover { outline: 2px solid var(--ink); outline-offset: 1px; position: relative; }
+.shape { display: grid; gap: 10px; }
+.shapehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; font-size: 14px; }
+.shapehead b { font-weight: 500; }
+.shapehead .label { margin-left: auto; }
+#floorGrid { display: grid; gap: 56px; }
+#circuitBody, #ownerOut { display: grid; gap: 56px; min-width: 0; }
+#circuitBody code, #ownerOut code { overflow-wrap: anywhere; }
+#ownerOut:empty { display: none; }
+#ownerWallet .btn img { width: 18px; height: 18px; margin-right: 8px; }
+#ownerNote.bad { color: var(--lie); }
+.trylist a.ev b { font-weight: 500; }
+@media (max-width: 640px) { .cell { width: 18px; height: 18px; } .shapehead .label { margin-left: 0; } #ownerOut .trylist th:nth-child(3), #ownerOut .trylist td:nth-child(3) { display: table-cell; } }
 </style>
 
 <div class="wrap">
   <nav>
     <a class="mark" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 1.5v2.5M12 1.5v2.5M16 1.5v2.5M8 20v2.5M12 20v2.5M16 20v2.5M1.5 8h2.5M1.5 12h2.5M1.5 16h2.5M20 8h2.5M20 12h2.5M20 16h2.5" stroke="currentColor" stroke-width="1.6"/><rect x="9" y="9" width="6" height="6" rx="1" fill="#c8ff3a"/></svg>Overclock</a>
     <div class="tabs">
+      <a href="#floor" id="tab-floor">The Floor</a>
+      <a href="#owner" id="tab-owner">Owner lookup</a>
       <a href="#board" id="tab-board">Job board</a>
       <a href="#replay" id="tab-replay">Replay</a>
       <a href="#try" id="tab-try">Your circuit</a>
       <a href="#run" id="tab-run">Run a job</a>
-      <a href="#world" id="tab-world">World</a>
     </div>
     <a class="gh" href="https://github.com/nice-bills/overclock">GitHub</a>
   </nav>
@@ -521,11 +517,12 @@ footer a:hover { color: var(--ink); }
       <div>
         <span class="eyebrow rise" id="heroTag"><i></i>Live on X Layer mainnet · built on TapeOut</span>
         <a class="herolive rise" id="heroLive" href="#board" hidden style="--d:.36s"></a>
-        <h1 class="rise" style="--d:.08s"><span class="l">Too big for</span><span class="l">the <span class="strike">chain</span>.</span><span class="hl">Not too big to check.</span></h1>
-        <p class="lede rise" style="--d:.16s">Overclock runs TapeOut circuits off-chain and settles the result on X Layer. If <b>one gate in millions</b> is wrong, anyone can prove it in <b>one transaction</b> and take the liar's bond.</p>
+        <h1 class="rise" style="--d:.08s"><span class="l">Every machine on X Layer, running.</span><span class="hl">Every design, proven.</span></h1>
+        <p class="lede rise" style="--d:.16s">Overclock runs the TapeOut machines too big for a block and settles each result on X Layer, then checks designs on <b>every possible input</b>. If <b>one gate in millions</b> is wrong, anyone can prove it in <b>one transaction</b> and take the liar's bond.</p>
         <div class="cta rise" style="--d:.24s">
-          <a class="btn primary" href="#replay">Watch a cheat get caught <span class="arr">→</span></a>
-          <a class="btn" href="#run">Run a job yourself</a>
+          <a class="btn primary" href="#floor">See the Floor <span class="arr">→</span></a>
+          <a class="btn" href="#owner">Find your circuits</a>
+          <a class="btn" href="#replay">Watch a cheat get caught</a>
         </div>
       </div>
       <figure class="chipwrap rise" style="margin:0;--d:.3s">
@@ -533,10 +530,10 @@ footer a:hover { color: var(--ink); }
         <figcaption class="chipcap"><span>TapeOut circuit #5 · <b>tap a gate to cheat</b></span><span id="chipState">&nbsp;</span></figcaption>
       </figure>
       <div class="proof rise" style="--d:.45s">
-        <a href="https://www.oklink.com/x-layer/tx/0xf9e3738e5cc9ce905197526b755579d2da0d416b6ba07d5cdbe0a717bfd2ea6d"><b class="hot">42,003×</b><span>less gas: a 4-bit CPU, 10,000 beats</span></a>
-        <a href="https://www.oklink.com/x-layer/tx/0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff"><b class="lie">1 NAND</b><span>corrupted, caught, bond slashed</span></a>
-        <a href="#try"><b>11,074</b><span>TapeOut circuits counted on mainnet</span></a>
-        <a href="https://github.com/nice-bills/overclock/blob/main/docs/live-check.json"><b>688/688</b><span>samples match TapeOut's own eval</span></a>
+        <a href="#floor"><b class="hot" id="cMachines">—</b><span>machines run, of <span id="cTotal">—</span> on the Floor</span></a>
+        <a href="#floor"><b id="cCerts">—</b><span>certificates issued</span></a>
+        <a href="#floor"><b id="cSteps">—</b><span>steps settled on X Layer</span></a>
+        <a href="https://www.oklink.com/x-layer/tx/0xf9e3738e5cc9ce905197526b755579d2da0d416b6ba07d5cdbe0a717bfd2ea6d"><b>42,003×</b><span>less gas: a 4-bit CPU, 10,000 beats</span></a>
       </div>
     </header>
 
@@ -614,7 +611,7 @@ footer a:hover { color: var(--ink); }
         <h2>Don't take our word for it. <span class="dim">Everything here is on-chain.</span></h2>
       </div>
       <div class="doors">
-        <a class="door" href="#replay"><span>Replay</span><b>Watch the lie get found</b><p>Step from the corrupted NAND to the one transaction that proved it.</p></a>
+        <a class="door" href="#floor"><span>The Floor</span><b>Every machine, one grid</b><p>Queued, running, final or certified: every stuck machine and miner shape on X Layer.</p></a>
         <a class="door" href="#run"><span>Run a job</span><b>Post one from your wallet</b><p>Life or the 4-bit CPU, settled by a live operator in minutes.</p></a>
         <a class="door" href="#board"><span>Job board</span><b>Every job on mainnet</b><p>Claims, challenges and slashed bonds, read live from the contract.</p></a>
         <a class="door" href="#try"><span>Your circuit</span><b>Bring any circuit</b><p>Paste a processor and ID. We run it in your browser and price it.</p></a>
@@ -833,47 +830,39 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     </div>
   </main>
 
-  <main class="view" id="world" hidden>
+  <main class="view" id="floor" hidden>
     <div class="intro">
-      <h1>Overclock World: Red vs Blue</h1>
-      <p>One shared Game of Life on X Layer. Pick a team and buy cells; they drop onto the board at the next epoch. Survivors keep their colour and a newborn cell takes the colour most of its three parents have. Whoever has more live cells when the season ends splits the pot.</p>
-      <p class="label"><span id="wRules"></span> On <b id="wNet"></b> · <a id="wContract" href="#" target="_blank" rel="noopener">World contract</a><span id="wContainer"></span></p>
+      <h1>The Floor</h1>
+      <p>Every TapeOut machine a block can't run, and every FabX miner. One cell per circuit, coloured by where it is: queued, running, final or certified. Open a cell for its page.</p>
     </div>
-
-    <div class="worldapp">
-      <section class="card">
-        <div class="wscore"><span class="n r" id="wRed">0</span><span>Red</span><span class="n b" id="wBlue">0</span><span>Blue</span><span class="lead" id="wLead"></span></div>
-        <p class="label" id="wSeason">Reading the world…</p>
-        <div class="wgrid" id="wGrid" role="group" aria-label="The 16 by 16 board: tap cells to pick them"></div>
-        <label class="wahead">Look ahead<input type="range" id="wAhead" min="0" max="20" value="0"><span id="wAheadLabel">now</span></label>
-        <p class="label" id="wForecast"></p>
-      </section>
-
-      <div class="side">
-        <section class="card">
-          <h3>Play</h3>
-          <div id="wWallet"><p class="label">Looking for a wallet…</p></div>
-          <div class="wteams">
-            <button type="button" class="pick" id="wTeam1" aria-pressed="true"><b>Red</b><span class="label">play red</span></button>
-            <button type="button" class="pick" id="wTeam2" aria-pressed="false"><b>Blue</b><span class="label">play blue</span></button>
-          </div>
-          <p class="label" id="wTeamNote"></p>
-          <button type="button" class="btn primary" id="wBuy" disabled>Tap empty or enemy cells to pick them</button>
-          <p class="label" id="wPickNote"></p>
-          <p id="wStatus" role="status"></p>
-        </section>
-        <section class="card">
-          <h3>This epoch</h3>
-          <p id="wEpoch"></p>
-          <button type="button" class="btn" id="wAdvance" disabled>Move the world on</button>
-          <p class="label" id="wFuel"></p>
-        </section>
-        <section class="card">
-          <h3>Seasons</h3>
-          <div id="wSeasons"><p class="label">No season has finished yet.</p></div>
-        </section>
+    <div class="specs" id="floorSpecs"></div>
+    <section>
+      <div class="floorbar">
+        <div class="legend" id="floorLegend"></div>
+        <div class="filters" id="floorFilters"><button type="button" data-f="all" aria-pressed="true">All</button><button type="button" data-f="machine" aria-pressed="false">Machines</button><button type="button" data-f="miner" aria-pressed="false">Miners</button></div>
       </div>
+      <p class="label" id="floorNote"></p>
+    </section>
+    <div id="floorGrid"></div>
+  </main>
+
+  <main class="view" id="owner" hidden>
+    <div class="intro">
+      <h1>Find your circuits</h1>
+      <p>Paste the address that holds your TapeOut circuits, or connect OKX Wallet. You get every circuit of yours on the Floor, with its runs and certificates.</p>
     </div>
+    <section>
+      <form class="card tryform" id="ownerForm">
+        <label class="wide">Address<input id="ownerInput" placeholder="0x…" spellcheck="false" autocomplete="off"></label>
+        <div class="wide row"><button type="submit" class="btn primary">Look up</button><span class="label" id="ownerNote" role="status"></span></div>
+      </form>
+      <div class="card"><h3>Or connect a wallet</h3><div id="ownerWallet"><p class="label">Looking for a wallet…</p></div><p class="label">Connecting only reads your address. It sends nothing.</p></div>
+    </section>
+    <div id="ownerOut"></div>
+  </main>
+
+  <main class="view" id="circuit" hidden>
+    <div id="circuitBody"></div>
   </main>
 
   <footer>
@@ -883,17 +872,20 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 </div>
 
 <script>
-// The views on one page: the landing (no hash), #board, #replay, #try, #run and #world.
+// The views on one page: the landing (no hash), #floor, #owner, #c/<processor>/<id>, #board, #replay, #try and #run.
 (function () {
+  const VIEWS = ['floor', 'owner', 'board', 'replay', 'try', 'run'];
+  const TITLES = { home: 'Overclock', floor: 'Overclock · The Floor', owner: 'Overclock · Find your circuits', circuit: 'Overclock · Circuit', board: 'Overclock · Job board', replay: 'Overclock · Replay', try: 'Overclock · Your circuit', run: 'Overclock · Run a job' };
   const show = () => {
     const h = location.hash.split('?')[0];
-    const view = ['#board', '#replay', '#try', '#run', '#world'].includes(h) ? h.slice(1) : 'home';
-    for (const id of ['home', 'board', 'replay', 'try', 'run', 'world']) document.getElementById(id).hidden = id !== view;
-    for (const id of ['board', 'replay', 'try', 'run', 'world']) {
+    const view = h.startsWith('#c/') ? 'circuit' : VIEWS.includes(h.slice(1)) ? h.slice(1) : 'home';
+    const tab = view === 'circuit' ? 'floor' : view;
+    for (const id of ['home', 'circuit', ...VIEWS]) document.getElementById(id).hidden = id !== view;
+    for (const id of VIEWS) {
       const t = document.getElementById('tab-' + id);
-      if (id === view) { t.setAttribute('aria-current', 'page'); t.parentElement.scrollLeft = t.offsetLeft - (t.parentElement.clientWidth - t.offsetWidth) / 2; } else t.removeAttribute('aria-current');
+      if (id === tab) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
     }
-    document.title = { home: 'Overclock', board: 'Overclock · Job board', replay: 'Overclock · Replay', try: 'Overclock · Your circuit', run: 'Overclock · Run a job', world: 'Overclock World' }[view];
+    document.title = TITLES[view];
   };
   addEventListener('hashchange', () => { const v = location.hash.split('?')[0]; show(); if (v !== last) scrollTo(0, 0); last = v; });
   let last = location.hash.split('?')[0];
@@ -2930,7 +2922,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   setInterval(() => { if (!document.hidden) refresh(); }, REFRESH);
 })();
 </script>
-<script id="census-data" type="application/json">{"summary":{"chainId":196,"block":74367213,"at":"2026-10-27T21:25:12.428Z","gasPerGate":2400,"blockGas":210000000,"processors":397,"circuits":11074,"machines":1754,"largest":174984,"tooBigForABlock":7,"machinesHeldBack":1014,"ownersToReach":213},"featured":[{"processor":"0xb00E17789f905234F1890C22E6C01015c10d2f54","processorName":"AlephTape","id":21,"gates":174984,"nState":0,"nIn":192,"nOut":24,"owner":"0x65E9483960015EBDDC9EE37b184211E2802d9bcd"},{"processor":"0xb00E17789f905234F1890C22E6C01015c10d2f54","processorName":"AlephTape","id":11,"gates":161080,"nState":0,"nIn":64,"nOut":70,"owner":"0x65E9483960015EBDDC9EE37b184211E2802d9bcd"},{"processor":"0xb00E17789f905234F1890C22E6C01015c10d2f54","processorName":"AlephTape","id":25,"gates":145848,"nState":0,"nIn":64,"nOut":21,"owner":"0x65E9483960015EBDDC9EE37b184211E2802d9bcd"},{"processor":"0xAa13ae45b0B2D52f210Ad7Ef12997113a0ebAF21","processorName":"LoteGate","id":3,"gates":4863,"nState":243,"nIn":133,"nOut":199,"owner":"0x92809f2837f708163d375960063C8A3156fCeACb"},{"processor":"0xaC90A95bd11eb67A2dD83Ab7ecc0Ea9B521dEF0b","processorName":"Covenant","id":2,"gates":1952,"nState":64,"nIn":96,"nOut":112,"owner":"0xB722a4bDE4EfEe08Be938E2103d7a44C498dd356"},{"processor":"0x87BFCa3494Aa228fF589ab9B642143A5e8c8F9a6","processorName":"FAB-Genisis","id":1755,"gates":1246,"nState":672,"nIn":1,"nOut":1,"owner":"0xbd1c52B4A6255dE7b2adCA829110766193B5F909"},{"processor":"0x00586A4C37039aCbFC6aC135cAdd49367ABf390A","processorName":"FAB-Genisis","id":1,"gates":683,"nState":631,"nIn":18,"nOut":17,"owner":"0xb84Abeefb145857769BEE615259B2257a34Db888"},{"processor":"0x3eF052277Ce24838A0cdDFAC915039B89cbcc783","processorName":"My hero","id":3,"gates":683,"nState":631,"nIn":18,"nOut":17,"owner":"0xAd50Ee6E2F125F2F3296DA12F1c8d8ab90CBAdC2"},{"processor":"0x69F663931209096037474d7C20402232E5C762cA","processorName":"TAPELIQUID","id":657,"gates":450,"nState":50,"nIn":2,"nOut":1,"owner":"0x62Ae0B5812db2a5bd1BD54428a699Ec3F7271317"},{"processor":"0x57E9e1111f42F448126A9F12b2b3f99a79dd1A44","processorName":"Nandverse Foundry","id":1,"gates":119,"nState":1,"nIn":20,"nOut":28,"owner":"0xB5c09B3322e21D459570c9C882d56f5b0769559E"},{"processor":"0x6586C806b192B167E3D56AD669Ee60fcb16C3082","processorName":"Agent Standard Cells","id":2,"gates":112,"nState":4,"nIn":3,"nOut":7,"owner":"0x60FDa8130B7341027147a1B88CD4c2A1AF44eCD0"},{"processor":"0x95AaacaA8aAECF6d215706d3E7FFF255a35c59Ed","processorName":"GateX","id":2,"gates":100,"nState":2,"nIn":6,"nOut":1,"owner":"0x9Fa5db29dfc46E9BfDdE271E44364d4bA64244c4"}]}</script>
+<script id="census-data" type="application/json">{"summary":{"chainId":196,"block":74367213,"at":"2026-10-27T21:25:12.428Z","gasPerGate":2400,"blockGas":210000000,"processors":397,"circuits":11074,"machines":1754,"largest":174984,"tooBigForABlock":7,"machinesHeldBack":1014,"ownersToReach":213},"featured":[{"processor":"0xb00E17789f905234F1890C22E6C01015c10d2f54","processorName":"AlephTape","id":21,"gates":174984,"nState":0,"nIn":192,"nOut":24,"owner":"0x65E9483960015EBDDC9EE37b184211E2802d9bcd"},{"processor":"0xb00E17789f905234F1890C22E6C01015c10d2f54","processorName":"AlephTape","id":11,"gates":161080,"nState":0,"nIn":64,"nOut":70,"owner":"0x65E9483960015EBDDC9EE37b184211E2802d9bcd"},{"processor":"0xb00E17789f905234F1890C22E6C01015c10d2f54","processorName":"AlephTape","id":25,"gates":145848,"nState":0,"nIn":64,"nOut":21,"owner":"0x65E9483960015EBDDC9EE37b184211E2802d9bcd"},{"processor":"0xAa13ae45b0B2D52f210Ad7Ef12997113a0ebAF21","processorName":"LoteGate","id":3,"gates":4863,"nState":243,"nIn":133,"nOut":199,"owner":"0x92809f2837f708163d375960063C8A3156fCeACb"},{"processor":"0xaC90A95bd11eb67A2dD83Ab7ecc0Ea9B521dEF0b","processorName":"Covenant","id":2,"gates":1952,"nState":64,"nIn":96,"nOut":112,"owner":"0xB722a4bDE4EfEe08Be938E2103d7a44C498dd356"},{"processor":"0x87BFCa3494Aa228fF589ab9B642143A5e8c8F9a6","processorName":"FAB-Genisis","id":1755,"gates":1246,"nState":672,"nIn":1,"nOut":1,"owner":"0xbd1c52B4A6255dE7b2adCA829110766193B5F909"},{"processor":"0x00586A4C37039aCbFC6aC135cAdd49367ABf390A","processorName":"FAB-Genisis","id":1,"gates":683,"nState":631,"nIn":18,"nOut":17,"owner":"0xb84Abeefb145857769BEE615259B2257a34Db888"},{"processor":"0x3eF052277Ce24838A0cdDFAC915039B89cbcc783","processorName":"My hero","id":3,"gates":683,"nState":631,"nIn":18,"nOut":17,"owner":"0xAd50Ee6E2F125F2F3296DA12F1c8d8ab90CBAdC2"},{"processor":"0x69F663931209096037474d7C20402232E5C762cA","processorName":"TAPELIQUID","id":657,"gates":450,"nState":50,"nIn":2,"nOut":1,"owner":"0x62Ae0B5812db2a5bd1BD54428a699Ec3F7271317"},{"processor":"0x57E9e1111f42F448126A9F12b2b3f99a79dd1A44","processorName":"Nandverse Foundry","id":1,"gates":119,"nState":1,"nIn":20,"nOut":28,"owner":"0xB5c09B3322e21D459570c9C882d56f5b0769559E"},{"processor":"0x6586C806b192B167E3D56AD669Ee60fcb16C3082","processorName":"Agent Standard Cells","id":2,"gates":112,"nState":4,"nIn":3,"nOut":7,"owner":"0x60FDa8130B7341027147a1B88CD4c2A1AF44eCD0"},{"processor":"0x95AaacaA8aAECF6d215706d3E7FFF255a35c59Ed","processorName":"GateX","id":2,"gates":100,"nState":2,"nIn":6,"nOut":1,"owner":"0x9Fa5db29dfc46E9BfDdE271E44364d4bA64244c4"}],"machines":{"procs":[{"a":"0xb00E17789f905234F1890C22E6C01015c10d2f54","n":"AlephTape"},{"a":"0xAa13ae45b0B2D52f210Ad7Ef12997113a0ebAF21","n":"LoteGate"},{"a":"0xB00f10BB4b2f32c561BF90e205e543d0a2395971","n":"OKspace"},{"a":"0xaC90A95bd11eb67A2dD83Ab7ecc0Ea9B521dEF0b","n":"Covenant"},{"a":"0x87BFCa3494Aa228fF589ab9B642143A5e8c8F9a6","n":"FAB-Genisis"},{"a":"0x00586A4C37039aCbFC6aC135cAdd49367ABf390A","n":"FAB-Genisis"},{"a":"0x3eF052277Ce24838A0cdDFAC915039B89cbcc783","n":"My hero"},{"a":"0x69F663931209096037474d7C20402232E5C762cA","n":"TAPELIQUID"},{"a":"0x57E9e1111f42F448126A9F12b2b3f99a79dd1A44","n":"Nandverse Foundry"},{"a":"0x6586C806b192B167E3D56AD669Ee60fcb16C3082","n":"Agent Standard Cells"},{"a":"0x95AaacaA8aAECF6d215706d3E7FFF255a35c59Ed","n":"GateX"}],"owners":["0x65E9483960015EBDDC9EE37b184211E2802d9bcd","0x92809f2837f708163d375960063C8A3156fCeACb","0xA9B480C2694aa3F16cd109FCD2C91aCbf3BC689F","0xB722a4bDE4EfEe08Be938E2103d7a44C498dd356","0xbd1c52B4A6255dE7b2adCA829110766193B5F909","0x239611Ea0488b8A4BfE3B7DcD205Baebd6c3A99f","0xb84Abeefb145857769BEE615259B2257a34Db888","0xAd50Ee6E2F125F2F3296DA12F1c8d8ab90CBAdC2","0x19dCB67C93BE44C822fB1C317a6AA069966186f6","0x7cF4Bc82566E03AeB1856A74560800149f38f1D8","0x3FaEa08c18Dc8A922AB748eC20cf294391557bAc","0x0dbb8edf1a92CaD0CB20aCC8DAeBeb11577f8Bd1","0xa96D30DC46BE12b309CD7dC5Fc2c55A2B9CE785b","0x159fe3EA59e6C8F1a695C7a8d586F4cac52Dd7bE","0x7595aF78eB5400c9F5eEb75d7180a17473CB7256","0xe6c5217A4529FA54D38e5d22195D2D88FE8FCad5","0x1A1812E89365b3a286Fbd18D2d87EA285Aa68f18","0x17908f0ff97B2e4498d0A79f76049a039240c922","0x92FFBcCab5C63d8715Ef10c52419558Ca065d75B","0xb47989beF1cf1F3C932483F95aA567aEDbcaC9C2","0x3304f38f7397109f2C6Bc03b32D395691bBF5389","0x3dca1c0ECC2155eB51Ff95E7fE5a25dD9368DdBC","0xAb355E0819939B1CBEbf36415182c39e4BFC4C39","0x5a7fcB7e58AbFe6B98C36CFA9162bD09976B6dbc","0xCA71a79f7168f4141ac6Bd6072c403EeCFfE3311","0x4aD51D794a4658F9770228f1dC769F536300cEa4","0x1CC445Da5D717FE8648B0d161Dd8BA395a75077A","0xD0a3BF7cBc0a6F01240198222C934000584F5Ccf","0x4b790762EF7a55451665f3E9d0F4cFde00678E2f","0xC7ce658EBfF23EDdc948a844B684D84942a16DB2","0x4BcEAEC0A2Ce0ce6d939c15F96E0119354A83d1A","0xFf1572Fd8a79A6Ea9F77B801fd8Bc45515991C06","0x804a76535aE61e5CD789BDe652e28CA103D90FF3","0xa53553Adbb0F200298bD0cFFc748C952dA8a61Df","0x6A686272c8C1E8fa7e32e8F9dE2998163ba3cFD5","0xB3372307EA67dd9F50bd3c844345AcCa998971D9","0x6Ff46ec84e8b19DC82ee4a1736177f5D830103F6","0x215087Ec442bCc684345aCAb8ACe8200Ca9156E2","0x385dE8FD67869A081C14bd504F44Ae49D5ed6867","0x608526E096B9020Da88fB8DdB6Eb59e6F8D547ca","0x00A89DAb53390efC9Cb0a3d9e3009cE5706A09d7","0x8B16ea72501030aF299aE0637F726b3D36172C9e","0x063C2b6406D4D547e5FE5b193E073F04D7B683F7","0x0A80CcB986950A1E43f36Db6A9f7932CDE9f2593","0xaAFd54E5549D38edb97fFe70a10D404E41E53967","0xF28f28FbAC9f00E2fB1c99ae879FbA40DF183F26","0xd01009AD5cd89a48c0033d6b01986C200292Fa01","0x6Fe4Deb2342107Eb8D0E18BB40abe8343d6E0be7","0x548c4CbF537F0D96a017C8928b50E2C6e331B430","0xA06D1109Be01996a53F87e2C69315b4c27d4C775","0xd5271BBfc662c42433FaB99cacd6d28231b8260B","0x1F0d3d1aA3A8c027A42877D9D513A20fe30425E1","0x6C0682aB5E9f2C05c196d7FA604d507A5CF23058","0x79E2a629Ad77a45b824CD9C3fD5AFDe9696601CE","0xDBcf24E93f7a3B4da46bc6D32227004929F04E02","0xf6CfB0407a7b770Ba1233C5C53E95936feDCe489","0x2cA7F77cdF3Eac49Ff2C7451a746Cc80e0a07785","0x5A30E1A81cEDea0FE80Dd47b4Fbf1ffb5EF0Ce13","0x0256C7826B4A004D979DDb625d3319dceD00ed03","0xdAabf02fe7511dA2D7ce3950cDfB31d79A73e8A6","0xF9e31CC8A259D093f97E384579984585f4c3C0f7","0x8fAe20F71EBd7e34bCbe1a8F88eC6704402336F2","0x4E9cF52205830405C2F932Ec27EE9F80Bb49B1B1","0xcaf2caC7Eef73674f4cb2E1eD6fA969c447636c1","0x37C3118d4A1ed56cC80E60d0273349ebB25AA87C","0xaf32FfABAD0CF64cBF5d8FD2dce6866D289c1DbF","0xf72cEA4260c129c231D0684FEBEce3F6C0E0922b","0x77DB7c6dd5F349c1657f50CFF41c6c791E6bcc13","0xE604cf74b3791b344A9E7e5D30C5d9DD6109caB7","0xbB8d1687F3E499f71fE1c761B2E5fd70B4598813","0x7151Edf00b088f5e9d8cE7F406f43875820D07CA","0xcE5172084B85C63154465DB39e8D6126d4b19662","0x62Ae0B5812db2a5bd1BD54428a699Ec3F7271317","0x9E6fc37B8bd2FC7855026CEc105D76342E37Af84","0x072AC081E13492b25B9567c05b25Ebe0E68d2589","0xb71f832f88E68349B73DED14498a2a58FC1DFD7F","0xB85470C5092cd5cC65D4A14ebeE93853EE398d50","0x964E6Ff534D6d03327979F5D360a8bAed77Febe0","0x5EF937e4777917791e9cF21cdA07Fce00D7B6662","0xa70c8789c1a47D5D54F35b342166A07E3E63595E","0xcaF8d475a678D471f0eD5b2408701DFC73114770","0x0BA66723AD8829C750dfdb67De6e365A75F86689","0xea436b8E7F8284939bf96C77552F296E3d875B02","0x2d2D4e9C5d0Cc3bafbc420F927f57d3db3D76c6B","0xc1c4eE86411b9fB3B1f6e2037A91AAfaf88B8ee5","0x86C41FEe71468B969d1164764D80C5A3271D3AAD","0x37E9298094F86C464200236eCdF90f2E32dD127c","0x89f75bbB4F4341b6241C2fC98dA5FCACD5364156","0x03072469AF907911f85518c8C937dAB6Cd888888","0xac7B1766eC12824A69207B3EfF9104071000A661","0x7b653Fe7Bc46E8a199a25F2227dBcAB1954B4150","0x25321916050c85C92e35903FD7Ea0BA2d959E1b5","0xf219939C66Cf3Db9b45fedA453b157D1014ABc98","0x6824d19B88aF77c541Ba3dfB4d26c6675Edbfa30","0xA118Da421a87d3C493aFdB278c22935aB8B4bF93","0xDd50A1CF3682BDE894789d9aA005B4fEAA6786bd","0x8a8E4b14b4617f2941042020001Db60d90ce55c0","0x0d0eA9B2F6e0bD7d510023EEd47200037F51EccB","0x70D68897272e6FAac92E219bf14B00f702fe79fc","0xE94599125560c050D7bB6Ee3ad38eFf6fd597A21","0x6186bF217ab47e899C9E92ba0189b27a1aC9F7B8","0x1E224c62f4Db41FE0b04b42857410BEA71e384B4","0x83AEBAcC9eCd0c2C50f4De77e2019820Ce4B7AB3","0xDf976C2F2e0f27A03EB3D0Ee7594957371B398CA","0x3840951FA874127DeB15971801cf49678AC03A3C","0x96399Ddb62d833029fbEf774d1FE044AF33E98Ef","0xb4714d9f06B96C7047d8550bD871016F9dE504D2","0xCAf3B2a12bD0A81e69674049AF520f396572788e","0xb35478181A8b801a8368C9B1002DC4590E1f192C","0x67469302704546cb2584A5DafFB6Fb9f0CC34E82","0x30Fa6043cde24b079EeDa2945a98f37C08f9cE8D","0x6F0863640168B9Fc2C3C8dC0e9806038af3d536b","0x818D191A2bB49721E12B0591a3B87c6109688F70","0x312DFd2A50de9837BEA3405aC79078b06017f052","0x845669281b27Ac9D25F382C1DF57a441D26FF846","0x478a22cfd37a8c078b4cb9402e2491b00BaD5043","0xa1CE751322fdEc6365A9b5783C5291c8D889b844","0x8D27D714b45aF2dE7209E474afdB9b607b18116d","0xaF9611907ED047ECaa757515D71bed7442f8a9eF","0x98BC5F17B782bf58F6d6f734924dB000a3f4927F","0xc30e2bDa8252E4caD1b805d34A09a07d64D3EDEf","0x3a0E6c3A950b3Fe38D6D1E150d1E86f582b3E854","0xf86cE576BA75e96585aBc2a98Dc1ee68e4349C6c","0x993A141154aDdD0B7A93cfe0c4D90b282ef3788F","0xb436004506799B01898D1305375c1A793C82Ee4f","0x56D078f7Fd056757d21b5664c398C4774746599a","0x62D754B7C4988feC2d2DD0F05ab352F1763843BF","0xd1bcd59b9Ee97e33d9e8c54f1D66Aac38E8386Ac","0x7138121127fb0e5904196A2B8e8D50C3a19A8972","0x82Df60f57d400549ad45AC92Ecd615f1869c125C","0xB7AafCB946905CaE8887D93f7BD7AFe922A78A9e","0x716E576a51E91C9b4b6777d8E7362218A1DCd678","0x884af7bbd8699B65E71f46eC56b916551f880eFc","0xB67B9087161257c4133907cf49FF0731E097f541","0xE0cB3D9542A786c60605DD55EFB9Ef79490A3D6c","0x3DCd5067F8036cf46b68Cc3D440a7F7A2A8A77cF","0x568C93cCe9536b030d40Ca4968beE9F89ed2d335","0xED3c956790B201CAf8D645c6256b656FF4523a47","0x733b1e13DFF45B2Dbf472E12EDc0917020448e49","0x497BB6412B4c6A361a16b546dc9A7B0B5AAbc5B5","0x084752754693BE338F69BD05f61879B180C77e90","0xc8aA8c04e3d11d6697fb0eF14798f64Da2306ed8","0xf6597FB3632B923597E991bCa31E5b1e4cAbe4eF","0xDfD7ef04B6Aa120F7401D473885196f8D09B2DF6","0xC901424597056682DD40dD3AeFe4f5739052DB56","0xF2bA753917121Be5b3D11185889bea187528dDd9","0xe941D4b6E43e4068DF63E361E3642cd25A665963","0x1B9122F922Fb77A824d8D253840CC67c38A6e12A","0x5165287701215CA866De64165926e34b16b005D3","0xc92c90c1B8e3Ab43e3e288492fc48F6ec113E967","0x8C0503460D972CEE16Acd1bF7801B2048AA72A42","0x2D3736411219Bb97573f1995D326936B7f9d101d","0x527eED0Ef63522E8791a7D57cceCe4f885B6f842","0x90Fbc33095f62806a5b42caFB9b41B71Edd16168","0xa4FEf2cb2eE1A8b0fD05432B2919280aa9223492","0xCabbAeA53B7F194C6A385A6D7A442558428D665F","0x4084A10A55667045a860f9bF71666e97f12FbEcB","0x62f1B6557F0b6Ee501F77D3e71778Cc9F1A93fEF","0xD6b7687f0397c885f71B488Fb1ba597F3c468c17","0x1CA5fd544c8Ed3314191E33C159C898d02793BEc","0x6Efc9F5165b09c70eC502b8180cDE3847Ce103E4","0x03aEbF90342f923C9438f9Cb55ECF8A4dd8719b5","0x0de086898e61E84194ca5d363157DF88E1ae1776","0x19bF6e8457a23a85bDce255d8D758eA480FFC6bD","0x13F71c36213751e536E4F5461275889Ec1B7aFFd","0xbd198DaCE22DEe5e50002E0eA5F369C6dc375b74","0x5b2D0160C0ca1cDa464DF7492310D336Dd8B5409","0x66Aa410c7C383514B6ead61ca04Ae37c6E9725dE","0xDAB3eDc77AB9906DAb46ddcFd468Ce8276E50AD1","0x775ca029c89a57aD6c81c0ebcF0211531249Ff98","0x20C19B3610ea4d12aD60f336ba689aBAEfaA37Ca","0xB5642C35a7df3A9447f9C1bAc6BC9fd1a9dDE3c1","0xC766054fe15717268e158a1693f2fb941a98041B","0x49D9153744Ce0b781494D17C99CB98DB9f90ceEB","0xC449ae39a9a4D510F2d0765B10B9FBfdCED4cf72","0x870F14ce23b402B8F7b5e6314D6A3Cc47Ac0839e","0x975866f38FD50E8e6cC6619Ce711013E30dC5350","0xD47563c9167926cC042a03a604833D4373D0BbdA","0x2d1ACB9dc91f1B91CF3E7F2a74e5CB50022442F9","0x8E8B97c3AE9B6EBa8D9eaA0233e07BB0A4812226","0x41e650F08761637029BAB1b97E42E1bFaFDD3DeC","0x3e630BC1f0eE1537cD1E0F7047da2238160eb5A3","0xfC8ED2F1d7DaF9d671b8bF05d80eBAEd46B00705","0xcADd7DC7c4C63E413C4E5b9C20C387C45CaD4F7d","0x6124FbBa2066C6a09d1Adfe6B8029326B1D2efF8","0x49024105CC29fe4F547D4DD18FEbe3d51590b8f7","0x429FB9a736467090EFb381d4C41F3Aae5C926400","0x4786d423f47843574B60e158C5364E2F44b0bfC2","0xAACcA20b9152825152097FBB81178E20C7Be0001","0x2C85080A5729446a79b73dFAD3A8c181a6fa1C8c","0x22A59ab0D2CDDebfed3e25600c2BCA2F7509B50E","0x393bE79846DD52932C8589c0E8a4e6E12aB29E4c","0x5190d08204f5FE71E225ac67760d69eC699495F2","0x48457BE3957f084b5Dc8E504356Dd0c1760411d9","0x040bDBf595F7dA63A2F06Ee0941885e57eae2f4c","0xC9390863B7Db74cb8Eaa80ef4626876305c0525b","0x6B8587474Ca69fA546c0A0af80a7700e97f0667E","0x4fa767eFfD6A82411131631527e847a26beA1Be9","0x1C004A69944CB05f997390533b1D6207C4a45002","0xA7489279F3890296f7c772c71aFC2b74cC8B3a78","0xB5c09B3322e21D459570c9C882d56f5b0769559E","0x84cE7bAe1b788C7aD985D57721cA428b401aE34D","0x5438d5FaA99c3754C6b33c4FC079936696e177b7","0x60FDa8130B7341027147a1B88CD4c2A1AF44eCD0","0xc2e6Be57Cb870967f8eF45b614E2a7B4D5644271","0x0B023ab5A493A3F282dc0659EF634710f05579b5","0xFaB8bE20C2357dA159b341D3a637c989F215b018","0x9Fa5db29dfc46E9BfDdE271E44364d4bA64244c4","0x845d8071A14f869caf6B12De9426f27D419aDc3f","0xFe4caE31e41B41d5cfd914020A455e8EDeD4853c","0x616DA71F2Ac557f4DeAaa89d3165BCEb08a1C1d0","0xf7E17b95DEbF09dfA0Ed6227a1Dc4C86229b7e04","0xDDF8b18404fabAe7BF6E30C2C74c9c1fE77d9cDA"],"rows":[[0,21,0,192,24,0,174984],[0,11,0,64,70,0,161080],[0,25,0,64,21,0,145848],[0,29,0,64,14,0,143672],[0,17,0,162,486,0,141755],[0,35,0,162,486,0,141755],[0,41,0,162,486,0,141755],[1,3,1,133,199,243,4863],[2,5,2,0,64,64,3712],[1,2,1,67,66,104,3562],[3,2,3,96,112,64,1952],[4,1755,4,1,1,672,1246],[4,1914,5,6,7,15,885],[5,1,6,18,17,631,683],[6,3,7,18,17,631,683],[5,4,6,18,17,636,670],[5,5,6,18,17,636,670],[5,6,6,18,17,636,670],[5,16,6,18,17,636,670],[5,17,6,18,17,636,670],[4,2012,8,18,17,631,649],[4,2013,8,18,17,631,649],[4,2015,8,18,17,631,649],[4,2016,8,18,17,631,649],[4,2833,8,18,17,631,649],[4,2834,8,18,17,631,649],[4,2835,8,18,17,631,649],[4,2836,8,18,17,631,649],[4,2837,8,18,17,631,649],[4,3074,8,18,17,631,649],[4,3075,8,18,17,631,649],[4,3076,8,18,17,631,649],[4,3077,8,18,17,631,649],[4,3201,9,18,17,631,649],[4,2944,8,18,17,577,595],[4,310,10,18,17,51,463],[4,385,11,18,17,51,463],[4,571,12,18,17,51,463],[4,713,13,18,17,51,463],[4,724,14,18,17,51,463],[4,862,15,18,17,51,463],[4,1013,16,18,17,51,463],[4,1086,17,18,17,51,463],[4,1208,18,18,17,51,463],[4,1220,19,18,17,51,463],[4,1449,20,18,17,51,463],[4,1452,21,18,17,51,463],[4,1524,21,18,17,51,463],[4,1555,22,18,17,51,463],[4,1606,20,18,17,51,463],[4,1609,23,18,17,51,463],[4,1616,24,18,17,51,463],[4,1623,21,18,17,51,463],[4,1629,25,18,17,51,463],[4,1630,26,18,17,51,463],[4,1632,26,18,17,51,463],[4,1641,27,18,17,51,463],[4,1649,28,18,17,51,463],[4,1700,22,18,17,51,463],[4,1714,22,18,17,51,463],[4,1726,29,18,17,51,463],[4,1751,30,18,17,51,463],[4,1838,31,18,17,51,463],[4,1867,32,18,17,51,463],[4,1878,32,18,17,51,463],[4,1882,32,18,17,51,463],[4,1885,32,18,17,51,463],[4,1890,32,18,17,51,463],[4,1920,32,18,17,51,463],[4,1962,33,18,17,51,463],[4,1964,33,18,17,51,463],[4,1990,33,18,17,51,463],[4,1994,33,18,17,51,463],[4,2036,33,18,17,51,463],[4,2039,33,18,17,51,463],[4,2042,33,18,17,51,463],[4,2044,33,18,17,51,463],[4,2047,33,18,17,51,463],[4,2049,33,18,17,51,463],[4,2051,34,18,17,51,463],[4,2064,35,18,17,51,463],[4,2066,33,18,17,51,463],[4,2067,27,18,17,51,463],[4,2068,36,18,17,51,463],[4,2074,30,18,17,51,463],[4,2077,36,18,17,51,463],[4,2080,36,18,17,51,463],[4,2081,36,18,17,51,463],[4,2086,37,18,17,51,463],[4,2112,33,18,17,51,463],[4,2115,33,18,17,51,463],[4,2146,38,18,17,51,463],[4,2151,39,18,17,51,463],[4,2303,22,18,17,51,463],[4,2308,12,18,17,51,463],[4,2313,12,18,17,51,463],[4,2315,22,18,17,51,463],[4,2317,12,18,17,51,463],[4,2319,12,18,17,51,463],[4,2322,12,18,17,51,463],[4,2325,12,18,17,51,463],[4,2328,12,18,17,51,463],[4,2332,12,18,17,51,463],[4,2333,12,18,17,51,463],[4,2335,12,18,17,51,463],[4,2339,40,18,17,51,463],[4,2385,12,18,17,51,463],[4,2387,12,18,17,51,463],[4,2388,12,18,17,51,463],[4,2390,12,18,17,51,463],[4,2391,12,18,17,51,463],[4,2392,12,18,17,51,463],[4,2393,12,18,17,51,463],[4,2394,12,18,17,51,463],[4,2395,22,18,17,51,463],[4,2396,12,18,17,51,463],[4,2397,12,18,17,51,463],[4,2399,12,18,17,51,463],[4,2401,12,18,17,51,463],[4,2403,12,18,17,51,463],[4,2404,12,18,17,51,463],[4,2406,12,18,17,51,463],[4,2407,12,18,17,51,463],[4,2409,12,18,17,51,463],[4,2410,12,18,17,51,463],[4,2411,12,18,17,51,463],[4,2412,12,18,17,51,463],[4,2414,12,18,17,51,463],[4,2415,12,18,17,51,463],[4,2416,12,18,17,51,463],[4,2417,12,18,17,51,463],[4,2418,12,18,17,51,463],[4,2441,12,18,17,51,463],[4,2442,12,18,17,51,463],[4,2444,12,18,17,51,463],[4,2445,12,18,17,51,463],[4,2446,12,18,17,51,463],[4,2448,22,18,17,51,463],[4,2449,22,18,17,51,463],[4,2450,22,18,17,51,463],[4,2506,12,18,17,51,463],[4,2507,41,18,17,51,463],[4,2508,41,18,17,51,463],[4,2597,42,18,17,51,463],[4,2598,43,18,17,51,463],[4,2599,44,18,17,51,463],[4,2775,45,18,17,51,463],[4,2777,45,18,17,51,463],[4,2778,45,18,17,51,463],[4,2779,45,18,17,51,463],[4,2840,46,18,17,51,463],[4,2867,47,18,17,51,463],[4,2871,47,18,17,51,463],[4,2878,12,18,17,51,463],[4,2879,12,18,17,51,463],[4,2919,48,18,17,51,463],[4,2920,48,18,17,51,463],[4,2922,48,18,17,51,463],[4,2937,48,18,17,51,463],[4,2938,48,18,17,51,463],[4,3004,49,18,17,51,463],[4,3027,12,18,17,51,463],[4,3028,12,18,17,51,463],[4,3029,12,18,17,51,463],[4,3030,12,18,17,51,463],[4,3203,12,18,17,51,463],[4,3204,12,18,17,51,463],[4,3205,12,18,17,51,463],[4,3206,12,18,17,51,463],[4,3209,30,18,17,51,463],[4,3250,42,18,17,51,463],[4,3251,42,18,17,51,463],[4,3253,50,18,17,51,463],[4,3270,51,18,17,51,463],[4,3271,27,18,17,51,463],[4,3343,50,18,17,51,463],[4,3344,50,18,17,51,463],[4,3345,50,18,17,51,463],[4,3346,52,18,17,51,463],[4,3347,50,18,17,51,463],[4,3348,27,18,17,51,463],[4,3361,50,18,17,51,463],[4,3364,40,18,17,51,463],[4,3365,50,18,17,51,463],[4,3366,40,18,17,51,463],[4,3367,40,18,17,51,463],[4,3369,50,18,17,51,463],[4,3370,50,18,17,51,463],[4,3396,53,18,17,51,463],[4,3397,50,18,17,51,463],[4,3398,50,18,17,51,463],[4,3414,53,18,17,51,463],[4,3415,50,18,17,51,463],[4,3416,9,18,17,51,463],[4,3417,53,18,17,51,463],[4,3418,54,18,17,51,463],[4,3419,53,18,17,51,463],[4,3523,55,18,17,51,463],[4,3535,55,18,17,51,463],[4,3536,55,18,17,51,463],[4,3537,55,18,17,51,463],[4,3538,55,18,17,51,463],[4,3539,55,18,17,51,463],[4,3540,13,18,17,51,463],[4,3541,55,18,17,51,463],[4,3542,56,18,17,51,463],[4,3543,57,18,17,51,463],[4,3544,58,18,17,51,463],[4,3545,59,18,17,51,463],[4,3546,59,18,17,51,463],[4,3554,55,18,17,51,463],[4,3556,55,18,17,51,463],[4,3558,60,18,17,51,463],[4,3559,61,18,17,51,463],[4,3566,62,18,17,51,463],[4,3567,61,18,17,51,463],[4,3670,63,18,17,51,463],[4,3671,25,18,17,51,463],[4,3672,53,18,17,51,463],[4,3673,64,18,17,51,463],[4,3674,65,18,17,51,463],[4,3675,25,18,17,51,463],[4,3702,49,18,17,51,463],[4,4224,66,18,17,51,463],[4,4519,55,18,17,51,463],[4,4520,55,18,17,51,463],[4,4862,67,18,17,51,463],[4,4919,68,18,17,51,463],[4,5377,33,18,17,51,463],[4,5378,33,18,17,51,463],[4,5379,33,18,17,51,463],[4,5479,69,18,17,51,463],[4,5585,70,18,17,51,463],[4,5586,71,18,17,51,463],[4,5726,28,18,17,51,463],[4,5763,36,18,17,51,463],[4,5764,36,18,17,51,463],[4,5765,36,18,17,51,463],[4,5986,62,18,17,51,463],[4,6583,68,18,17,51,463],[4,3507,53,18,17,252,462],[7,657,72,2,1,50,450],[4,1399,30,18,17,51,418],[4,1762,73,18,17,51,398],[4,6634,74,13,8,172,368],[4,4903,73,18,17,51,351],[5,18,6,10,8,30,341],[5,19,6,10,8,30,341],[5,20,6,10,8,30,341],[4,961,51,13,8,20,338],[4,1312,75,10,11,42,333],[4,569,12,13,8,20,329],[4,588,12,10,13,22,330],[4,951,55,13,8,20,329],[4,1471,14,13,8,20,329],[4,1570,20,10,13,22,330],[4,1617,31,13,8,20,329],[4,1749,76,13,8,20,329],[4,1804,31,13,8,20,329],[4,1898,77,13,8,20,329],[4,1958,33,10,13,22,330],[4,2000,78,13,8,20,329],[4,2357,22,10,13,22,330],[4,2520,31,13,8,20,329],[4,2601,39,13,8,20,329],[4,2742,76,13,8,20,329],[4,2955,49,13,8,20,329],[4,3050,25,13,8,20,329],[4,3121,79,13,8,20,329],[4,3212,80,10,13,22,330],[4,3213,81,10,13,22,330],[4,3214,30,10,13,22,330],[4,3215,42,10,13,22,330],[4,3216,82,10,13,22,330],[4,3249,42,13,8,20,329],[4,3264,42,13,8,20,329],[4,3269,52,13,8,20,329],[4,3295,82,13,8,20,329],[4,3305,55,13,8,20,329],[4,3311,66,13,8,20,329],[4,3349,66,13,8,20,329],[4,3448,83,10,13,22,330],[4,3449,51,13,8,20,329],[4,3462,84,10,13,22,330],[4,3562,82,13,8,20,329],[4,3563,42,13,8,20,329],[4,3564,57,13,8,20,329],[4,3565,78,13,8,20,329],[4,5481,85,13,8,20,329],[4,5509,86,13,8,20,329],[4,5587,87,13,8,20,329],[4,5771,36,10,13,22,330],[4,817,75,18,17,52,327],[4,299,42,18,17,63,326],[4,3293,42,18,17,63,326],[4,3294,42,18,17,63,326],[4,2965,88,13,8,28,325],[4,5852,88,10,8,30,325],[4,590,12,10,11,24,321],[4,1172,89,10,11,24,321],[4,3440,30,10,11,24,321],[4,3441,81,10,11,24,321],[4,3442,56,10,11,24,321],[4,3443,30,10,11,24,321],[4,3464,56,10,11,24,321],[4,589,12,10,12,18,300],[4,1006,30,10,11,24,300],[4,1637,20,10,12,18,300],[4,2447,13,10,12,18,300],[4,3184,90,10,12,18,300],[4,3463,78,10,12,18,300],[4,2976,88,13,8,24,290],[4,1108,64,13,8,20,287],[4,5881,75,10,8,30,283],[4,2996,88,13,8,23,279],[4,5962,18,10,8,30,277],[4,1000,91,10,13,22,273],[4,3044,92,13,8,23,273],[4,329,10,7,11,19,268],[4,579,12,7,11,19,268],[4,586,12,10,7,14,268],[4,1228,26,7,11,19,268],[4,1654,31,7,11,19,268],[4,1917,33,7,11,19,268],[4,1996,93,7,11,19,268],[4,3460,51,7,11,19,268],[4,3461,94,10,7,14,268],[4,5477,95,7,11,19,268],[4,816,75,13,8,20,267],[4,3051,88,13,8,23,266],[4,1934,96,10,12,17,265],[4,1948,96,10,7,14,264],[4,2017,8,18,17,245,263],[4,3066,97,13,8,23,263],[4,3194,98,13,8,23,262],[4,3199,27,13,8,23,253],[4,296,39,10,13,22,252],[4,3252,9,13,8,23,252],[4,3394,99,13,8,23,251],[4,3529,81,13,8,23,250],[4,3584,75,13,8,23,250],[4,4976,75,13,8,22,250],[4,3593,100,13,8,23,249],[4,6108,101,13,8,22,249],[4,1166,102,10,7,14,246],[4,300,103,13,8,20,243],[4,467,104,2,11,24,242],[4,576,12,2,11,24,242],[4,849,64,2,11,24,242],[4,1767,82,2,11,24,242],[4,1954,27,2,11,24,242],[4,2419,12,2,11,24,242],[4,2627,41,2,11,24,242],[4,2628,41,2,11,24,242],[4,2755,105,2,11,24,242],[4,2825,106,2,11,24,242],[4,2887,12,2,11,24,242],[4,3037,12,2,11,24,242],[4,3042,53,2,11,24,242],[4,3054,42,2,11,24,242],[4,3115,107,2,11,24,242],[4,3138,27,2,11,24,242],[4,3141,27,2,11,24,242],[4,3183,27,2,11,24,242],[4,3230,24,2,11,24,242],[4,3248,108,2,11,24,242],[4,3282,83,2,11,24,242],[4,3300,57,2,11,24,242],[4,3301,109,2,11,24,242],[4,3333,27,2,11,24,242],[4,3334,27,2,11,24,242],[4,3382,43,2,11,24,242],[4,3383,42,2,11,24,242],[4,3458,110,2,11,24,242],[4,3459,111,2,11,24,242],[4,3498,112,2,11,24,242],[4,3499,113,2,11,24,242],[4,3508,28,2,11,24,242],[4,3509,24,2,11,24,242],[4,3598,44,2,11,24,242],[4,3599,114,2,11,24,242],[4,3635,115,2,11,24,242],[4,3636,25,2,11,24,242],[4,3638,25,2,11,24,242],[4,3639,103,2,11,24,242],[4,3640,103,2,11,24,242],[4,3807,116,2,11,24,242],[4,4348,117,2,11,24,242],[4,4524,118,2,11,24,242],[4,4525,119,2,11,24,242],[4,4526,120,2,11,24,242],[4,4575,121,2,11,24,242],[4,4576,25,2,11,24,242],[4,4889,67,2,11,24,242],[4,4934,122,2,11,24,242],[4,5364,123,2,11,24,242],[4,5400,68,2,11,24,242],[4,5446,68,2,11,24,242],[4,5449,124,2,11,24,242],[4,5450,125,2,11,24,242],[4,5473,126,2,11,24,242],[4,5474,127,2,11,24,242],[4,5619,128,2,11,24,242],[4,5707,129,2,11,24,242],[4,5709,129,2,11,24,242],[4,5710,129,2,11,24,242],[4,5712,129,2,11,24,242],[4,5713,129,2,11,24,242],[4,5714,129,2,11,24,242],[4,5931,84,2,11,24,242],[4,6006,84,2,11,24,242],[4,6008,125,2,11,24,242],[4,6033,68,2,11,24,242],[4,6214,130,2,11,24,242],[4,6215,68,2,11,24,242],[4,6216,130,2,11,24,242],[4,6566,68,2,11,24,242],[4,999,131,10,12,18,240],[4,1341,81,7,11,19,240],[4,3586,57,18,17,220,238],[4,1425,132,2,11,24,234],[4,1310,75,10,13,21,230],[4,3570,55,18,17,210,228],[4,1977,125,13,8,20,224],[4,1308,75,10,12,16,215],[4,1309,75,10,7,14,215],[4,1003,133,10,7,14,212],[4,745,134,10,7,19,211],[4,1302,135,10,7,19,210],[4,295,24,10,12,17,208],[4,297,136,7,11,19,207],[4,6070,137,6,7,20,207],[4,1307,75,2,11,24,205],[4,3292,53,18,17,182,200],[4,3299,138,18,17,182,200],[4,3303,52,18,17,182,200],[4,3306,52,18,17,182,200],[4,3307,122,18,17,182,200],[4,3316,51,18,17,182,200],[4,3353,51,18,17,182,200],[4,3358,52,18,17,182,200],[4,3368,139,18,17,182,200],[4,3381,81,18,17,182,200],[4,3384,50,18,17,182,200],[4,3385,50,18,17,182,200],[4,3421,52,18,17,182,200],[4,3422,140,18,17,182,200],[4,3423,50,18,17,182,200],[4,3424,141,18,17,182,200],[4,3425,50,18,17,182,200],[4,3426,142,18,17,182,200],[4,3427,9,18,17,182,200],[4,3475,143,18,17,182,200],[4,3476,114,18,17,182,200],[4,3477,29,18,17,182,200],[4,3478,29,18,17,182,200],[4,3484,53,18,17,182,200],[4,3485,144,18,17,182,200],[4,3486,53,18,17,182,200],[4,3487,53,18,17,182,200],[4,3497,55,18,17,182,200],[4,3571,55,18,17,182,200],[4,3573,51,18,17,182,200],[4,3574,109,18,17,182,200],[4,3575,43,18,17,182,200],[4,3576,114,18,17,182,200],[4,3577,145,18,17,182,200],[4,3603,146,18,17,182,200],[4,3604,147,18,17,182,200],[4,3605,78,18,17,182,200],[4,3607,59,18,17,182,200],[4,3613,59,18,17,182,200],[4,3620,61,18,17,182,200],[4,3621,148,18,17,182,200],[4,3622,11,18,17,182,200],[4,3623,51,18,17,182,200],[4,3642,149,18,17,182,200],[4,3743,57,18,17,182,200],[4,3744,57,18,17,182,200],[4,3745,150,18,17,182,200],[4,3910,64,18,17,182,200],[4,4535,80,18,17,182,200],[4,4628,151,18,17,182,200],[4,5376,150,18,17,182,200],[5,21,6,10,8,9,196],[4,599,12,10,4,16,195],[4,1182,152,10,7,30,195],[4,1527,153,10,4,16,195],[4,1770,40,10,4,16,195],[4,1778,40,10,4,16,195],[4,1780,40,10,4,16,195],[4,1785,40,10,4,16,195],[4,1806,40,10,4,16,195],[4,1813,40,10,4,16,195],[4,1817,40,10,4,16,195],[4,1823,40,10,4,16,195],[4,1833,40,10,4,16,195],[4,1839,40,10,4,16,195],[4,1845,40,10,4,16,195],[4,2420,12,10,4,16,195],[4,2784,45,10,4,16,195],[4,2918,48,10,4,16,195],[4,2924,48,10,4,16,195],[4,2925,48,10,4,16,195],[4,3447,154,10,4,16,195],[4,4939,116,10,4,16,195],[4,5412,155,10,4,16,195],[4,5701,129,10,4,16,195],[4,5702,129,10,4,16,195],[4,5704,129,10,4,16,195],[4,5806,129,10,4,16,195],[4,5807,129,10,4,16,195],[4,5808,129,10,4,16,195],[4,5809,129,10,4,16,195],[4,5810,129,10,4,16,195],[4,5811,129,10,4,16,195],[4,5812,129,10,4,16,195],[4,5814,129,10,4,16,195],[4,5815,129,10,4,16,195],[4,5817,129,10,4,16,195],[4,5832,129,10,4,16,195],[4,5833,129,10,4,16,195],[4,5834,129,10,4,16,195],[4,5836,129,10,4,16,195],[4,5839,129,10,4,16,195],[4,5841,129,10,4,16,195],[4,5843,156,10,4,16,195],[4,5845,129,10,4,16,195],[4,5847,129,10,4,16,195],[4,5849,156,10,4,16,195],[4,6434,157,10,4,16,195],[4,6435,38,10,4,16,195],[4,6436,158,10,4,16,195],[4,6437,129,10,4,16,195],[4,6438,156,10,4,16,195],[4,6608,86,10,4,16,195],[4,6609,159,10,4,16,195],[4,6610,160,10,4,16,195],[5,10,6,10,4,16,195],[4,1801,161,9,4,25,193],[4,2838,8,18,17,173,191],[4,1306,75,7,11,19,188],[4,6088,75,6,7,19,187],[4,1371,51,10,4,16,185],[4,6150,102,6,7,19,185],[4,577,12,10,4,17,184],[4,1719,130,10,4,17,184],[4,1797,161,10,7,30,184],[4,2359,145,10,4,17,184],[4,3057,78,10,4,17,184],[4,4845,162,10,4,17,184],[4,5460,63,10,4,17,184],[4,5475,129,10,4,17,184],[4,5476,163,10,4,17,184],[4,1923,152,10,7,29,182],[4,1666,102,13,8,16,180],[4,5988,84,10,8,9,180],[4,857,164,6,7,24,179],[4,3273,5,18,17,160,177],[4,5993,75,10,8,9,177],[4,2011,165,10,7,27,176],[4,2026,161,10,4,16,176],[4,6635,99,6,7,19,176],[4,2237,4,10,7,27,175],[4,2281,161,10,4,16,175],[4,6001,99,10,8,9,175],[4,2290,75,10,7,27,174],[4,2897,97,10,4,16,174],[4,1765,166,13,8,16,173],[4,2984,88,10,4,16,173],[4,327,10,6,7,15,172],[4,572,12,6,7,15,172],[4,860,64,6,7,15,172],[4,1482,14,6,7,15,172],[4,1523,31,6,7,15,172],[4,1633,167,6,7,15,172],[4,1955,26,6,7,15,172],[4,1956,130,6,7,15,172],[4,2353,145,6,7,15,172],[4,3045,88,10,4,16,172],[4,3052,42,6,7,15,172],[4,3247,42,6,7,15,172],[4,3267,42,6,7,15,172],[4,3268,168,6,7,15,172],[4,3304,81,6,7,15,172],[4,3560,11,6,7,15,172],[4,3561,61,6,7,15,172],[4,3669,81,6,7,15,172],[4,4208,81,6,7,15,172],[4,4209,117,6,7,15,172],[4,4210,51,6,7,15,172],[4,4211,51,6,7,15,172],[4,4213,64,6,7,15,172],[4,4215,169,6,7,15,172],[4,4217,169,6,7,15,172],[4,4950,116,6,7,15,172],[4,4951,116,6,7,15,172],[4,4953,116,6,7,15,172],[4,5386,116,6,7,15,172],[4,5387,116,6,7,15,172],[4,5388,116,6,7,15,172],[4,5389,116,6,7,15,172],[4,5444,63,6,7,15,172],[4,5445,170,6,7,15,172],[4,5453,28,6,7,15,172],[4,5469,129,6,7,15,172],[4,5887,28,6,7,15,172],[5,9,6,6,7,15,172],[4,1933,102,13,8,16,171],[4,1935,102,13,8,16,171],[4,2255,161,10,7,26,171],[4,2870,27,13,8,15,171],[4,3078,8,18,17,153,171],[4,1007,13,10,4,17,170],[4,2342,75,10,7,26,170],[4,3062,99,10,4,16,170],[4,6148,21,10,8,9,170],[4,784,152,6,7,14,169],[4,2181,75,13,8,16,169],[4,2386,44,10,7,26,169],[4,2952,82,6,7,18,169],[4,1305,75,6,8,5,168],[4,4225,110,10,4,16,168],[4,6151,99,10,8,9,168],[4,1428,81,6,7,15,167],[4,2218,122,13,8,16,167],[4,2221,135,13,8,16,167],[4,2400,171,10,7,26,167],[4,6373,172,10,8,9,167],[4,1275,134,6,7,23,166],[4,1800,161,6,8,5,166],[4,2298,27,13,8,16,166],[4,2813,173,13,8,16,166],[4,2957,97,13,8,15,165],[4,3001,88,6,7,18,164],[4,3107,39,6,7,18,164],[4,1109,174,10,8,8,163],[4,2893,97,13,8,16,163],[4,583,12,10,8,8,162],[4,740,175,10,8,8,162],[4,861,64,10,8,8,162],[4,1279,134,10,8,8,162],[4,1432,81,10,8,8,162],[4,2361,176,10,8,8,162],[4,2424,176,10,8,8,162],[4,2425,176,10,8,8,162],[4,2426,176,10,8,8,162],[4,2427,176,10,8,8,162],[4,2428,176,10,8,8,162],[4,2429,176,10,8,8,162],[4,2430,176,10,8,8,162],[4,2431,176,10,8,8,162],[4,2432,176,10,8,8,162],[4,2433,176,10,8,8,162],[4,2451,41,10,8,8,162],[4,2452,41,10,8,8,162],[4,2453,41,10,8,8,162],[4,2454,41,10,8,8,162],[4,2455,41,10,8,8,162],[4,2456,41,10,8,8,162],[4,2457,41,10,8,8,162],[4,2458,41,10,8,8,162],[4,2459,41,10,8,8,162],[4,2460,41,10,8,8,162],[4,2461,176,10,8,8,162],[4,2462,176,10,8,8,162],[4,2463,176,10,8,8,162],[4,2465,176,10,8,8,162],[4,2466,176,10,8,8,162],[4,2467,176,10,8,8,162],[4,2468,176,10,8,8,162],[4,2469,176,10,8,8,162],[4,2470,176,10,8,8,162],[4,2471,176,10,8,8,162],[4,2472,41,10,8,8,162],[4,2473,41,10,8,8,162],[4,2474,176,10,8,8,162],[4,2475,41,10,8,8,162],[4,2476,41,10,8,8,162],[4,2477,176,10,8,8,162],[4,2478,41,10,8,8,162],[4,2479,41,10,8,8,162],[4,2480,176,10,8,8,162],[4,2481,41,10,8,8,162],[4,2482,41,10,8,8,162],[4,2483,176,10,8,8,162],[4,2484,41,10,8,8,162],[4,2485,41,10,8,8,162],[4,2486,176,10,8,8,162],[4,2487,41,10,8,8,162],[4,2488,41,10,8,8,162],[4,2489,41,10,8,8,162],[4,2490,176,10,8,8,162],[4,2491,41,10,8,8,162],[4,2492,41,10,8,8,162],[4,2493,176,10,8,8,162],[4,2494,41,10,8,8,162],[4,2495,41,10,8,8,162],[4,2496,176,10,8,8,162],[4,2497,41,10,8,8,162],[4,2498,41,10,8,8,162],[4,2499,41,10,8,8,162],[4,2500,176,10,8,8,162],[4,2501,176,10,8,8,162],[4,2502,176,10,8,8,162],[4,2503,176,10,8,8,162],[4,2504,176,10,8,8,162],[4,2505,176,10,8,8,162],[4,2509,176,10,8,8,162],[4,2510,176,10,8,8,162],[4,2511,176,10,8,8,162],[4,2512,176,10,8,8,162],[4,2513,176,10,8,8,162],[4,2514,176,10,8,8,162],[4,2515,176,10,8,8,162],[4,2516,176,10,8,8,162],[4,2517,176,10,8,8,162],[4,2518,176,10,8,8,162],[4,2519,176,10,8,8,162],[4,2521,176,10,8,8,162],[4,2522,176,10,8,8,162],[4,2524,176,10,8,8,162],[4,2525,176,10,8,8,162],[4,2527,176,10,8,8,162],[4,2529,176,10,8,8,162],[4,2531,176,10,8,8,162],[4,2533,176,10,8,8,162],[4,2535,176,10,8,8,162],[4,2536,176,10,8,8,162],[4,2537,176,10,8,8,162],[4,2538,176,10,8,8,162],[4,2540,176,10,8,8,162],[4,2541,176,10,8,8,162],[4,2543,176,10,8,8,162],[4,2544,176,10,8,8,162],[4,2545,176,10,8,8,162],[4,2546,176,10,8,8,162],[4,2547,176,10,8,8,162],[4,2549,176,10,8,8,162],[4,2574,176,10,8,8,162],[4,2575,176,10,8,8,162],[4,2576,176,10,8,8,162],[4,2577,176,10,8,8,162],[4,2578,176,10,8,8,162],[4,2579,176,10,8,8,162],[4,2580,176,10,8,8,162],[4,2581,176,10,8,8,162],[4,2633,156,10,8,8,162],[4,2703,156,10,8,8,162],[4,2705,156,10,8,8,162],[4,2707,177,10,8,8,162],[4,2709,178,10,8,8,162],[4,2914,179,13,8,16,162],[4,2956,176,10,8,8,162],[4,2958,176,10,8,8,162],[4,2959,176,10,8,8,162],[4,2960,176,10,8,8,162],[4,2961,176,10,8,8,162],[4,2962,176,10,8,8,162],[4,2964,176,10,8,8,162],[4,2966,176,10,8,8,162],[4,2967,176,10,8,8,162],[4,2968,176,10,8,8,162],[4,3105,150,10,8,8,162],[4,3132,27,10,8,8,162],[4,3278,83,10,8,8,162],[4,3335,27,10,8,8,162],[4,3336,27,10,8,8,162],[4,3359,180,10,8,8,162],[4,3360,55,10,8,8,162],[4,3363,55,10,8,8,162],[4,4578,25,10,8,8,162],[4,4579,78,10,8,8,162],[4,4580,110,10,8,8,162],[4,4581,180,10,8,8,162],[4,4582,64,10,8,8,162],[4,4863,82,10,8,8,162],[4,4864,117,10,8,8,162],[4,4865,117,10,8,8,162],[4,2238,53,13,8,16,161],[4,3197,27,6,7,18,161],[4,1798,161,10,8,8,160],[4,1303,75,10,4,29,159],[4,1987,75,6,8,5,159],[4,3232,181,6,7,18,159],[4,1910,75,10,8,8,158],[4,2105,182,6,8,5,158],[4,3266,30,6,7,18,157],[4,5730,172,10,4,16,157],[4,703,134,10,4,16,156],[4,1624,113,10,4,28,156],[4,3908,25,6,7,17,156],[4,316,161,4,3,4,155],[4,2972,88,10,7,24,155],[4,4135,75,6,7,17,155],[4,1301,75,6,7,14,154],[4,1750,4,10,4,28,154],[4,3190,183,10,7,23,154],[4,3420,113,6,7,18,154],[4,938,96,10,7,14,153],[4,3233,161,10,7,19,152],[4,574,12,7,10,13,151],[4,1106,184,10,4,16,151],[4,2875,27,7,10,13,151],[4,2876,27,7,10,13,151],[4,2877,27,7,10,13,151],[4,2927,78,7,10,13,151],[4,2928,94,7,10,13,151],[4,2929,185,7,10,13,151],[4,2930,85,7,10,13,151],[4,3053,42,7,10,13,151],[4,3122,83,7,10,13,151],[4,3221,186,7,10,13,151],[4,3302,52,7,10,13,151],[4,3308,51,7,10,13,151],[4,5414,21,7,10,13,151],[4,5447,68,7,10,13,151],[4,5461,129,7,10,13,151],[4,5462,129,7,10,13,151],[4,5463,129,7,10,13,151],[4,5464,129,7,10,13,151],[4,5465,129,7,10,13,151],[4,5466,129,7,10,13,151],[4,5472,129,7,10,13,151],[4,5480,69,7,10,13,151],[4,5590,110,7,10,13,151],[4,5591,121,7,10,13,151],[4,5592,112,7,10,13,151],[4,5593,112,7,10,13,151],[4,5695,129,7,10,13,151],[4,5696,129,7,10,13,151],[4,5697,187,7,10,13,151],[4,5698,129,7,10,13,151],[4,5699,129,7,10,13,151],[4,5777,129,7,10,13,151],[4,5779,129,7,10,13,151],[4,5781,129,7,10,13,151],[4,5783,129,7,10,13,151],[4,5786,129,7,10,13,151],[4,5788,129,7,10,13,151],[4,5818,129,7,10,13,151],[4,5820,129,7,10,13,151],[4,5821,129,7,10,13,151],[4,5823,129,7,10,13,151],[4,5825,129,7,10,13,151],[4,5826,129,7,10,13,151],[4,5827,129,7,10,13,151],[4,5828,129,7,10,13,151],[4,5830,129,7,10,13,151],[4,5831,129,7,10,13,151],[4,5922,188,7,10,13,151],[4,6217,189,7,10,13,151],[4,6579,113,7,10,13,151],[4,6580,113,7,10,13,151],[4,6593,190,7,10,13,151],[4,6594,190,7,10,13,151],[4,6636,190,7,10,13,151],[4,6637,190,7,10,13,151],[5,11,6,7,10,13,151],[5,12,6,7,10,13,151],[5,13,6,7,10,13,151],[5,14,6,7,10,13,151],[5,15,90,7,10,13,151],[4,1283,134,10,4,16,150],[4,575,145,6,8,5,149],[4,578,12,6,8,5,149],[4,1298,75,10,4,16,149],[4,1802,161,6,7,14,149],[4,1902,77,6,8,5,149],[4,2101,75,6,8,5,149],[4,2602,44,6,8,5,149],[4,3021,27,6,8,5,149],[4,3126,76,6,8,5,149],[4,3130,76,6,8,5,149],[4,3134,76,6,8,5,149],[4,3350,66,6,8,5,149],[4,3547,60,6,8,5,149],[4,4223,64,6,8,5,149],[4,4227,66,6,8,5,149],[4,4230,25,6,8,5,149],[4,4231,78,6,8,5,149],[4,4233,25,6,8,5,149],[4,4237,191,6,8,5,149],[4,4259,64,6,8,5,149],[4,5457,129,6,8,5,149],[4,1058,152,6,8,9,148],[4,2179,182,6,8,5,148],[4,2909,88,6,7,14,148],[4,2282,161,10,8,8,147],[4,3280,192,10,7,18,147],[4,3064,150,10,8,8,146],[4,3119,75,10,8,8,146],[4,3192,98,10,8,8,145],[4,3196,78,10,8,8,145],[4,573,12,9,4,9,144],[4,1493,14,9,4,9,144],[4,1497,193,9,4,9,144],[4,1900,77,9,4,9,144],[4,3056,39,9,4,9,144],[4,5467,42,9,4,9,144],[4,5468,129,9,4,9,144],[4,5620,129,9,4,9,144],[4,5621,129,9,4,9,144],[4,5622,129,9,4,9,144],[4,5623,129,9,4,9,144],[4,5624,129,9,4,9,144],[4,3490,161,10,8,8,143],[4,3298,183,10,7,18,142],[4,2643,52,9,4,16,141],[4,3355,52,18,17,33,141],[4,3583,75,10,7,18,140],[4,4205,183,10,7,18,139],[4,6598,86,10,7,16,139],[4,4212,75,10,7,18,138],[4,5567,9,10,7,18,138],[4,5568,52,10,7,18,138],[4,941,96,6,7,15,137],[4,6619,99,10,7,16,137],[4,2760,27,9,4,16,136],[4,6621,194,10,7,16,136],[4,647,18,7,6,5,134],[4,1276,134,6,8,9,134],[4,2785,27,9,4,16,133],[4,1414,75,6,8,5,132],[4,940,195,10,8,8,131],[4,741,134,10,8,16,130],[4,1111,196,9,4,9,130],[4,1129,63,7,10,13,130],[4,2799,197,9,4,16,130],[4,859,129,3,4,17,129],[4,1168,102,9,4,9,128],[4,2345,30,3,4,17,128],[4,2869,113,9,4,16,128],[4,1297,75,9,4,14,127],[4,3285,94,18,17,109,127],[4,3323,83,18,17,109,127],[4,3326,51,18,17,109,127],[4,3327,198,18,17,109,127],[4,3328,52,18,17,109,127],[4,3500,37,18,17,109,127],[4,3501,149,18,17,109,127],[4,3502,147,18,17,109,127],[4,3503,149,18,17,109,127],[4,5420,30,18,17,109,127],[4,5421,113,18,17,109,127],[4,3226,27,9,4,16,125],[4,2286,161,9,4,12,124],[4,3234,161,9,4,12,124],[4,856,134,6,8,5,123],[4,2423,199,9,4,12,122],[4,3257,183,13,8,8,122],[4,1793,161,3,4,18,121],[4,2464,54,9,4,12,121],[4,2604,27,9,4,12,121],[4,2284,161,6,8,3,120],[4,3176,97,18,17,30,120],[4,3277,51,18,17,78,120],[8,1,200,20,28,1,119],[4,2344,75,6,8,3,119],[3,1,201,2,10,9,118],[4,850,48,6,8,5,118],[4,2371,182,6,8,3,118],[8,3,200,20,28,1,117],[4,2231,27,9,4,14,117],[4,3482,183,13,8,11,117],[4,2413,202,6,8,3,116],[4,3224,183,13,8,10,116],[8,2,200,20,28,1,115],[4,742,183,9,4,9,115],[4,1296,75,7,10,13,115],[4,3275,155,9,4,12,115],[8,4,200,20,28,1,114],[3,3,201,96,112,1,114],[3,4,201,96,112,1,114],[4,1225,135,9,4,9,114],[4,3279,69,9,4,12,113],[9,2,203,3,7,4,112],[4,2440,182,6,8,3,112],[4,1140,30,6,8,5,111],[4,3585,75,9,4,12,111],[4,1327,134,10,7,18,110],[4,3612,99,9,4,12,110],[4,3678,75,9,4,12,109],[4,3191,183,13,8,10,108],[4,4206,204,7,5,17,108],[4,4936,44,9,4,11,108],[4,6147,205,7,5,17,108],[4,819,134,13,8,13,107],[4,4949,75,9,4,11,107],[4,4979,206,7,5,17,107],[4,5384,99,9,4,11,102],[4,711,134,10,4,12,101],[4,5451,75,7,5,17,101],[10,2,207,6,1,2,100],[10,3,208,6,1,2,100],[4,948,209,9,4,9,100],[4,949,209,9,4,9,100],[4,1239,210,10,4,26,98],[4,1366,211,4,4,11,98],[4,2921,62,13,8,7,98],[4,2941,8,18,17,80,98],[4,2963,30,13,8,7,98],[4,3587,183,13,8,10,97],[4,1088,212,12,7,10,96],[4,654,82,3,4,4,94],[4,2899,99,6,8,3,94],[10,4,208,6,1,2,93],[4,298,44,6,8,5,93],[4,858,63,7,5,7,93],[10,1,207,3,1,2,91],[4,353,191,4,4,5,91],[4,1396,21,4,4,5,91],[4,2787,183,13,8,10,91],[4,3187,183,13,8,10,91],[4,5640,42,4,4,5,91],[4,5641,129,4,4,5,91],[4,5642,129,4,4,5,91],[4,5643,129,4,4,5,91],[4,338,191,7,5,7,89],[4,2320,145,7,5,7,89],[4,820,134,7,11,11,88]]}}</script>
 <script>
 const TAP02 = (function () {
 // TAP-02 netlist decoder, well-formedness check and one-beat evaluator.
@@ -3365,13 +3357,14 @@ return { NAND, LATCH, REF, hexToBytes, bytesToHex, decode, load, beat, pack, unp
   let wallet = null, walletName = '', account = null;
   addEventListener('eip6963:announceProvider', (e) => { found.set(e.detail.info.uuid, e.detail); drawWallet(); });
   dispatchEvent(new Event('eip6963:requestProvider'));
-  setTimeout(() => {
-    if (!found.size) {
-      if (window.okxwallet) found.set('okx', { info: { name: 'OKX Wallet', icon: '' }, provider: window.okxwallet });
-      else if (window.ethereum) found.set('injected', { info: { name: 'Browser wallet', icon: '' }, provider: window.ethereum });
-    }
-    drawWallet();
-  }, 400);
+  const fallbackWallets = () => {
+    if (found.size) return;
+    if (window.okxwallet) found.set('okx', { info: { name: 'OKX Wallet', icon: '' }, provider: window.okxwallet });
+    else if (window.ethereum) found.set('injected', { info: { name: 'Browser wallet', icon: '' }, provider: window.ethereum });
+  };
+  setTimeout(() => { fallbackWallets(); drawWallet(); }, 400);
+  // Shared with the owner lookup (web/floor.js), which reads the wallets found here.
+  window.OCWallet = { wallets: () => { fallbackWallets(); return [...found.values()]; } };
   function drawWallet() {
     const el = $('runWallet');
     if (account) {
@@ -3409,6 +3402,7 @@ return { NAND, LATCH, REF, hexToBytes, bytesToHex, decode, load, beat, pack, unp
       const [a] = await wallet.request({ method: 'eth_requestAccounts' });
       await ensureChain();
       account = a;
+      dispatchEvent(new CustomEvent('oc:account', { detail: a }));
       drawWallet();
       $('runPost').disabled = false;
     } catch (e) { setStatus(e.message || String(e), true); }
@@ -3533,325 +3527,478 @@ return { NAND, LATCH, REF, hexToBytes, bytesToHex, decode, load, beat, pack, unp
   preview();
 })();
 </script>
-<script id="world-config" type="application/json">null</script>
+<script id="runs-data" type="application/json">{
+  "schema": 1,
+  "updatedAt": "2026-11-17",
+  "note": "Seeded from the three mainnet jobs in web/live-run.json, web/digits-live-run.json and web/cpu-live-run.json. The B3 runner replaces this file; see docs/runs-schema.md. A circuit with no run here is queued: nothing has run it yet.",
+  "networks": {
+    "196": {
+      "name": "X Layer",
+      "explorer": "https://www.oklink.com/x-layer",
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710"
+    }
+  },
+  "runs": [
+    {
+      "id": "196:0",
+      "chainId": 196,
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+      "jobId": 0,
+      "circuit": {
+        "processor": "0xb00f10bb4b2f32c561bf90e205e543d0a2395971",
+        "id": 5,
+        "name": "OKspace",
+        "gates": 3712,
+        "nIn": 0,
+        "nOut": 64,
+        "nState": 64,
+        "owner": "0xA9B480C2694aa3F16cd109FCD2C91aCbf3BC689F"
+      },
+      "what": "40 generations of Conway's Game of Life on the 8×8 board",
+      "beats": 40,
+      "steps": 181840,
+      "status": "final",
+      "fee": "0.0002",
+      "bond": "0.001",
+      "directGas": 441085640,
+      "gas": {
+        "post": 430756,
+        "claim": 125384,
+        "finalize": 56627,
+        "honestPath": 612767,
+        "dispute": 2433720
+      },
+      "disputes": 1,
+      "disputeTxs": 38,
+      "outcome": "A cheating claim was challenged and proven wrong in one transaction; the honest claim then finalized.",
+      "txs": [
+        {
+          "what": "post job",
+          "tx": "0x8c75adfb5da685237bc456ccdeba59ae207c365434b73ba1130aaa4a0971bf2c",
+          "gas": 430756
+        },
+        {
+          "what": "wrong claim (cheat)",
+          "tx": "0xb959394b47e6523f6877da8b00395410cf6c19ab5ef74ac75967b6b867659677",
+          "gas": 142580
+        },
+        {
+          "what": "challenge",
+          "tx": "0x942b7927db797ff55d6d67dbc2a57b2a3fbe99616123c0bb704df9abac8550b5",
+          "gas": 133899
+        },
+        {
+          "what": "prove the wrong step",
+          "tx": "0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff",
+          "gas": 347509
+        },
+        {
+          "what": "honest claim",
+          "tx": "0x75779e7f684c3fbe11cd3b68142e726149da990d283c438fb528e784abcd66c9",
+          "gas": 125384
+        },
+        {
+          "what": "finalize",
+          "tx": "0x2c45bc0c13bf1a3c2234c98d1fa1665482c6ece5cb55e8b2bc57e50035a863c6",
+          "gas": 56627
+        }
+      ],
+      "source": "web/live-run.json"
+    },
+    {
+      "id": "196:1",
+      "chainId": 196,
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+      "jobId": 1,
+      "circuit": {
+        "processor": "0xb00e17789f905234f1890c22e6c01015c10d2f54",
+        "id": 11,
+        "name": "AlephTape",
+        "gates": 161080,
+        "nIn": 64,
+        "nOut": 70,
+        "nState": 0,
+        "owner": "0x65E9483960015EBDDC9EE37b184211E2802d9bcd"
+      },
+      "what": "One image through the 161,080-gate digit-recognition net",
+      "beats": 1,
+      "steps": 180640,
+      "status": "final",
+      "fee": "0.0001",
+      "bond": "0.001",
+      "directGas": 388354847,
+      "gas": {
+        "post": 2082094,
+        "claim": 105340,
+        "finalize": 56639,
+        "honestPath": 2244073,
+        "dispute": 4157974
+      },
+      "disputes": 1,
+      "disputeTxs": 38,
+      "outcome": "A cheating claim was challenged and proven wrong in one transaction; the honest claim then finalized.",
+      "txs": [
+        {
+          "what": "post job",
+          "tx": "0xe09c5980c522de487f0feefa2d770264ab79d405ac01bcbd832e80218bbf90a6",
+          "gas": 2082094
+        },
+        {
+          "what": "wrong claim (cheat)",
+          "tx": "0x4c74d868d71c94de7596f5d0cc91ca19c0c561a647193ee1010b737c5dd596c1",
+          "gas": 122464
+        },
+        {
+          "what": "challenge",
+          "tx": "0x981df02aa86d5f22e6864b6da28dc34e212b7607cfa984598d2e580cf108532e",
+          "gas": 136711
+        },
+        {
+          "what": "prove the wrong step",
+          "tx": "0x010a2a356747492df112b843c766111a806e454680a6f542eb529d0a963c9a3b",
+          "gas": 2065659
+        },
+        {
+          "what": "honest claim",
+          "tx": "0x32b5deb5500ebd8f8e27eac622196f6364c9e5c2cebc1bd098640dd2d1e65515",
+          "gas": 105340
+        },
+        {
+          "what": "finalize",
+          "tx": "0xcf992d6a5af2c575b2efa5c205bcae232413121a6e1ecc02230025a2d4021848",
+          "gas": 56639
+        }
+      ],
+      "source": "web/digits-live-run.json"
+    },
+    {
+      "id": "196:2",
+      "chainId": 196,
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+      "jobId": 2,
+      "circuit": {
+        "processor": "0xb00f10bb4b2f32c561bf90e205e543d0a2395971",
+        "id": 6,
+        "name": "OKspace",
+        "gates": 1437,
+        "nIn": 0,
+        "nOut": 4,
+        "nState": 205,
+        "owner": "0xA9B480C2694aa3F16cd109FCD2C91aCbf3BC689F"
+      },
+      "what": "10,000 beats of the 4-bit CPU running Fibonacci",
+      "beats": 10000,
+      "steps": 16440000,
+      "status": "final",
+      "fee": "0.00001",
+      "bond": "0.001",
+      "directGas": 34277810000,
+      "gas": {
+        "post": 633856,
+        "claim": 125588,
+        "finalize": 56639,
+        "honestPath": 816083,
+        "dispute": 3615122
+      },
+      "disputes": 1,
+      "disputeTxs": 50,
+      "outcome": "A cheating claim was challenged and proven wrong in one transaction; the honest claim then finalized.",
+      "txs": [
+        {
+          "what": "post job",
+          "tx": "0xe430e82304ce56a89dedb7331713a7385f6dc2ee3b6485cfd1456368977c694d",
+          "gas": 633856
+        },
+        {
+          "what": "wrong claim (cheat)",
+          "tx": "0x954ffb9796c91b131b4f091a2d82e07975e585aab3829b7544279c218fe8dab7",
+          "gas": 142688
+        },
+        {
+          "what": "challenge",
+          "tx": "0x6a0965c7f5bb63301eb4daff09936fa99f1c014a20add9507b8f4f6dbec15669",
+          "gas": 137287
+        },
+        {
+          "what": "prove the wrong step",
+          "tx": "0x3e14144d80a5322b228ab39f2b6b47cf90148f49186cd6bf2dcd6ba048f74937",
+          "gas": 887491
+        },
+        {
+          "what": "honest claim",
+          "tx": "0x437b3c4861d683038620812a272dad96e4ed9c1e7bbe270e507033d1de421015",
+          "gas": 125588
+        },
+        {
+          "what": "finalize",
+          "tx": "0xf9e3738e5cc9ce905197526b755579d2da0d416b6ba07d5cdbe0a717bfd2ea6d",
+          "gas": 56639
+        }
+      ],
+      "source": "web/cpu-live-run.json"
+    }
+  ],
+  "certificates": []
+}</script>
 <script>
-// "World": Overclock World, Red vs Blue on a shared 16x16 Game of Life (contracts/World.sol). Shows the live
-// board, lets you pick a team and buy cells with OKX Wallet (or any injected wallet), follows the epoch that is
-// running as an Overclock job, lets anyone move the world on for the keeper tip, and pays out won seasons.
-// No libraries: JSON-RPC and ABI by hand, like run.js. The network and selectors come from #world-config,
-// inlined by scripts/build-web.js.
+// The Floor, a page per circuit (#c/<processor>/<id>), the owner lookup (#owner) and the landing counters.
+// Two inputs, both inlined by scripts/build-web.js:
+//   #census-data  docs/census.json: every stuck machine and miner on X Layer mainnet, in compact rows.
+//   #runs-data    web/runs.json, the runner's index of runs and certificates (docs/runs-schema.md).
+// When the page is served over HTTP it also fetches runs.json (or the URL in <meta name="runs-url">) and
+// switches to that copy, so a fresh index updates the page with no rebuild. A circuit with no run is queued.
 (function () {
   const $ = (id) => document.getElementById(id);
-  let CFG = null;
-  try { CFG = JSON.parse($('world-config').textContent); } catch (e) { /* not inlined */ }
-  if (!CFG) { $('world').querySelector('.worldapp').innerHTML = '<p class="empty">Overclock World is not live on a network yet. It launches on X Layer mainnet; the contract and a full rehearsed season are in the repo.</p>'; return; }
-  const NET = CFG, SEL = CFG.sel, W = 16, H = 16, N = W * H, RED = 1, BLUE = 2, MAX = 12;
-  const ZERO = '0x0000000000000000000000000000000000000000';
-  const short = (a) => a.slice(0, 6) + '…' + a.slice(-4);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const okb = (wei) => { const v = Number(wei) / 1e18; return v === 0 ? '0' : v < 0.001 ? v.toFixed(5) : v.toFixed(4); };
-  const TEAM = { 1: 'Red', 2: 'Blue' };
+  const fmt = (n) => Math.round(n).toLocaleString('en-US');
+  const short = (a) => a.slice(0, 6) + '…' + a.slice(-4);
+  const GAS_PER_GATE = 2400, BLOCK_GAS = 210e6, GWEI = 0.02, EST_OC_GAS = 816083;
+  const EXPLORER = 'https://www.oklink.com/x-layer';
+  const STATUS = { queued: ['same', 'Queued'], running: ['warn', 'Running'], final: ['info', 'Final'], certified: ['ok', 'Certified'] };
+  const ADDR = /^0x[0-9a-fA-F]{40}$/;
+  const big = (n) => n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e4 ? `${(n / 1e3).toFixed(1)}K` : fmt(n);
+  const okb = (gas) => { const v = gas * GWEI * 1e-9; return v >= 1 ? fmt(v) : v >= 1e-3 ? v.toFixed(4) : v.toFixed(7).replace(/0+$/, ''); };
+  const keyOf = (cpu, id) => `${String(cpu).toLowerCase()}:${Number(id)}`;
+  const parse = (id) => { try { return JSON.parse($(id).textContent); } catch (e) { return null; } };
 
-  // ------------------------------------------------------------ chain reads
-  let nid = 0;
-  async function rpc(method, params) {
-    let err;
-    for (const url of NET.rpc) {
-      try {
-        const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++nid, method, params }) });
-        const b = await r.json();
-        if (b.error) throw new Error(b.error.message);
-        return b.result;
-      } catch (e) { err = e; }
+  // ------------------------------------------------------------ data
+  const census = parse('census-data');
+  let runsDoc = parse('runs-data');
+  const circuits = new Map(); // key → { key, cpu, id, name, owner, nIn, nOut, nState, gates, kind, shape }
+  const add = (c) => {
+    const k = keyOf(c.cpu, c.id);
+    if (circuits.has(k)) return circuits.get(k);
+    const gates = c.gates || 0;
+    const kind = gates * GAS_PER_GATE > BLOCK_GAS ? 'big' : c.name === 'FAB-Genisis' ? 'miner' : 'machine';
+    const o = { key: k, cpu: c.cpu, id: Number(c.id), name: c.name || '', owner: c.owner || '', nIn: c.nIn || 0, nOut: c.nOut || 0, nState: c.nState || 0, gates, kind, shape: `${gates}/${c.nIn || 0}/${c.nOut || 0}/${c.nState || 0}`, inCensus: !!c.inCensus };
+    circuits.set(k, o);
+    return o;
+  };
+  if (census && census.machines) {
+    const { procs, owners, rows } = census.machines;
+    for (const [p, id, o, nIn, nOut, nState, gates] of rows) add({ cpu: procs[p].a, name: procs[p].n, id, owner: owners[o], nIn, nOut, nState, gates, inCensus: true });
+  }
+
+  let runsBy = new Map(), certsBy = new Map(), stats = { run: 0, certs: 0, steps: 0, runs: 0 };
+  function index() {
+    runsBy = new Map(); certsBy = new Map();
+    const valid = runsDoc && runsDoc.schema === 1 && Array.isArray(runsDoc.runs);
+    const runs = valid ? runsDoc.runs : [], certs = valid && Array.isArray(runsDoc.certificates) ? runsDoc.certificates : [];
+    const touch = (c) => add({ cpu: c.processor, id: c.id, name: c.name, owner: c.owner, nIn: c.nIn, nOut: c.nOut, nState: c.nState, gates: c.gates });
+    const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+    for (const r of runs) { if (!r.circuit) continue; touch(r.circuit); push(runsBy, keyOf(r.circuit.processor, r.circuit.id), r); }
+    for (const x of certs) {
+      if (!x.circuit) continue;
+      touch(x.circuit); push(certsBy, keyOf(x.circuit.processor, x.circuit.id), x);
+      for (const c of x.covers || []) push(certsBy, keyOf(c.processor, c.id), x);
     }
-    throw err;
+    const finals = runs.filter((r) => r.status === 'final');
+    stats = { run: new Set(finals.map((r) => keyOf(r.circuit.processor, r.circuit.id))).size, runs: runs.length, certs: certs.filter((x) => x.status === 'certified').length, steps: finals.reduce((s, r) => s + (r.steps || 0), 0), valid };
   }
-  const word = (n) => BigInt(n).toString(16).padStart(64, '0');
-  const addr = (a) => word(BigInt(a));
-  const slot = (h, i) => h.slice(2 + 64 * i, 66 + 64 * i);
-  const big = (h, i) => BigInt('0x' + slot(h, i));
-  const num = (h, i) => Number(big(h, i));
-  const call = (to, data) => rpc('eth_call', [{ to, data }, 'latest']);
+  const runsOf = (c) => runsBy.get(c.key) || [];
+  const certsOf = (c) => certsBy.get(c.key) || [];
+  function statusOf(c) {
+    if (certsOf(c).some((x) => x.status === 'certified')) return 'certified';
+    const rs = runsOf(c);
+    if (rs.some((r) => r.status === 'final')) return 'final';
+    return rs.length ? 'running' : 'queued';
+  }
+  const explorer = (chainId) => (runsDoc && runsDoc.networks && runsDoc.networks[chainId] && runsDoc.networks[chainId].explorer) || (Number(chainId) === 1952 ? `${EXPLORER}-testnet` : EXPLORER);
+  const tag = (s) => `<span class="tag ${STATUS[s][0]}">${STATUS[s][1]}</span>`;
+  const circuitHref = (c) => `#c/${c.cpu}/${c.id}`;
+  const label = (c) => `${c.name || short(c.cpu)} #${c.id}`;
 
-  // ------------------------------------------------------------ state
-  let S = null; // the world as last read
-  let account = null, wallet = null, walletName = '';
-  let team = RED; // the team you are buying for
-  const picked = new Set(); // cells you are about to buy
-  let ahead = 0; // generations of forecast shown on the board
-  let busy = false;
+  // ------------------------------------------------------------ landing counters and the Floor
+  let filter = 'all';
+  function counters() {
+    const total = circuits.size;
+    const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+    set('cMachines', stats.valid ? fmt(stats.run) : '—');
+    set('cTotal', fmt(total));
+    set('cCerts', stats.valid ? fmt(stats.certs) : '—');
+    set('cSteps', stats.valid ? big(stats.steps) : '—');
+    const q = [...circuits.values()].reduce((n, c) => n + (statusOf(c) === 'queued'), 0);
+    $('floorSpecs').innerHTML = [
+      [stats.valid ? fmt(stats.run) : '—', `of ${fmt(total)} machines run`],
+      [stats.valid ? fmt(stats.certs) : '—', 'certificates issued'],
+      [stats.valid ? big(stats.steps) : '—', 'steps settled on X Layer'],
+      [fmt(q), 'queued: nothing has run them yet'],
+    ].map(([v, l]) => `<div class="spec"><span class="v">${v}</span><span class="label">${l}</span></div>`).join('');
+  }
 
-  async function read() {
-    const h = await call(NET.world, SEL.status + addr(account || ZERO));
-    const s = {
-      alive: big(h, 0), blue: big(h, 1), pendingAlive: big(h, 2), pendingBlue: big(h, 3), running: big(h, 4),
-      epoch: num(h, 5), season: num(h, 6), pot: big(h, 7), fuel: big(h, 8), myTeam: num(h, 9), myPlaced: num(h, 10), job: null,
-    };
-    if (s.running > 0n) {
-      const id = s.running - 1n;
-      const j = await call(NET.overclock, SEL.jobs + word(id));
-      s.job = { id, claimant: '0x' + slot(j, 13).slice(24), claimedAt: num(j, 17), challenged: num(j, 18) > 0, finalized: num(j, 19) === 1 };
-      if (!S || S.window == null) s.window = num(await call(NET.overclock, SEL.window), 0);
-      else s.window = S.window;
+  function renderFloor() {
+    const list = [...circuits.values()];
+    const count = { queued: 0, running: 0, final: 0, certified: 0 };
+    for (const c of list) count[statusOf(c)]++;
+    $('floorLegend').innerHTML = [['queued', 'var(--cell-off)'], ['running', 'var(--warn)'], ['final', 'var(--blue)'], ['certified', 'var(--accent)']]
+      .map(([s, col]) => `<span style="--k: ${col}">${STATUS[s][1].toLowerCase()} ${fmt(count[s])}</span>`).join('');
+    const cell = (c) => { const s = statusOf(c); return `<a class="cell s-${s}" href="${circuitHref(c)}" title="${esc(label(c))} · ${fmt(c.gates)} gates · ${s}" aria-label="${esc(label(c))}, ${fmt(c.gates)} gates, ${s}"></a>`; };
+    const miners = list.filter((c) => c.kind === 'miner'), machines = list.filter((c) => c.kind !== 'miner');
+    let html = '';
+    if (filter !== 'miner') {
+      machines.sort((a, b) => b.gates - a.gates);
+      html += `<section class="group"><div class="sec-head"><h2>Machines</h2><p class="label">${fmt(machines.length)} machines, biggest first</p></div><div class="cells">${machines.map(cell).join('')}</div></section>`;
     }
-    if (s.myTeam) team = s.myTeam;
-    return s;
-  }
-
-  // the board as 0 (dead) / 1 (red) / 2 (blue), from the contract's bitmasks
-  const cellsOf = (aliveMask, blueMask) => Array.from({ length: N }, (_, k) => ((aliveMask >> BigInt(k)) & 1n ? ((blueMask >> BigInt(k)) & 1n ? BLUE : RED) : 0));
-  // the plain-JS rule of the world circuit (src/world.js worldStep): Life, and a newborn takes its parents' majority colour
-  function step(cells) {
-    const out = new Array(N).fill(0);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      let live = 0, blues = 0;
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        if (!dx && !dy) continue;
-        const v = cells[((y + dy + H) % H) * W + ((x + dx + W) % W)];
-        if (v) live++;
-        if (v === BLUE) blues++;
-      }
-      const self = cells[y * W + x];
-      if (self && (live === 2 || live === 3)) out[y * W + x] = self;
-      else if (!self && live === 3) out[y * W + x] = blues >= 2 ? BLUE : RED;
+    if (filter !== 'machine') {
+      const shapes = new Map();
+      for (const c of miners) { if (!shapes.has(c.shape)) shapes.set(c.shape, []); shapes.get(c.shape).push(c); }
+      const groups = [...shapes.values()].sort((a, b) => b.length - a.length || b[0].gates - a[0].gates);
+      html += `<section class="group"><div class="sec-head"><h2>Miners, by shape</h2><p class="label">${fmt(miners.length)} FabX miner circuits in ${fmt(groups.length)} shapes. One certificate can cover a whole shape.</p></div>`
+        + groups.map((g) => {
+          const c0 = g[0], done = g.filter((c) => statusOf(c) === 'certified').length;
+          return `<div class="shape"><div class="shapehead"><b>${fmt(c0.gates)} gates</b><span class="muted">${fmt(c0.nIn)} in · ${fmt(c0.nOut)} out · ${fmt(c0.nState)} state bits</span><span class="label">${fmt(g.length)} circuit${g.length > 1 ? 's' : ''}${done ? ` · ${fmt(done)} certified` : ''}</span></div><div class="cells">${g.map(cell).join('')}</div></div>`;
+        }).join('') + '</section>';
     }
-    return out;
-  }
-  // what the next epoch starts from: the board with the bought cells dropped on
-  function nextStart(s) {
-    const board = cellsOf(s.alive, s.blue), pend = cellsOf(s.pendingAlive, s.pendingBlue);
-    return board.map((v, k) => pend[k] || v);
+    $('floorGrid').innerHTML = html;
+    for (const b of document.querySelectorAll('#floorFilters button')) b.setAttribute('aria-pressed', String(b.dataset.f === filter));
+    const note = $('floorNote');
+    if (census) note.textContent = `Circuits from the census of X Layer mainnet at block ${fmt(census.summary.block)}, plus anything the runner has run since. ${stats.valid ? `Runs index updated ${esc(runsDoc.updatedAt || 'unknown')}.` : 'No runs index loaded: every circuit shows as queued.'}`;
   }
 
-  // ------------------------------------------------------------ drawing
-  function draw() {
-    if (!S) return;
-    const now = cellsOf(S.alive, S.blue), pend = cellsOf(S.pendingAlive, S.pendingBlue);
-    let shown = now;
-    if (ahead > 0) { shown = nextStart(S); for (let g = 0; g < ahead; g++) shown = step(shown); }
-    const grid = $('wGrid');
-    if (!grid.children.length) {
-      for (let k = 0; k < N; k++) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.dataset.k = k;
-        b.setAttribute('aria-label', `cell ${k % W + 1}, ${Math.floor(k / W) + 1}`);
-        grid.appendChild(b);
-      }
-    }
-    for (let k = 0; k < N; k++) {
-      const el = grid.children[k];
-      const v = shown[k];
-      el.className = (v === RED ? 'r' : v === BLUE ? 'b' : '') + (ahead === 0 && pend[k] ? ' p' + pend[k] : '') + (picked.has(k) ? ' pick t' + team : '');
-      el.disabled = ahead > 0 || !!pend[k];
-    }
-    const sc = (cells) => [cells.filter((v) => v === RED).length, cells.filter((v) => v === BLUE).length];
-    const [r, b] = sc(now);
-    $('wRed').textContent = r;
-    $('wBlue').textContent = b;
-    const lead = $('wLead');
-    lead.className = 'lead ' + (r > b ? 'r' : b > r ? 'b' : '');
-    lead.textContent = r > b ? 'Red leads' : b > r ? 'Blue leads' : r ? 'Level' : 'Empty board';
-    const gen = S.epoch * NET.epochBeats;
-    $('wSeason').innerHTML = `Season ${S.season + 1} · generation ${gen} of ${NET.epochBeats * NET.epochsPerSeason} · pot <b>${okb(S.pot)} OKB</b>`;
-    $('wAheadLabel').textContent = ahead === 0 ? 'now' : `${ahead} generation${ahead > 1 ? 's' : ''} after the next drop`;
-    if (ahead > 0) { const [fr, fb] = sc(shown); $('wForecast').textContent = `If nobody buys anything else: Red ${fr}, Blue ${fb}.`; } else $('wForecast').textContent = '';
-    drawTeams();
-    drawBuy();
-    drawEpoch();
+  // ------------------------------------------------------------ a circuit
+  function costs(c, run) {
+    const beats = run ? run.beats : c.nState ? 1000 : 1;
+    const direct = run && run.directGas ? run.directGas : c.gates * GAS_PER_GATE * beats;
+    const oc = run && run.gas && run.gas.honestPath ? run.gas.honestPath : EST_OC_GAS;
+    const top = Math.max(direct, oc), w = (g) => `max(2px, ${(g / top * 100).toFixed(4)}%)`;
+    const ratio = direct / oc, blocks = direct / BLOCK_GAS;
+    return `<div class="costs">
+      <div class="cost"><span>Directly through TapeOut's <code>${c.nState ? 'step' : 'eval'}()</code></span><div class="track"><i class="${blocks > 1 ? 'over' : ''}" style="width:${w(direct)}"></i></div><b>${fmt(direct)} gas</b><span class="tag ${blocks > 1 ? 'bad' : 'warn'}">${blocks >= 1 ? `${blocks.toFixed(blocks < 10 ? 2 : 0)} blocks` : `${(blocks * 100).toFixed(1)}% of a block`} · ${okb(direct)} OKB</span></div>
+      <div class="cost"><span>Through Overclock, nobody cheats${run ? '' : ' (estimate)'}</span><div class="track"><i style="width:${w(oc)}"></i></div><b>${run ? '' : '≈ '}${fmt(oc)} gas</b><span class="tag ${ratio >= 1 ? 'ok' : 'same'}">${ratio >= 1 ? `${fmt(ratio)}× less` : 'direct is cheaper here'} · ${okb(oc)} OKB</span></div>
+    </div>
+    <p class="label">${run ? `Measured: the job's post, claim and finalize. Direct is ${run.directGas ? 'the measured or estimated cost of' : 'gates × beats × 2,400 gas for'} ${fmt(beats)} beat${beats > 1 ? 's' : ''} through TapeOut.` : `Nothing has run this circuit yet, so this compares ${fmt(beats)} beat${beats > 1 ? 's' : ''} directly (gates × beats × 2,400 gas) with the honest path of our three mainnet jobs (0.6M to 2.2M gas, whatever the beats).`} OKB at ${GWEI} gwei.</p>`;
   }
+  const txChips = (list, chainId) => list && list.length ? `<div class="txs">${list.map((t) => `<a href="${explorer(chainId)}/tx/${esc(t.tx)}" target="_blank" rel="noopener"><b>${esc(t.what)}</b> <span>${short(t.tx)}${t.gas ? ` · ${fmt(t.gas)} gas` : ''}</span></a>`).join('')}</div>` : '';
 
-  function drawTeams() {
-    const locked = S && S.myTeam;
-    for (const t of [RED, BLUE]) {
-      const el = $('wTeam' + t);
-      el.setAttribute('aria-pressed', String(team === t));
-      el.disabled = !!locked && locked !== t;
-    }
-    $('wTeamNote').textContent = locked ? `You are ${TEAM[locked]} this season, with ${S.myPlaced} cell${S.myPlaced === 1 ? '' : 's'} bought.` : 'You stay on one team for the whole season.';
-  }
-
-  function drawBuy() {
-    const n = picked.size;
-    const cost = BigInt(NET.cellPrice) * BigInt(n);
-    $('wBuy').disabled = !n || busy;
-    $('wBuy').textContent = n ? `Buy ${n} ${TEAM[team]} cell${n > 1 ? 's' : ''} for ${okb(cost)} OKB` : 'Tap empty or enemy cells to pick them';
-    $('wBuy').className = 'btn primary t' + team;
-    $('wPickNote').textContent = n >= MAX ? `${MAX} cells is the most in one go.` : n ? 'Half goes to the season pot, half pays for running the world.' : '';
-  }
-
-  function drawEpoch() {
-    const el = $('wEpoch'), btn = $('wAdvance');
-    const empty = S.alive === 0n && S.pendingAlive === 0n;
-    let text, can = false;
-    if (S.job) {
-      const j = S.job, jl = `<a href="#board">Overclock job ${j.id}</a>`;
-      if (j.finalized) { text = `Generations ${S.epoch * NET.epochBeats + 1}–${(S.epoch + 1) * NET.epochBeats} are final in ${jl}. The world can move on.`; can = true; }
-      else if (j.claimant === ZERO) text = `Generations ${S.epoch * NET.epochBeats + 1}–${(S.epoch + 1) * NET.epochBeats} are running off-chain as ${jl}, waiting for an operator to claim the result.`;
-      else {
-        const left = j.claimedAt + S.window - Math.floor(Date.now() / 1000);
-        text = j.challenged ? `${jl} was challenged: the contract is narrowing the dispute down to one gate.`
-          : left > 0 ? `${jl} is claimed by <a href="${NET.explorer}/address/${j.claimant}" target="_blank" rel="noopener">${short(j.claimant)}</a>. Anyone can prove it wrong for another ${Math.floor(left / 60)}m ${String(left % 60).padStart(2, '0')}s.`
-          : `${jl}'s challenge window is over; it is final once someone sends the finalize transaction.`;
-      }
-    } else if (empty) text = 'The board is empty. Buy the first cells and the season starts.';
-    else { text = 'Cells are waiting. The next epoch starts when someone moves the world on.'; can = true; }
-    if (S.epoch === NET.epochsPerSeason - 1 && S.job) text += ' This is the last epoch of the season.';
-    el.innerHTML = text;
-    btn.disabled = !can || !account || busy;
-    $('wFuel').textContent = `Whoever moves it on earns ${okb(NET.keeperTip)} OKB. Fuel left: ${okb(S.fuel)} OKB.`;
-  }
-
-  async function drawSeasons() {
-    const el = $('wSeasons');
-    if (!S || S.season === 0) { el.innerHTML = '<p class="label">No season has finished yet.</p>'; return; }
-    const rows = [];
-    for (let s = S.season - 1; s >= Math.max(0, S.season - 5); s--) {
-      const h = await call(NET.world, SEL.seasonInfo + word(s));
-      const info = { pot: big(h, 0), redPlaced: num(h, 1), bluePlaced: num(h, 2), winner: num(h, 3), red: num(h, 4), blue: num(h, 5) };
-      let mine = '';
-      if (account) {
-        const [t, p, c] = await Promise.all([SEL.teamOf, SEL.placedBy, SEL.claimed].map((sel) => call(NET.world, sel + word(s) + addr(account))));
-        const myT = num(t, 0), myP = num(p, 0), done = num(c, 0) === 1;
-        if (myT && info.winner === myT) {
-          const share = (info.pot * BigInt(myP)) / BigInt(myT === RED ? info.redPlaced : info.bluePlaced);
-          mine = done ? `<span class="tag ok">you were paid ${okb(share)} OKB</span>` : `<button type="button" class="btn primary" data-claim="${s}">Claim ${okb(share)} OKB</button>`;
-        } else if (myT) mine = `<span class="label">you played ${TEAM[myT]}</span>`;
-      }
-      const head = info.winner ? `<b class="${info.winner === RED ? 'tr' : 'tb'}">${TEAM[info.winner]} won</b>` : '<b>A draw</b>, the pot rolled over';
-      rows.push(`<li><span>Season ${s + 1}</span> ${head} · Red ${info.red}, Blue ${info.blue} · pot ${okb(info.pot)} OKB ${mine}</li>`);
-    }
-    el.innerHTML = `<ul class="seasons">${rows.join('')}</ul>`;
-    for (const b of el.querySelectorAll('[data-claim]')) b.onclick = () => send(SEL.claim + word(b.dataset.claim), 0n, 'Claiming your share…', 'Paid.');
-  }
-
-  // ------------------------------------------------------------ wallet (as in run.js)
-  const found = new Map();
-  addEventListener('eip6963:announceProvider', (e) => { found.set(e.detail.info.uuid, e.detail); drawWallet(); });
-  dispatchEvent(new Event('eip6963:requestProvider'));
-  setTimeout(() => {
-    if (!found.size) {
-      if (window.okxwallet) found.set('okx', { info: { name: 'OKX Wallet', icon: '' }, provider: window.okxwallet });
-      else if (window.ethereum) found.set('injected', { info: { name: 'Browser wallet', icon: '' }, provider: window.ethereum });
-    }
-    drawWallet();
-  }, 400);
-  function drawWallet() {
-    const el = $('wWallet');
-    if (account) { el.innerHTML = `<span class="tag ok">${esc(walletName)}</span> <code>${short(account)}</code>`; return; }
-    if (!found.size) {
-      const okx = 'https://www.okx.com/download?deeplink=' + encodeURIComponent('okx://wallet/dapp/url?dappUrl=' + encodeURIComponent(location.href));
-      el.innerHTML = `<a class="btn" href="${okx}">Open in OKX Wallet to play</a>`;
+  function renderCircuit(cpu, id) {
+    const el = $('circuitBody');
+    const c = ADDR.test(cpu) ? circuits.get(keyOf(cpu, id)) : null;
+    if (!c) {
+      document.title = 'Overclock · Circuit';
+      const link = ADDR.test(cpu) && id >= 1 ? `<a class="btn primary" href="#try?cpu=${esc(cpu)}&id=${id}&beats=1">Run it in your browser <span class="arr">→</span></a>` : '';
+      el.innerHTML = `<div class="intro"><a class="back" href="#floor">← The Floor</a><h1>Circuit not on the Floor</h1><p>${ADDR.test(cpu) ? `${short(cpu)} #${esc(id)} isn't in the census or the runner's index. It may have been taped out after the census, or the link may be wrong.` : 'That link is not a processor address and circuit ID.'}</p></div>${link ? `<div class="cta">${link}</div>` : ''}`;
       return;
     }
-    el.innerHTML = '';
-    for (const d of found.values()) {
+    const st = statusOf(c), runs = runsOf(c), certs = certsOf(c);
+    const run = runs.find((r) => r.status === 'final') || runs[runs.length - 1] || null;
+    const chain = run ? run.chainId : 196;
+    document.title = `Overclock · ${label(c)}`;
+    const peers = [...circuits.values()].filter((x) => x.shape === c.shape).length;
+    const beatGas = c.gates * GAS_PER_GATE;
+    const reach = beatGas > BLOCK_GAS ? `One beat costs ${(beatGas / BLOCK_GAS).toFixed(2)} blocks of gas: TapeOut can't run it even once in a transaction.` : `TapeOut can run ${fmt(Math.floor(BLOCK_GAS / beatGas))} beat${Math.floor(BLOCK_GAS / beatGas) > 1 ? 's' : ''} in a block.`;
+    const what = `${fmt(c.gates)} gates, ${fmt(c.nIn)} input${c.nIn === 1 ? '' : 's'}, ${fmt(c.nOut)} output${c.nOut === 1 ? '' : 's'}` + (c.nState ? `, ${fmt(c.nState)} bits of state: a machine that takes a step per beat.` : ', no state: one evaluation answers it.') + ' ' + reach
+      + (c.kind === 'miner' ? ` A FabX miner design: ${fmt(peers)} circuit${peers > 1 ? 's' : ''} on X Layer ${peers > 1 ? 'have' : 'has'} exactly this shape.` : peers > 1 ? ` ${fmt(peers)} circuits on X Layer share this shape.` : '');
+    const url = location.href.split('#')[0] + circuitHref(c);
+    const text = `${label(c)} on X Layer: ${STATUS[st][1].toLowerCase()} on Overclock`;
+    const owner = c.owner ? `<a href="#owner?addr=${c.owner}">${short(c.owner)}</a> <a class="muted" href="${EXPLORER}/address/${c.owner}" target="_blank" rel="noopener">explorer</a>` : '<span class="muted">not in the census</span>';
+    const runCards = runs.length ? runs.map((r) => `<div class="card">
+      <div class="top"><h3>Job ${r.jobId} <span class="dim">on ${esc((runsDoc.networks && runsDoc.networks[r.chainId] && runsDoc.networks[r.chainId].name) || 'chain ' + r.chainId)}</span></h3>${tag(r.status === 'final' ? 'final' : 'running')}</div>
+      <p class="muted">${esc(r.what || '')}</p>
+      <dl class="kv"><dt>Beats</dt><dd>${fmt(r.beats)}</dd><dt>Steps committed</dt><dd>${fmt(r.steps || 0)}</dd><dt>Fee · bond</dt><dd>${esc(r.fee || '?')} · ${esc(r.bond || '?')} OKB</dd>${r.disputes ? `<dt>Disputes</dt><dd>${fmt(r.disputes)}${r.disputeTxs ? ` (${fmt(r.disputeTxs)} transactions)` : ''}</dd>` : ''}<dt>Contract</dt><dd><a href="${explorer(r.chainId)}/address/${esc(r.overclock)}" target="_blank" rel="noopener">${short(r.overclock)}</a></dd></dl>
+      ${r.outcome ? `<p class="muted">${esc(r.outcome)}</p>` : ''}${txChips(r.txs, r.chainId)}</div>`).join('') : `<div class="card"><div class="top"><h3>Not run yet</h3>${tag('queued')}</div><p class="muted">Nothing has run this circuit. When the runner reaches it, its job, result and transactions appear here.</p></div>`;
+    const certCard = certs.length ? certs.map((x) => `<div class="card"><div class="top"><h3>Certificate</h3><span class="tag ${x.status === 'certified' ? 'ok' : 'bad'}">${x.status === 'certified' ? 'Certified' : 'Failed'}</span></div>
+      <p class="muted">${x.mismatches === 0 ? `This design matched its reference on all ${fmt(x.inputs)} inputs, settled as an Overclock job.` : `${fmt(x.mismatches)} mismatch${x.mismatches > 1 ? 'es' : ''} in ${fmt(x.inputs)} inputs${x.firstFailingInput ? `; first failing input ${esc(x.firstFailingInput)}` : ''}.`}</p>
+      <dl class="kv">${x.reference ? `<dt>Reference</dt><dd>${esc(x.reference.name || short(x.reference.processor))} #${x.reference.id}</dd>` : ''}<dt>Inputs checked</dt><dd>${fmt(x.inputs)}</dd><dt>Mismatches</dt><dd>${fmt(x.mismatches)}</dd>${x.runId ? `<dt>Job</dt><dd>${esc(x.runId)}</dd>` : ''}</dl>${txChips(x.txs, x.chainId || chain)}</div>`).join('')
+      : `<div class="card"><div class="top"><h3>Certificate</h3><span class="tag same">None yet</span></div><p class="muted">A certificate says a design matches its reference on every input, settled on X Layer as a finalized job anyone can read. None has been issued for this circuit${c.kind === 'miner' ? `; miner certificates are issued per shape, and this shape has ${fmt(peers)} circuit${peers > 1 ? 's' : ''}` : ''}.</p></div>`;
+    el.innerHTML = `
+      <div class="intro"><a class="back" href="#floor">← The Floor</a><div class="titlerow"><h1>${esc(c.name || short(c.cpu))} <span class="dim">#${c.id}</span></h1>${tag(st)}</div>
+        <p class="label"><a href="${EXPLORER}/address/${c.cpu}" target="_blank" rel="noopener">${short(c.cpu)}</a>${c.inCensus ? '' : ' · not in the census snapshot'}</p></div>
+      <div class="specs"><div class="spec"><span class="v">${fmt(c.gates)}</span><span class="label">gates per beat</span></div><div class="spec"><span class="v">${fmt(c.nState)}</span><span class="label">state bits</span></div><div class="spec"><span class="v">${run ? fmt(run.beats) : '0'}</span><span class="label">beats run</span></div><div class="spec"><span class="v">${run ? big(runs.filter((r) => r.status === 'final').reduce((s, r) => s + (r.steps || 0), 0)) : '0'}</span><span class="label">steps settled</span></div></div>
+      <section><div class="sec-head"><h2>What it is</h2></div><div class="card"><p>${esc(what)}</p><dl class="kv"><dt>Owner</dt><dd>${owner}</dd><dt>Processor</dt><dd><code>${c.cpu}</code></dd><dt>Circuit</dt><dd>#${c.id}</dd></dl>
+        <div class="row"><a class="btn" href="#try?cpu=${c.cpu}&id=${c.id}&beats=${c.nState ? 1000 : 1}">Run it in your browser <span class="arr">→</span></a></div></div></section>
+      <section><div class="sec-head"><h2>Current state</h2></div>${runCards}</section>
+      <section><div class="sec-head"><h2>Certificate</h2></div>${certCard}</section>
+      <section><div class="sec-head"><h2>Direct cost vs Overclock</h2></div><div class="card">${costs(c, run)}</div></section>
+      <section><div class="sec-head"><h2>Share</h2></div><div class="card"><div class="row"><code class="grow" id="shareUrl">${esc(url)}</code></div>
+        <div class="row"><button type="button" class="btn" id="shareCopy">Copy link</button><a class="btn" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}" target="_blank" rel="noopener">Post on X</a><a class="btn" href="https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}" target="_blank" rel="noopener">Telegram</a></div></div></section>`;
+  }
+
+  // ------------------------------------------------------------ owner lookup
+  let ownerAddr = '';
+  function renderOwner(addr, quiet) {
+    const out = $('ownerOut'), note = $('ownerNote');
+    addr = (addr || '').trim();
+    out.innerHTML = ''; note.textContent = ''; note.classList.remove('bad');
+    if (!addr) return;
+    if (!ADDR.test(addr)) { note.textContent = 'That is not an address: 0x and 40 hex digits.'; note.classList.add('bad'); return; }
+    ownerAddr = addr;
+    const mine = [...circuits.values()].filter((c) => c.owner && c.owner.toLowerCase() === addr.toLowerCase()).sort((a, b) => b.gates - a.gates);
+    if (!quiet) history.replaceState(null, '', `#owner?addr=${addr}`);
+    if (!mine.length) {
+      out.innerHTML = `<div class="card"><h3>No circuits on the Floor for ${short(addr)}</h3><p class="muted">The census covers the circuits a block can't run (snapshot at block ${census ? fmt(census.summary.block) : '?'}). If this address taped one out since, paste its processor and ID in <a href="#try">Your circuit</a>.</p></div>`;
+      return;
+    }
+    const by = { queued: 0, running: 0, final: 0, certified: 0 };
+    for (const c of mine) by[statusOf(c)]++;
+    const runs = mine.flatMap((c) => runsOf(c).map((r) => [c, r])), certs = mine.flatMap((c) => certsOf(c).filter((x) => x.status === 'certified').map((x) => [c, x]));
+    const SHOW = 50, more = mine.length - SHOW;
+    const row = (c) => `<tr><td><a class="ev" href="${circuitHref(c)}"><b>${esc(c.name || short(c.cpu))}</b> <span class="muted">#${c.id}</span></a></td><td class="num">${fmt(c.gates)}</td><td class="num">${fmt(c.nState)}</td><td>${tag(statusOf(c))}</td></tr>`;
+    out.innerHTML = `
+      <div class="specs"><div class="spec"><span class="v">${fmt(mine.length)}</span><span class="label">circuits on the Floor</span></div><div class="spec"><span class="v">${fmt(runs.length)}</span><span class="label">runs</span></div><div class="spec"><span class="v">${fmt(certs.length)}</span><span class="label">certificates</span></div><div class="spec"><span class="v">${fmt(by.queued)}</span><span class="label">queued</span></div></div>
+      <section><div class="sec-head"><h2>Your circuits</h2><p class="label"><a href="${EXPLORER}/address/${addr}" target="_blank" rel="noopener">${short(addr)}</a></p></div>
+        <div class="log"><table class="trylist"><thead><tr><th>Circuit</th><th class="num">Gates</th><th class="num">State bits</th><th>Status</th></tr></thead><tbody id="ownerRows">${mine.slice(0, SHOW).map(row).join('')}</tbody></table></div>
+        ${more > 0 ? `<div class="row"><button type="button" id="ownerMore">Show the other ${fmt(more)}</button></div>` : ''}</section>
+      ${runs.length ? `<section><div class="sec-head"><h2>Runs</h2></div><div class="log"><table class="trylist"><thead><tr><th>Circuit</th><th>Job</th><th>Result</th><th class="num">Gas, Overclock vs direct</th></tr></thead><tbody>${runs.map(([c, r]) => `<tr><td><a class="ev" href="${circuitHref(c)}">${esc(label(c))}</a></td><td>${r.jobId}</td><td>${tag(r.status === 'final' ? 'final' : 'running')}</td><td class="num">${r.gas && r.gas.honestPath ? fmt(r.gas.honestPath) : '?'} vs ${r.directGas ? fmt(r.directGas) : '?'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}
+      ${certs.length ? `<section><div class="sec-head"><h2>Certificates</h2></div><div class="log"><table class="trylist"><thead><tr><th>Circuit</th><th class="num">Inputs checked</th><th class="num">Mismatches</th></tr></thead><tbody>${certs.map(([c, x]) => `<tr><td><a class="ev" href="${circuitHref(c)}">${esc(label(c))}</a></td><td class="num">${fmt(x.inputs)}</td><td class="num">${fmt(x.mismatches)}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+    const btn = $('ownerMore');
+    if (btn) btn.addEventListener('click', () => { $('ownerRows').innerHTML = mine.map(row).join(''); btn.remove(); });
+  }
+
+  // The wallet is found by run.js (window.OCWallet); without it, fall back to whatever the browser injects.
+  const wallets = () => {
+    if (window.OCWallet) return window.OCWallet.wallets();
+    const w = window.okxwallet ? { info: { name: 'OKX Wallet' }, provider: window.okxwallet } : window.ethereum ? { info: { name: 'Browser wallet' }, provider: window.ethereum } : null;
+    return w ? [w] : [];
+  };
+  function drawOwnerWallet() {
+    const el = $('ownerWallet'), list = wallets();
+    if (!list.length) { el.innerHTML = '<p class="label">No wallet in this browser. Paste an address above, or open this page in OKX Wallet.</p>'; return; }
+    el.innerHTML = '<div class="row"></div>';
+    for (const d of list) {
       const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn';
-      b.innerHTML = (d.info.icon ? `<img alt="" src="${esc(d.info.icon)}">` : '') + 'Connect ' + esc(d.info.name);
-      b.onclick = () => connect(d);
-      el.appendChild(b);
+      b.type = 'button'; b.className = 'btn';
+      b.textContent = `Connect ${d.info.name}`;
+      b.onclick = async () => {
+        try { const [a] = await d.provider.request({ method: 'eth_requestAccounts' }); $('ownerInput').value = a; renderOwner(a); } catch (e) { $('ownerNote').textContent = e.code === 4001 ? 'You declined it in your wallet.' : (e.message || String(e)); $('ownerNote').classList.add('bad'); }
+      };
+      el.firstChild.appendChild(b);
     }
-  }
-  async function ensureChain() {
-    if (Number(await wallet.request({ method: 'eth_chainId' })) === NET.chainId) return;
-    try { await wallet.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: NET.chain.chainId }] }); }
-    catch (e) {
-      if (e.code === 4902 || (e.data && e.data.originalError && e.data.originalError.code === 4902)) await wallet.request({ method: 'wallet_addEthereumChain', params: [NET.chain] });
-      else throw e;
-    }
-  }
-  async function connect(d) {
-    try {
-      wallet = d.provider; walletName = d.info.name;
-      const [a] = await wallet.request({ method: 'eth_requestAccounts' });
-      await ensureChain();
-      account = a;
-      drawWallet();
-      await refresh();
-      drawSeasons();
-    } catch (e) { setStatus(e.message || String(e), true); }
   }
 
-  // ------------------------------------------------------------ transactions
-  function setStatus(text, bad) { const s = $('wStatus'); s.innerHTML = text; s.classList.toggle('bad', !!bad); }
-  async function send(data, value, waiting, done) {
-    if (!account) return setStatus('Connect a wallet first.', true);
-    busy = true; draw();
-    try {
-      await ensureChain();
-      setStatus('Approve it in your wallet…');
-      const tx = { from: account, to: NET.world, data, value: '0x' + value.toString(16) };
-      const gas = BigInt(await rpc('eth_estimateGas', [tx]));
-      const hash = await wallet.request({ method: 'eth_sendTransaction', params: [{ ...tx, gas: '0x' + ((gas * 13n) / 10n).toString(16) }] });
-      setStatus(waiting);
-      let rc = null;
-      for (let i = 0; i < 120 && !rc; i++) { rc = await rpc('eth_getTransactionReceipt', [hash]).catch(() => null); if (!rc) await sleep(1500); }
-      if (!rc) throw new Error('Sent, but not seen on-chain yet. Check your wallet.');
-      if (rc.status !== '0x1') throw new Error('The transaction failed on-chain.');
-      setStatus(`${done} <a href="${NET.explorer}/tx/${hash}" target="_blank" rel="noopener">See it on OKLink</a>`);
-      return rc;
-    } catch (e) {
-      setStatus(e.code === 4001 ? 'You declined it in your wallet. Nothing was sent.' : reason(e), true);
-      return null;
-    } finally {
-      busy = false;
-      await refresh();
-      drawSeasons();
+  // ------------------------------------------------------------ routing and wiring
+  function route() {
+    const h = location.hash, base = h.split('?')[0];
+    if (base.startsWith('#c/')) { const [, cpu, id] = base.split('/'); renderCircuit(cpu, Number(id)); }
+    else if (base === '#owner') {
+      const a = new URLSearchParams(h.split('?')[1] || '').get('addr');
+      if (a && a !== ownerAddr) { $('ownerInput').value = a; renderOwner(a, true); }
     }
   }
-  const REASONS = { taken: 'Someone bought one of those cells for the next epoch first.', 'one team a season': 'You are on the other team this season.', fuel: 'The world is out of fuel. Anyone can top it up.', 'empty world': 'There is nothing on the board to run.' };
-  function reason(e) {
-    const m = (e && (e.message || e.data?.message)) || String(e);
-    for (const [k, v] of Object.entries(REASONS)) if (m.includes(k)) return v;
-    return m;
-  }
-  async function buy() {
-    const mask = [...picked].reduce((m, k) => m | (1n << BigInt(k)), 0n);
-    const n = picked.size;
-    const rc = await send(SEL.place + word(team) + word(mask), BigInt(NET.cellPrice) * BigInt(n), 'Buying your cells…', `Bought ${n} cell${n > 1 ? 's' : ''}. They drop onto the board when the next epoch starts.`);
-    if (rc) { picked.clear(); draw(); }
-  }
+  function refresh() { index(); counters(); renderFloor(); route(); }
 
-  // ------------------------------------------------------------ wire up
-  async function refresh() {
-    try { S = await read(); draw(); }
-    catch (e) { setStatus(`Couldn't read the world: ${esc(e.message || e)}`, true); }
-  }
-  $('wGrid').addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (!b || b.disabled) return;
-    const k = Number(b.dataset.k);
-    if (picked.has(k)) picked.delete(k);
-    else if (picked.size < MAX) picked.add(k);
-    draw();
+  $('floorFilters').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (b) { filter = b.dataset.f; renderFloor(); } });
+  $('ownerForm').addEventListener('submit', (e) => { e.preventDefault(); renderOwner($('ownerInput').value); });
+  $('circuitBody').addEventListener('click', async (e) => {
+    if (e.target.id !== 'shareCopy') return;
+    try { await navigator.clipboard.writeText($('shareUrl').textContent); e.target.textContent = 'Copied'; setTimeout(() => { e.target.textContent = 'Copy link'; }, 1500); } catch (err) { /* clipboard blocked */ }
   });
-  for (const t of [RED, BLUE]) $('wTeam' + t).addEventListener('click', () => { team = t; draw(); });
-  $('wBuy').addEventListener('click', buy);
-  $('wAdvance').addEventListener('click', async () => {
-    const was = S.season, last = S.job && S.epoch === NET.epochsPerSeason - 1;
-    const rc = await send(SEL.advance, 0n, 'Moving the world on…', last ? 'Done: the season is over.' : 'Done: the next epoch is posted as an Overclock job.');
-    if (rc && S.season !== was) setStatus(`Season ${was + 1} is over. The result is below${NET.container ? ', and the world announced it over TapeSend' : ''}. <a href="${NET.explorer}/tx/${rc.transactionHash}" target="_blank" rel="noopener">See it on OKLink</a>`);
-  });
-  $('wAhead').max = String(NET.epochBeats);
-  $('wAhead').addEventListener('input', () => { ahead = Number($('wAhead').value); draw(); });
-  $('wContract').href = `${NET.explorer}/address/${NET.world}`;
-  $('wNet').textContent = NET.name;
-  if (NET.container) $('wContainer').innerHTML = ` · the world's own account <a href="${NET.explorer}/address/${NET.container}" target="_blank" rel="noopener">${short(NET.container)}</a> posts every epoch and announces each season over TapeSend`;
-  $('wRules').textContent = `Every ${NET.epochBeats} generations are one Overclock job; ${NET.epochsPerSeason} jobs make a season. A cell costs ${okb(NET.cellPrice)} OKB.`;
+  addEventListener('hashchange', route);
+  addEventListener('oc:account', (e) => { $('ownerInput').value = e.detail; });
+  addEventListener('eip6963:announceProvider', () => setTimeout(drawOwnerWallet, 450));
+  refresh();
+  drawOwnerWallet();
+  setTimeout(drawOwnerWallet, 600);
 
-  let timer = null;
-  const live = () => location.hash.split('?')[0] === '#world';
-  async function tick() {
-    if (!live()) { timer = null; return; }
-    await refresh();
-    timer = setTimeout(tick, 5000);
+  // Live index: only over HTTP (a file: page keeps the inlined copy), and never at the cost of a working page.
+  const meta = document.querySelector('meta[name="runs-url"]');
+  async function pull() {
+    try {
+      const r = await fetch(meta ? meta.content : 'runs.json', { cache: 'no-store' });
+      const d = await r.json();
+      if (d && d.schema === 1 && Array.isArray(d.runs)) { runsDoc = d; refresh(); }
+    } catch (e) { /* keep what we have */ }
   }
-  const start = () => { if (live() && !timer) { tick(); drawSeasons(); } };
-  addEventListener('hashchange', start);
-  start();
+  if (/^https?:$/.test(location.protocol)) { pull(); setInterval(pull, 60000); }
 })();
 </script>
 <script>
