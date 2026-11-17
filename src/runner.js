@@ -68,7 +68,7 @@ export function buildQueue(census) {
 
 /// Beats for a plain run: past what one block allows (twice as many, plus one), but never more
 /// than `maxSteps` trace leaves. null when even one beat is over the cap.
-export function planBeats(item, { maxSteps = 100_000_000, mult = 2 } = {}) {
+export function planBeats(item, { maxSteps = 20_000_000, mult = 2 } = {}) {
   const perBeat = item.gates + item.nState;
   const cap = Math.floor(maxSteps / Math.max(1, perBeat));
   if (cap < 1) return null;
@@ -142,10 +142,10 @@ export class Runner {
   constructor({
     oc, signer, provider, source = null, mode = 'mirror', local = null, queue, statePath, runsPath, refs = {},
     fee = parseEther('0.00001'), floor = parseEther('0.0005'), reserve = parseEther('0.0003'), maxPerDay = parseEther('0.01'),
-    maxSteps = 100_000_000, parallel = 1, attempts = 3, pollMs = 5000, stream = { above: 2 ** 27 }, settle = null,
+    maxSteps = 20_000_000, parallel = 1, attempts = 3, pollMs = 5000, stuckLimit = 30, stream = { above: 2 ** 27 }, settle = null,
     log = () => {}, sleep = (ms) => new Promise((ok) => setTimeout(ok, ms)), clock = () => Date.now(), limit = Infinity, only = null,
   }) {
-    Object.assign(this, { oc, signer, provider, source, mode, local, refs, fee, floor, reserve, maxPerDay, maxSteps, parallel, attempts, pollMs, stream, settle, sleep, clock });
+    Object.assign(this, { oc, signer, provider, source, mode, local, refs, fee, floor, reserve, maxPerDay, maxSteps, parallel, attempts, pollMs, stuckLimit, stream, settle, sleep, clock });
     this.queue = queue.filter((q) => !only || only.has(q.key)).slice(0, limit);
     this.statePath = statePath;
     this.runsPath = runsPath;
@@ -172,6 +172,7 @@ export class Runner {
     this.chainId = chainId;
     this.overclock = overclock;
     this.window = Number(await this.oc.window());
+    this.st.lastAdj ??= (await this.adjusted()).toString();
     this.save();
   }
 
@@ -181,9 +182,13 @@ export class Runner {
 
   /// Spend = fall in (balance + bonds we have locked). Fees count in full, even though a job we
   /// claim ourselves pays most of it back: the cap is a ceiling, not a forecast.
-  async account() {
+  async adjusted() {
     const locked = Object.values(this.st.items).reduce((s, it) => s + (it.phase === 'claimed' && it.claimedByMe ? BigInt(it.bond) : 0n), 0n);
-    const adj = (await this.balance()) + locked;
+    return (await this.balance()) + locked;
+  }
+
+  async account() {
+    const adj = await this.adjusted();
     const last = this.st.lastAdj == null ? adj : BigInt(this.st.lastAdj);
     if (adj < last) this.st.days[this.day()] = (BigInt(this.st.days[this.day()] ?? 0) + last - adj).toString();
     this.st.lastAdj = adj.toString();
@@ -249,6 +254,11 @@ export class Runner {
       const msg = e.shortMessage ?? e.message;
       this.log({ what: `error in ${it.phase}: ${msg}`, key: it.key, error: true });
       it.error = msg;
+      it.stuck = (it.stuck ?? 0) + 1;
+      if (it.stuck >= this.stuckLimit && it.phase !== 'new' && it.phase !== 'mirrored') {
+        it.phase = 'failed'; // a job nobody can move: stop retrying, keep its record
+        this.log({ what: `gave up after ${it.stuck} errors`, key: it.key });
+      }
       // before a job exists a failure is retried a few times, then the item is given up on;
       // after that the job is on chain and has to be seen through
       if (it.phase === 'new' || it.phase === 'mirrored') {
@@ -260,6 +270,7 @@ export class Runner {
 
   async advance(it) {
     const q = this.queue.find((c) => c.key === it.key);
+    it.stuck = 0;
     if (it.phase === 'new') await this.prepare(it, q);
     if (it.phase === 'mirrored') await this.post(it, q);
     else if (it.phase === 'posted' || it.phase === 'claimed') await this.operate(it, q);
@@ -357,7 +368,7 @@ export class Runner {
   async post(it, q) {
     const target = it.bench ? { processor: it.bench.processor, id: it.bench.id } : it.design;
     it.target = target;
-    if (it.scanFrom == null) { it.scanFrom = Number(await this.oc.jobCount()); this.save(); }
+    if (it.scanFrom == null) { it.scanFrom = Number(await this.oc.jobCount()); it.postBlock = await this.provider.getBlockNumber(); this.save(); }
     let jobId = await this.findPosted(it, target);
     if (jobId == null) {
       const rc = await this.send(it, 'posts the job', 'postJob', target.processor, target.id, it.inputs, it.state, it.beats, false, { value: this.fee });
@@ -370,6 +381,7 @@ export class Runner {
     this.st.lastBond = it.bond;
     const c = await loadCircuit(this.provider, target.processor, target.id, this.circuits);
     it.steps = layout(c, it.beats).n;
+    it.directGas = c.nGates * it.beats * GAS_PER_GATE;
     it.postedAt = new Date(this.clock()).toISOString();
     it.phase = 'posted';
     this.record(it, q);
@@ -484,12 +496,12 @@ export class Runner {
     const final = it.phase === 'final' || it.phase === 'done';
     const perBlock = q.beatsPerBlock < 1 ? 'more than one block allows' : `${q.beatsPerBlock} a block allows`;
     const run = {
-      id: `${this.chainId}:${it.jobId}`, chainId: this.chainId, overclock: (this.oc.target ?? this.overclock).toString(), jobId: it.jobId,
+      id: `${this.chainId}:${it.jobId}`, chainId: this.chainId, overclock: String(this.oc.target), jobId: it.jobId,
       circuit: { processor: q.processor, id: q.id, name: q.name, gates: q.gates, nIn: q.nIn, nOut: q.nOut, nState: q.nState, owner: q.owner },
       what: bench ? `Proof of Design: ${q.name} #${q.id} against its reference on all ${it.beats} inputs${where}` : `${it.beats} beats of ${q.name} #${q.id}, past the ${perBlock}${where}`,
       beats: it.beats, steps: it.steps, status: final ? 'final' : it.phase === 'claimed' && (it.disputes ?? 0) > 0 && !final ? 'challenged' : it.phase,
       fee: formatEther(this.fee), bond: formatEther(BigInt(it.bond)),
-      directGas: (bench ? benchSize(benchCircuit(bench.design, bench.reference), (a, i) => this.circuits.get(refKey(a, i))).gates : q.gates) * it.beats * GAS_PER_GATE,
+      directGas: it.directGas,
       gas: { ...Object.fromEntries(Object.entries(gas).filter(([, g]) => g != null)), ...(known ? { honestPath: gas.post + gas.claim + gas.finalize } : {}), ...(it.disputeGas ? { dispute: it.disputeGas } : {}) },
       ...(it.disputes ? { disputes: it.disputes, disputeTxs: it.disputeTxs } : {}),
       txs: it.txs.map(({ what, tx, gas: g }) => ({ what, tx, ...(g != null ? { gas: g } : {}) })),
@@ -544,7 +556,7 @@ export async function runnerFromEnv({ env = process.env, opts = {}, log = () => 
     queue: buildQueue(census),
     statePath: path('RUNNER_STATE', `runner-state-${chainId}.json`), runsPath: path('RUNNER_RUNS', 'web/runs.json'),
     fee: eth('RUNNER_FEE', '0.00001'), floor: eth('RUNNER_FLOOR', '0.0005'), reserve: eth('RUNNER_RESERVE', '0.0003'), maxPerDay: eth('RUNNER_MAX_PER_DAY', '0.01'),
-    maxSteps: num('RUNNER_MAX_STEPS', 100_000_000), parallel: num('RUNNER_PARALLEL', 1), pollMs: num('RUNNER_POLL_MS', 5000),
+    maxSteps: num('RUNNER_MAX_STEPS', 20_000_000), parallel: num('RUNNER_PARALLEL', 1), pollMs: num('RUNNER_POLL_MS', 5000),
     stream: env.RUNNER_STREAM_DIR ? { above: 2 ** 27, dir: env.RUNNER_STREAM_DIR } : { above: 2 ** 27 },
     ...opts,
   });

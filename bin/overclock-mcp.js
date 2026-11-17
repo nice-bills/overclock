@@ -95,6 +95,15 @@ if (env('OVERCLOCK_OPERATOR_KEY') && ctx.overclock) {
   })();
 }
 
+// OVERCLOCK_RUNNER=1 (with RUNNER_KEY, see scripts/runner.js): also run the census runner here, next to the
+// built-in operator, resuming from RUNNER_STATE. Point RUNNER_STATE and RUNNER_RUNS at a persistent disk.
+if (env('OVERCLOCK_RUNNER') === '1' && ctx.overclock && env('RUNNER_KEY')) {
+  const { runnerFromEnv } = await import('../src/runner.js');
+  runnerFromEnv({ env: { ...process.env, RPC_URL, OVERCLOCK: ctx.overclock }, log: (e) => console.error(`overclock-mcp: runner ${e.what}${e.tx ? ` ${e.tx}` : ''}`) })
+    .then((r) => r.run({ watch: true }))
+    .catch((e) => console.error('overclock-mcp: runner stopped:', e.shortMessage ?? e.message));
+}
+
 // stdio: the approval page gets its own localhost server, started (and opened) the first time it is needed
 if (wallet && !http) {
   let opened = false;
