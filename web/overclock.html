@@ -599,7 +599,7 @@ footer a:hover { color: var(--ink); }
       <div class="pinout" id="pinout">
         <div class="pr" data-step="0"><span>1</span><b>POST</b><p>Name any taped-out circuit, a starting state and a number of beats. Attach a fee.</p></div>
         <div class="pr" data-step="1"><span>2</span><b>CLAIM</b><p>An operator runs it off-chain and posts the result with a Merkle root over every wire value, plus a bond.</p></div>
-        <div class="pr lie" data-step="2"><span>3</span><b>CHALLENGE</b><p>A watcher re-runs it for free. If the roots differ, both sides halve the trace until one step is left.</p></div>
+        <div class="pr lie" data-step="2"><span>3</span><b>CHALLENGE</b><p>A watcher re-runs it for free. If the roots differ, both sides narrow the trace, sixteen ways a move, until one step is left.</p></div>
         <div class="pr lie" data-step="4"><span>4</span><b>RESOLVE</b><p>The contract recomputes that NAND, LATCH or REF wire from the circuit's on-chain netlist. The liar loses the bond.</p></div>
         <div class="pr" data-step="5"><span>5</span><b>FINALIZE</b><p>Nobody challenged in the window: the result is final and the operator is paid.</p></div>
       </div>
@@ -701,11 +701,11 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 
     <section>
       <div class="sec-head">
-        <h2>Halving <span id="leafCount">1,817,800</span> steps down to one</h2>
-        <p>Each row zooms into the half where the two runs disagree.</p>
+        <h2>Narrowing <span id="leafCount">1,817,800</span> steps down to one</h2>
+        <p>Each row zooms into the part where the two runs disagree: a half per move on the first contract (this mainnet run), a sixteenth per move on v2.</p>
       </div>
       <div class="card">
-        <div class="legend"><span style="--k: var(--ink)">half that disagrees</span><span style="--k: var(--lie)">the wrong step</span></div>
+        <div class="legend"><span style="--k: var(--ink)">part that disagrees</span><span style="--k: var(--lie)">the wrong step</span></div>
         <div class="ladder" id="ladder"></div>
         <div class="verdict" id="verdict"></div>
       </div>
@@ -2525,6 +2525,10 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 // eth_getLogs 100 blocks at a time, so the page starts from a snapshot of past events (built by
 // scripts/snapshot-board.js), scans the recent blocks itself, and finds any claim or dispute move it is
 // still missing from the timestamp the contract stores with it.
+//
+// It reads both contracts: the one on mainnet (binary dissection: Revealed carries two hashes, one bond for
+// every job) and v2 (16-way dissection: Revealed16 carries 2..16 hashes, a per-job bond, forced errors and a
+// slashed pool). v2's extra getters revert on the old contract, which is how the page tells them apart.
 (function () {
   const $ = (id) => document.getElementById(id);
   const DEFAULT = '0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710';
@@ -2548,12 +2552,17 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     '0x855a507ff28d8878749a77d14a518c4f45c7cf33584d042add002377c34f46b4': 'Claimed',
     '0xa5f8c369e0214ca8253e5f7a94be7e6296f76d2e0283d76f7759115c6f042411': 'Challenged',
     '0xcceeb83fe4f7352f8b511ab8816c6f3f37a73798c028f0019b52b1b12a60b4d6': 'Revealed',
+    '0x737b6966f713900c33ff9b56c29861c0bfc33f4ecc3b15668543725fc1960f97': 'Revealed16',
     '0x58bdb6a4f5f57c8cf3969bd320a3b34eca94998006fbc5feb273673b58d2ba04': 'Picked',
     '0xd8179ddf1c6a596713a2d7c20badda9e2caa45386409d1018fa6a6cee92be6cf': 'Resolved',
     '0x3ab77fd700217c820f33729d7e838d9e2741993bc1ad9c3c147d361efc2edf1d': 'Finalized',
     '0x1e1c1e4e68a25c69a078a396e73975691c071d69ef789015dc16a562957804e4': 'Continued',
+    '0xf38216123a46ec04d2dd2c2b0da14c0b3de431230f0cdb559088afa77df28f44': 'ForcedCommitted',
+    '0xd42603e02ef3a103b8da1e362bf46534130713f1479ee2270008844474c0454a': 'ForcedCaught',
+    '0x01643d94bf889bce39cb2cb79e7ca42d241d8015bfcc45c400be7e51e2b697a7': 'ForcedRevealed',
   };
-  const SEL = { jobCount: '0x4c5d8a0f', gameCount: '0x4d1975b4', bond: '0x64c9ec6f', window: '0x461645bf', feeBps: '0x24a9d853', jobs: '0x180aedf3', games: '0x117a5b90' };
+  const MOVES = new Set(['Revealed', 'Revealed16', 'Picked']);
+  const SEL = { jobCount: '0x4c5d8a0f', gameCount: '0x4d1975b4', bond: '0x64c9ec6f', window: '0x461645bf', feeBps: '0x24a9d853', jobs: '0x180aedf3', games: '0x117a5b90', slashed: '0x0a1ca632', bondBps: '0x761d4a39', forcedRunner: '0xbd476cb0' };
 
   // ------------------------------------------------------------ JSON-RPC
   let node = 0, nid = 0;
@@ -2566,11 +2575,14 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       return await r.json();
     } finally { clearTimeout(t); }
   }
-  // [[method, params], ...] → results, five per request, falling over to the next node on any error.
+  // [[method, params, optional?], ...] → results, five per request, falling over to the next node on any error.
+  // An optional call that reverts (a getter the old contract lacks) gives null instead of an error.
+  const REVERTED = /revert|invalid opcode/i;
   async function batch(calls) {
     const out = [];
     for (let i = 0; i < calls.length; i += 5) {
-      const part = calls.slice(i, i + 5).map(([method, p]) => ({ jsonrpc: '2.0', id: ++nid, method, params: p }));
+      const slice = calls.slice(i, i + 5);
+      const part = slice.map(([method, p]) => ({ jsonrpc: '2.0', id: ++nid, method, params: p }));
       let res = null, err = null;
       for (let k = 0; k < NODES.length && !res; k++) {
         const n = (node + k) % NODES.length;
@@ -2579,9 +2591,9 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
           if (!Array.isArray(b)) b = [b];
           const by = new Map(b.map((r) => [r.id, r]));
           const rs = part.map((q) => by.get(q.id));
-          const bad = rs.find((r) => !r || r.error);
+          const bad = rs.find((r, k) => !r || (r.error && !(slice[k][2] && REVERTED.test(r.error.message || ''))));
           if (bad) throw new Error(bad && bad.error ? bad.error.message : 'incomplete reply');
-          res = rs.map((r) => r.result);
+          res = rs.map((r) => (r.error ? null : r.result));
           node = n;
         } catch (e) { err = e; }
       }
@@ -2592,6 +2604,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   }
   const hex = (n) => '0x' + n.toString(16);
   const call = (data) => ['eth_call', [{ to: CONTRACT, data }, 'latest']];
+  const callOpt = (data) => [...call(data), true];
   const arg = (n) => BigInt(n).toString(16).padStart(64, '0');
 
   // ------------------------------------------------------------ ABI decoding
@@ -2603,6 +2616,10 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     const off = num(h, i) * 2;
     const len = Number(BigInt('0x' + h.slice(2 + off, 66 + off)));
     return '0x' + h.slice(66 + off, 66 + off + len * 2);
+  };
+  const hashes = (h, i) => {
+    const off = num(h, i) * 2, n = Number(BigInt('0x' + h.slice(2 + off, 66 + off)));
+    return Array.from({ length: n }, (_, k) => '0x' + h.slice(66 + off + 64 * k, 130 + off + 64 * k));
   };
   const utf8 = (h) => new TextDecoder().decode(new Uint8Array((h.slice(2).match(/../g) || []).map((b) => parseInt(b, 16))));
   const ZERO = '0x0000000000000000000000000000000000000000';
@@ -2629,11 +2646,14 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       case 'JobPosted': return { ...e, jobId: t1, cpu: addr(d, 0), id: uint(d, 1), beats: num(d, 2) };
       case 'Claimed': return { ...e, jobId: t1, who: addr(d, 0), traceRoot: '0x' + word(d, 1) };
       case 'Challenged': return { ...e, jobId: t1, gameId: t2, who: addr(d, 0) };
-      case 'Revealed': return { ...e, gameId: t1, level: num(d, 0), index: uint(d, 1) };
+      case 'Revealed': return { ...e, gameId: t1, level: num(d, 0), index: uint(d, 1), nodes: ['0x' + word(d, 2), '0x' + word(d, 3)] };
+      case 'Revealed16': return { ...e, gameId: t1, level: num(d, 0), index: uint(d, 1), nodes: hashes(d, 2) };
       case 'Picked': return { ...e, gameId: t1, level: num(d, 0), index: uint(d, 1) };
       case 'Resolved': return { ...e, jobId: t1, gameId: t2, who: addr(d, 0), reason: utf8(bytesAt(d, 1)) };
       case 'Finalized': return { ...e, jobId: t1 };
       case 'Continued': return { ...e, jobId: t1, parentJobId: t2 };
+      case 'ForcedCommitted': case 'ForcedRevealed': return { ...e, jobId: t1 };
+      case 'ForcedCaught': return { ...e, jobId: t1, gameId: t2, who: addr(d, 0), jackpot: uint(d, 1) };
     }
     return null;
   }
@@ -2738,16 +2758,21 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
   let last = null;
   function render(d) {
     last = d;
-    const { jobs, games, bond, window: win, feeBps } = d;
+    const { jobs, games, bond, window: win, feeBps, v2 } = d;
+    // v2 asks a job's bond: the minimum plus a share of its fee; the old contract asks the minimum for every job
+    const bondOf = (j) => (v2 ? bond + j.fee * BigInt(v2.bondBps) / 10000n : bond);
     const events = [...store.logs.values()].map(decodeLog).filter(Boolean).sort((a, b) => a.block - b.block || a.i - b.i);
     const byJob = new Map(), byGame = new Map();
     for (const e of events) {
-      if (e.jobId != null && e.name !== 'Revealed' && e.name !== 'Picked') (byJob.get(e.jobId) || byJob.set(e.jobId, []).get(e.jobId)).push(e);
+      if (e.jobId != null) (byJob.get(e.jobId) || byJob.set(e.jobId, []).get(e.jobId)).push(e);
       if (e.gameId != null) (byGame.get(e.gameId) || byGame.set(e.gameId, []).get(e.gameId)).push(e);
     }
     const gameOf = new Map(games.map((g) => [g.gameId, g]));
     const resolved = events.filter((e) => e.name === 'Resolved');
-    const caught = resolved.filter((e) => gameOf.get(e.gameId) && e.who.toLowerCase() === gameOf.get(e.gameId).challenger.toLowerCase());
+    const forcedCaught = new Map(events.filter((e) => e.name === 'ForcedCaught').map((e) => [e.gameId, e]));
+    const challengerWon = (e) => { const g = gameOf.get(e.gameId); return !!g && e.who.toLowerCase() === g.challenger.toLowerCase(); };
+    const stale = (e) => /^claim already overturned/.test(e.reason); // a refund, not a catch
+    const caught = resolved.filter((e) => challengerWon(e) && !stale(e) && !forcedCaught.has(e.gameId));
     const finals = jobs.filter((j) => j.finalized);
     const paid = finals.reduce((a, j) => a + j.fee, 0n);
     const live = games.filter((g) => g.level !== 255 && g.deadline !== 0);
@@ -2755,7 +2780,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     $('liveSpecs').innerHTML = [
       [fmt(jobs.length), 'jobs posted'],
       [fmt(finals.length), 'finalized'],
-      [fmt(caught.length), live.length ? `cheats caught · ${live.length} dispute${live.length > 1 ? 's' : ''} live` : 'cheats caught'],
+      [fmt(caught.length), ['cheats caught', forcedCaught.size ? `${forcedCaught.size} forced error${forcedCaught.size > 1 ? 's' : ''} caught` : '', live.length ? `${live.length} dispute${live.length > 1 ? 's' : ''} live` : ''].filter(Boolean).join(' · ')],
       [okb(paid).replace(' OKB', '<small> OKB</small>'), 'fees paid out'],
     ].map(([v, k]) => `<div class="spec"><span class="v">${v}</span><span class="label">${k}</span></div>`).join('');
 
@@ -2786,12 +2811,20 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
         if (e.name === 'JobPosted') links.push(txLink(e.tx, 'posted'));
         else if (e.name === 'Continued') links.push(txLink(e.tx, `continues #${e.parentJobId}`));
         else if (e.name === 'Claimed') { pending = links.length; links.push(txLink(e.tx, 'claimed')); }
+        else if (e.name === 'ForcedCommitted') links.push(txLink(e.tx, 'runner committed'));
+        else if (e.name === 'ForcedRevealed') {
+          if (pending != null) links[pending] = links[pending].replace('<b>claimed</b>', '<b>forced claim</b>');
+          links.push(txLink(e.tx, 'forced error revealed, bond refunded', 'ok'));
+        } else if (e.name === 'ForcedCaught') links.push(txLink(e.tx, `forced error caught · jackpot ${okb(e.jackpot)}`, 'ok'));
         else if (e.name === 'Challenged') links.push(txLink(e.tx, `challenged · game ${e.gameId}`, 'lie'));
         else if (e.name === 'Resolved') {
-          const g = gameOf.get(e.gameId);
-          const challengerWon = g && e.who.toLowerCase() === g.challenger.toLowerCase();
-          if (challengerWon && pending != null) links[pending] = links[pending].replace('<b>claimed</b>', '<b>wrong claim</b>').replace('class=""', 'class="lie"');
-          links.push(txLink(e.tx, challengerWon ? 'cheat caught' : 'claim upheld', challengerWon ? 'ok' : ''));
+          if (forcedCaught.has(e.gameId)) { // its ForcedCaught link above is this transaction
+            if (pending != null) links[pending] = links[pending].replace('<b>claimed</b>', '<b>forced claim</b>');
+          } else {
+            const won = challengerWon(e) && !stale(e);
+            if (won && pending != null) links[pending] = links[pending].replace('<b>claimed</b>', '<b>wrong claim</b>').replace('class=""', 'class="lie"');
+            links.push(txLink(e.tx, stale(e) ? 'refunded' : won ? 'cheat caught' : 'claim upheld', won ? 'ok' : ''));
+          }
         } else if (e.name === 'Finalized') links.push(txLink(e.tx, 'finalized', 'ok'));
       }
       const square = j.nState > 0 && j.nState <= 4096 && Number.isInteger(Math.sqrt(j.nState));
@@ -2802,6 +2835,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
           <dt>Circuit</dt><dd>#${j.id} on ${aLink(j.cpu)}</dd>
           <dt>Run</dt><dd>${fmt(j.beats)} beat${j.beats === 1 ? '' : 's'} · ${fmt(j.beats * (j.flat + j.nState))} steps</dd>
           <dt>Fee</dt><dd>${okb(j.fee)}</dd>
+          ${v2 ? `<dt>Bond</dt><dd>${okb(bondOf(j))}</dd>` : ''}
           ${j.parent ? `<dt>Continues</dt><dd>job ${j.parent - 1}</dd>` : ''}
           <dt>Operator</dt><dd>${j.claimant !== ZERO ? aLink(j.claimant) : 'none yet'}</dd>
           ${until}
@@ -2818,24 +2852,33 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       const ev = byGame.get(g.gameId) || [];
       const res = ev.find((e) => e.name === 'Resolved');
       const start = ev.find((e) => e.name === 'Challenged');
-      const moves = ev.filter((e) => e.name === 'Revealed' || e.name === 'Picked');
+      const moves = ev.filter((e) => MOVES.has(e.name));
+      const fc = forcedCaught.get(g.gameId);
       const open = g.level !== 255 && g.deadline !== 0;
       const where = open ? `level ${g.level} · ${TURN[g.turn] || 'settling'} · ${countdown(g.deadline)} left` : `${moves.length} moves`;
       let outcome = 'open';
-      if (res) outcome = `${res.who.toLowerCase() === g.challenger.toLowerCase() ? '<span class="tag ok">cheat caught</span>' : '<span class="tag warn">claim upheld</span>'} ${esc(res.reason)}`;
+      if (res) {
+        const won = challengerWon(res);
+        // v2 splits the loser's bond: half to the winner, half to the slashed pool (none of it on a refund or a forced error)
+        const split = v2 && !stale(res) && !fc ? ' <small>half the loser\'s bond slashed</small>' : '';
+        const tagged = fc ? `<span class="tag ok">forced error caught</span> jackpot ${okb(fc.jackpot)}` : stale(res) ? '<span class="tag same">refunded</span>' : won ? '<span class="tag ok">cheat caught</span>' : '<span class="tag warn">claim upheld</span>';
+        outcome = `${tagged} ${esc(res.reason)}${split}`;
+      }
       else if (!open) outcome = 'settled';
-      const moveLinks = moves.map((e) => txLink(e.tx, `${e.name === 'Revealed' ? 'reveal' : 'pick'} L${e.level}`)).join('');
+      const moveLinks = moves.map((e) => txLink(e.tx, `${e.name === 'Picked' ? 'pick' : 'reveal'} L${e.level}`)).join('');
       const txs = [start ? txLink(start.tx, 'challenge', 'lie') : '', moves.length ? `<details><summary>${moves.length} moves</summary><div class="txs">${moveLinks}</div></details>` : '', res ? txLink(res.tx, 'resolve', 'ok') : ''].join('');
       return `<tr><td>${g.gameId}</td><td>${g.jobId}</td><td>${aLink(g.challenger)}</td><td>${where}</td><td>${outcome}</td><td><div class="txs">${txs}</div></td></tr>`;
     }).join('') || '<tr><td colspan="6" class="empty">No disputes yet. Every claim so far has gone unchallenged or been upheld.</td></tr>';
 
-    const LABEL = { JobPosted: 'job posted', Claimed: 'claimed', Challenged: 'challenged', Revealed: 'revealed', Picked: 'picked', Resolved: 'resolved', Finalized: 'finalized', Continued: 'continued' };
+    const LABEL = { JobPosted: 'job posted', Claimed: 'claimed', Challenged: 'challenged', Revealed: 'revealed', Revealed16: 'revealed', Picked: 'picked', Resolved: 'resolved', Finalized: 'finalized', Continued: 'continued', ForcedCommitted: 'runner committed', ForcedCaught: 'forced error caught', ForcedRevealed: 'forced error revealed' };
     const detail = (e) => {
       switch (e.name) {
         case 'JobPosted': return `job ${e.jobId} · circuit #${e.id} · ${fmt(e.beats)} beats`;
         case 'Claimed': return `job ${e.jobId} by ${aLink(e.who)}`;
         case 'Challenged': return `job ${e.jobId} by ${aLink(e.who)} · game ${e.gameId}`;
-        case 'Revealed': case 'Picked': return `game ${e.gameId} · level ${e.level}`;
+        case 'Revealed': case 'Revealed16': case 'Picked': return `game ${e.gameId} · level ${e.level}${e.nodes ? ` · ${e.nodes.length} nodes` : ''}`;
+        case 'ForcedCommitted': case 'ForcedRevealed': return `job ${e.jobId}`;
+        case 'ForcedCaught': return `job ${e.jobId} · ${aLink(e.who)} earns ${okb(e.jackpot)}`;
         case 'Resolved': return `job ${e.jobId} · ${aLink(e.who)} wins · ${esc(e.reason)}`;
         case 'Finalized': return `job ${e.jobId}`;
         case 'Continued': return `job ${e.jobId} continues job ${e.parentJobId}`;
@@ -2845,7 +2888,7 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     // a run of bisection moves in one game reads as one row
     const rows = [];
     for (const e of events) {
-      const move = e.name === 'Revealed' || e.name === 'Picked';
+      const move = MOVES.has(e.name);
       const prev = rows.at(-1);
       if (move && prev && prev.moves && prev.gameId === e.gameId) { prev.moves++; prev.last = e; continue; }
       rows.push(move ? { moves: 1, gameId: e.gameId, last: e } : { last: e });
@@ -2853,11 +2896,18 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     $('feedNote').title = gapNote;
     $('feed').innerHTML = rows.slice(-8).reverse().map((r) => {
       const e = r.last, t = store.times[e.block];
-      const what = r.moves ? (r.moves === 1 ? LABEL[e.name] : 'bisection') : LABEL[e.name];
+      const what = r.moves ? (r.moves === 1 ? LABEL[e.name] : 'dissection') : LABEL[e.name];
       const info = r.moves && r.moves > 1 ? `game ${e.gameId} · ${r.moves} moves, down to level ${e.level}` : detail(e);
       return `<tr><td title="${t ? new Date(t * 1000).toISOString() : ''}">${t ? ago(t) : 'block ' + fmt(e.block)}</td><td><a class="ev" href="${EXPLORER}/tx/${e.tx}">${what}</a></td><td>${info}</td><td><a href="${EXPLORER}/tx/${e.tx}" title="${e.tx}">${e.tx.slice(0, 10)}</a></td></tr>`;
     }).join('') || '<tr><td colspan="4" class="empty">No events found yet.</td></tr>';
-    $('feedNote').textContent = `Bond ${okb(bond)} · ${dur(win)} challenge window · ${(feeBps / 100).toFixed(feeBps % 100 ? 1 : 0)}% protocol fee`;
+    const pct = (bps) => (bps / 100).toFixed(bps % 100 ? 1 : 0) + '%';
+    $('feedNote').textContent = [
+      v2 ? `Bond ${okb(bond)} + ${pct(v2.bondBps)} of the fee` : `Bond ${okb(bond)}`,
+      `${dur(win)} challenge window`,
+      `${pct(feeBps)} protocol fee`,
+      v2 ? `${okb(v2.slashed)} slashed` : '',
+      v2 && v2.runner !== ZERO ? `forced errors by ${short(v2.runner)}` : '',
+    ].filter(Boolean).join(' · ');
   }
 
   setInterval(() => {
@@ -2874,8 +2924,9 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
     busy = true;
     $('liveRefresh').disabled = true;
     try {
-      const [headBlock, jc, gc, bond, win, feeBps] = await batch([
+      const [headBlock, jc, gc, bond, win, feeBps, slashed, bondBps, runner] = await batch([
         ['eth_getBlockByNumber', ['latest', false]], call(SEL.jobCount), call(SEL.gameCount), call(SEL.bond), call(SEL.window), call(SEL.feeBps),
+        callOpt(SEL.slashed), callOpt(SEL.bondBps), callOpt(SEL.forcedRunner),
       ]);
       const head = { n: Number(headBlock.number), t: Number(headBlock.timestamp) };
       headTs = head.t; headAt = Date.now();
@@ -2886,7 +2937,9 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
       const res = await batch(calls);
       const jobs = res.slice(0, nJobs).map(decodeJob);
       const games = res.slice(nJobs).map(decodeGame);
-      const d = { jobs, games, bond: uint(bond, 0), window: num(win, 0), feeBps: num(feeBps, 0) };
+      const isV2 = !!slashed && slashed.length > 2 && !!bondBps && bondBps.length > 2;
+      const v2 = isV2 ? { slashed: uint(slashed, 0), bondBps: num(bondBps, 0), runner: runner && runner.length > 2 ? addr(runner, 0) : ZERO } : null;
+      const d = { jobs, games, bond: uint(bond, 0), window: num(win, 0), feeBps: num(feeBps, 0), v2 };
       render(d);
       $('liveDot').className = 'dot on';
       $('liveStatus').textContent = `Live · block ${fmt(head.n)} · finding transactions…`;
@@ -4123,7 +4176,7 @@ return { NAND, LATCH, REF, hexToBytes, bytesToHex, decode, load, beat, pack, unp
     return ga === gz ? `gen ${ga}, steps ${fmt(a)}–${fmt(z)}` : `gens ${ga}–${Math.min(gz, run.beats)}`;
   }
 
-  // ladder: each row shows the parent span split in two
+  // ladder: each row shows the part of the parent span the claimant's node disagrees on (a half, or a sixteenth on v2)
   const rows = [];
   let parent = { from: 0, to: 2 ** run.trace.depth - 1, level: run.trace.depth };
   for (const st of run.steps) {

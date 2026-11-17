@@ -100,7 +100,7 @@ before(async () => {
   boardId = Number((await tapeout(cpu.circuits, bd)).id);
   cellC = load(cell.netlist, 9, 1);
   bdC = load(bd.netlist, 0, W * H, () => cellC);
-  oc = await deploy('Overclock', parseEther('1'), WINDOW, await factory.getAddress(), owner.address, 200, 0, 0, '0x0000000000000000000000000000000000000000');
+  oc = await deploy('Overclock', parseEther('1'), WINDOW, await factory.getAddress(), owner.address, 200, 5000, 0, '0x0000000000000000000000000000000000000000'); // a job's bond is 1 + half its fee
   start = board(W, H, [[PATTERNS.glider, 0, 0]]);
 
   client = new Client({ name: 'overclock-test', version: '1.0.0' });
@@ -126,6 +126,9 @@ test('transactions wait for a connected wallet; no private key needed', async ()
     assert.ok(names.includes(n), n);
   let info = await call('overclock_info');
   assert.equal(info.bond, '1.0');
+  assert.equal(info.bondShareOfFeeBps, 5000);
+  assert.equal(info.slashedPool, '0.0');
+  assert.equal(info.forcedErrorRunner, null);
   assert.equal(info.challengeWindowSeconds, WINDOW);
   assert.equal(info.wallet.connected, false);
 
@@ -198,7 +201,9 @@ test('creates a processor and tapes out circuits through tools, minting the tran
 
 test('post, claim, verify and finalize a job through tools', async () => {
   const { jobId } = await call('post_job', { processor: cpuAddr, circuitId: boardId, beats: 6, state: bytesToHex(pack(start)), fee: '0.05' });
-  assert.equal((await call('get_job', { jobId })).status, 'open');
+  const open = await call('get_job', { jobId });
+  assert.equal(open.status, 'open');
+  assert.equal(open.bond, '1.025', 'bondFor: the minimum plus half of the 0.05 fee');
   const c = await call('claim_job', { jobId });
   assert.equal(c.claimant, me);
   assert.equal((await call('verify_claim', { jobId })).verdict, 'correct');
@@ -250,6 +255,8 @@ test('challenge_claim catches a cheat down to one gate and takes the bond', asyn
   if (loopError) throw loopError;
   assert.equal(res.openDisputes.length, 0);
   assert.ok(actions.some((a) => a.fn === 'resolveLeaf'), 'proved the wrong step');
+  assert.ok(actions.some((a) => a.fn === 'pick16'), 'played the sixteen-way dissection');
+  assert.equal((await call('overclock_info')).slashedPool, '0.5125', 'half of the cheat\'s 1.025 bond went to the slashed pool');
   const j = await call('get_job', { jobId });
   assert.equal(j.status, 'open', 'the wrong claim was thrown out and the job reopened');
   assert.ok((await provider.getBalance(me)) > before, 'the challenger won the cheat\'s bond');

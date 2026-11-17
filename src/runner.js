@@ -401,7 +401,6 @@ export class Runner {
         },
       });
       op.only = new Set([it.jobId]);
-      op._bond = BigInt(it.bond); // Operator reads bond() otherwise, which a per-job bond contract lacks
       this.ops.set(it.key, op);
     }
     return this.ops.get(it.key);

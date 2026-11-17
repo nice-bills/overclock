@@ -9,7 +9,7 @@ import ganache from 'ganache';
 import { BrowserProvider, ContractFactory, parseEther } from 'ethers';
 import { load, pack, unpack, hexToBytes, bytesToHex } from '../src/tap02.js';
 import { layout, traceJob, Tree } from '../src/trace.js';
-import { depsOf, Bisector } from '../src/game.js';
+import { depsOf, Bisector, revealNodes, span } from '../src/game.js';
 import { Builder } from '../src/hdl.js';
 import { Operator, Challenger } from '../src/agents.js';
 import { cpuCircuit, toState, fibonacciMachine, cpuRun } from '../src/cpu4.js';
@@ -220,17 +220,16 @@ test('an honest streamed claim survives a challenge from a griefer who bisects a
     assert.equal((await oc.jobs(jobId)).traceRoot, claimed.root, 'the operator claimed the streamed root');
     const fakeLeaf = 25_000;
     const fake = await StreamTrace.build(c, { state: toState(m0), beats: BEATS, fault: fakeLeaf, workers: 2 });
-    const rc0 = await (await oc.connect(watcherS).challenge(jobId, { value: parseEther('1') })).wait();
+    const rc0 = await (await oc.connect(watcherS).challenge(jobId, { value: await oc.bondFor(jobId) })).wait();
     const gameId = rc0.logs.map((l) => oc.interface.parseLog(l)).find((e) => e?.name === 'Challenged').args.gameId;
     const bis = new Bisector(fake);
     let level = claimed.depth, index = 0;
     while (level > 0) {
-      const left = claimed.node(level - 1, 2 * index), right = claimed.node(level - 1, 2 * index + 1);
-      await (await oc.connect(honestS).reveal(gameId, left, right)).wait();
-      const goLeft = bis.choose(level, index, left, right);
-      await (await oc.connect(watcherS).pick(gameId, !goLeft)).wait();
-      index = 2 * index + (goLeft ? 0 : 1);
-      level--;
+      await (await oc.connect(honestS).reveal16(gameId, revealNodes(claimed, level, index))).wait();
+      const which = bis.choose(level, index, [...(await oc.pending(gameId))]);
+      await (await oc.connect(watcherS).pick16(gameId, which)).wait();
+      index = index * 2 ** span(level) + which;
+      level -= span(level);
     }
     assert.equal(index, fakeLeaf);
     const deps = depsOf(c, index, BEATS).map((pos) => ({ pos, bit: fake.leaf(pos), siblings: bis.siblings(pos, index) }));

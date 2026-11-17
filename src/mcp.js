@@ -56,10 +56,10 @@ export const MACHINES = {
 export function createServer(ctx) {
   const server = new McpServer({ name: 'overclock', version: '0.4.0' }, {
     instructions: [
-      'Overclock runs circuits on X Layer that are far too big for one block: someone runs the job off-chain and posts the result with a bond, and anyone who finds it wrong can prove the one wrong gate on-chain and take the bond.',
+      'Overclock runs circuits on X Layer that are far too big for one block: someone runs the job off-chain and posts the result with a bond, and anyone who finds it wrong can prove the one wrong gate on-chain and take half the bond (the other half goes to the treasury).',
       'Users speak plainly. Ready-made machines need no addresses or hex: machine "life" (8x8 Game of Life; pattern glider, blinker, toad, lwss or rpentomino; beats = generations) and machine "cpu" (Fibonacci on a 4-bit CPU). For "show me", "try it" or "what would happen", use run_locally: it is free and instant. Use post_job only when they want it done on-chain.',
       'Transactions: call the tool directly, with no setup step. Within seconds it either returns the result or returns status "waiting for approval" with an approve link. Show that link to the user as one tappable link, say it opens their wallet (OKX Wallet or MetaMask) to approve, and that on a phone they can use phone.openInOkxWalletApp instead. When they say they approved (or after a short while), call transaction_status with the requestId. Never ask for a private key or seed phrase.',
-      'Before a paid action, say in one line what it costs (post_job: the fee, default 0.0001 OKB, plus a little gas).',
+      'Before a paid action, say in one line what it costs (post_job: the fee, default 0.0001 OKB, plus a little gas; claim_job and challenge_claim lock the job\'s bond, shown by get_job, which comes back with the winnings if the user is right).',
       'Overclock World (when the network has one): a shared Red vs Blue Game of Life. world_status shows the board, world_forecast tries a move for free, world_place buys cells, world_advance moves it on, world_claim collects winnings. Show boards exactly as given, in a code block.',
       'Amounts are OKB as decimal strings. Raw bit vectors are TAP-02 packed hex (bit i is (byte[i>>3] >> (i&7)) & 1); only needed for circuits other than the ready-made machines.',
     ].join('\n'),
@@ -86,9 +86,21 @@ export function createServer(ctx) {
     return { processor: m.processor, circuitId: m.circuitId, state: a.state ?? bytesToHex(pack(m.state(a))), m };
   };
   const now = async () => Number((await ctx.provider.send('eth_getBlockByNumber', ['latest', false])).timestamp);
+  // v2-only getters revert on the old mainnet contract (0xe29F...E710, which still reads fine here), so they are optional
+  const opt = async (f) => { try { return await f(); } catch { return null; } };
   const params = async () => (ctx.params ??= {
     bond: await oc.bond(), window: Number(await oc.window()), feeBps: Number(await oc.feeBps()), factory: await oc.factory(),
+    bondBps: await opt(async () => Number(await oc.bondBps())), runner: await opt(() => oc.forcedRunner()), maxLeafGas: await opt(async () => (await oc.maxLeafGas()).toString()),
   });
+  // What claiming, challenging or disputing this job puts at stake: v2 asks the minimum plus a share of the job's fee, the old contract the minimum.
+  const jobBond = async (jobId) => { const p = await params(); return p.bondBps === null ? p.bond : oc.bondFor(jobId); };
+  // a claim under a forced-error commitment waits a second window before anyone but the runner can finalize it
+  const underForced = async (jobId) => {
+    const p = await params();
+    if (p.bondBps === null) return false;
+    const at = await oc.forcedAt(jobId);
+    return at !== 0n && at === (await oc.claimCount(jobId));
+  };
 
   function status(j, t, window) {
     if (j.finalized) return 'final';
@@ -101,10 +113,13 @@ export function createServer(ctx) {
     const j = await readJob(oc, jobId);
     const { window } = await params();
     const t = await now();
+    const forced = j.claimant !== ZERO && !j.finalized && (await underForced(jobId));
+    const wait = forced ? 2 * window : window; // the runner itself can finalize after one window
     return {
-      jobId: Number(jobId), status: status(j, t, window), processor: j.cpu, circuitId: Number(j.id), beats: j.beats,
+      jobId: Number(jobId), status: status(j, t, wait), processor: j.cpu, circuitId: Number(j.id), beats: j.beats,
       fee: formatEther(j.fee), claimant: j.claimant === ZERO ? null : j.claimant,
       challengeWindowEndsIn: j.claimant !== ZERO && !j.finalized ? Math.max(0, j.claimedAt + window - t) : null,
+      ...(forced ? { finalizableIn: Math.max(0, j.claimedAt + wait - t), note: 'the forced-error runner committed to this claim: it is final for anyone else only after two challenge windows' } : {}),
     };
   }
 
@@ -112,7 +127,7 @@ export function createServer(ctx) {
 
   ocTool('overclock_info', {
     title: 'Overclock deployment',
-    description: 'Network, contract addresses, bond, challenge window, protocol fee, number of jobs, and the configured wallet (if any).',
+    description: 'Network, contract addresses, the minimum bond (a job\'s bond is that plus bondShareOfFeeBps of its fee; get_job shows it), challenge window, protocol fee, the slashed pool, the forced-error runner, number of jobs, and the configured wallet (if any).',
     inputSchema: {},
   }, safe(async () => {
     const p = await params();
@@ -120,6 +135,10 @@ export function createServer(ctx) {
     return {
       chainId: Number(net.chainId), block: await ctx.provider.getBlockNumber(), overclock: ctx.overclock,
       tapeoutFactory: p.factory, bond: formatEther(p.bond), challengeWindowSeconds: p.window, protocolFeeBps: p.feeBps,
+      ...(p.bondBps === null ? { note: 'an earlier contract version: one bond for every job, binary disputes, no forced errors; reads only' } : {
+        bondShareOfFeeBps: p.bondBps, maxLeafGas: p.maxLeafGas,
+        slashedPool: formatEther(await oc.slashed()), forcedErrorRunner: p.runner === ZERO ? null : p.runner,
+      }),
       jobs: Number(await oc.jobCount()),
       wallet: await walletInfo(),
     };
@@ -141,13 +160,14 @@ export function createServer(ctx) {
 
   ocTool('get_job', {
     title: 'Get a job',
-    description: 'Everything about one job: circuit, beats, inputs and starting state, the claim, and the result (outputs of the last beat and final state) as bits once claimed.',
+    description: 'Everything about one job: circuit, beats, inputs and starting state, its bond (what claiming or challenging it locks: the minimum plus a share of the fee), the claim, and the result (outputs of the last beat and final state) as bits once claimed.',
     inputSchema: { jobId: z.number().int().min(0) },
   }, safe(async ({ jobId }) => {
     const j = await readJob(oc, jobId);
     const raw = await oc.jobs(jobId);
     return {
       ...(await summary(jobId)),
+      bond: formatEther(await jobBond(jobId)),
       poster: raw.poster, continuesJob: raw.parent > 0n ? Number(raw.parent) - 1 : null,
       perBeatInputs: j.perBeat, nIn: j.nIn, nOut: j.nOut, nState: j.nState,
       inputs: raw.inputs, startState: raw.state,
@@ -212,7 +232,7 @@ export function createServer(ctx) {
     const claimed = [...bitsOf(j.outputs, j.nOut), ...bitsOf(j.newState, j.nState)];
     const honest = [...t.outputs, ...t.newState];
     const k = honest.findIndex((v, i) => v !== claimed[i]);
-    const verdict = root !== j.traceRoot ? 'wrong: the trace differs (challenge_claim will bisect to the wrong gate)'
+    const verdict = root !== j.traceRoot ? 'wrong: the trace differs (challenge_claim will narrow it to the wrong gate)'
       : k >= 0 ? `wrong: result bit ${k} does not match the claimant's own trace (challenge_claim disproves it in one transaction)`
         : 'correct';
     return { jobId, verdict, finalized: j.finalized, correctOutputs: bytesToHex(pack(t.outputs)), correctFinalState: bytesToHex(pack(t.newState)) };
@@ -402,7 +422,7 @@ export function createServer(ctx) {
 
   ocTool('post_job', {
     title: 'Run a machine on-chain',
-    description: 'Post a job to X Layer so an operator runs it and the result is settled on-chain, checkable by anyone. With no arguments: one generation of a glider on the Game of Life board. Pays `fee` OKB (default 0.0001) to whoever\'s result finalizes, plus gas. The user approves it in their wallet.',
+    description: 'Post a job to X Layer so an operator runs it and the result is settled on-chain, checkable by anyone. With no arguments: one generation of a glider on the Game of Life board. Pays `fee` OKB (default 0.0001) to whoever\'s result finalizes, plus gas. Whoever claims or challenges it later locks its bond (the minimum plus a share of this fee). A circuit whose one-step check could cost too much gas is refused ("check too costly"). The user approves it in their wallet.',
     inputSchema: {
       ...MACHINE_ARGS, beats: z.number().int().min(1).max(1_000_000).default(1).describe('how many steps (generations for life)'),
       state: hex.optional().describe('starting state, packed hex; ready-made machines fill this in'), inputs: hex.default('0x'), perBeat: z.boolean().default(false),
@@ -431,7 +451,7 @@ export function createServer(ctx) {
 
   ocTool('claim_job', {
     title: 'Claim a job as operator',
-    description: 'Run an open job off-chain and claim its result, locking the bond. If nobody proves it wrong within the challenge window, finalize_job returns the bond plus the fee. The claim is defended automatically while this server runs (advance_disputes). Sends a transaction.',
+    description: 'Run an open job off-chain and claim its result, locking the job\'s bond (get_job shows it). If nobody proves it wrong within the challenge window, finalize_job returns the bond plus the fee. A proven-wrong claim loses its bond: half goes to the challenger, half to the treasury. The claim is defended automatically while this server runs (advance_disputes). Sends a transaction.',
     inputSchema: { jobId: z.number().int().min(0) },
   }, tx('claim_job', async ({ jobId }) => {
     ctx.operator ??= new Operator({ oc, signer: await signer(), name: 'operator', circuits: ctx.circuitCache, log: (e) => (ctx.log ??= []).push(e) });
@@ -445,7 +465,7 @@ export function createServer(ctx) {
 
   ocTool('challenge_claim', {
     title: 'Challenge a wrong claim',
-    description: 'Re-run a claimed job and, if the claim is wrong, challenge it: either disprove a wrong result directly, or bisect the trace with the claimant down to the single wrong gate and prove it on-chain. Locks the bond; winning returns it plus half the claimant\'s bond. Plays for up to waitSeconds, then returns; call advance_disputes to keep going. Sends transactions.',
+    description: 'Re-run a claimed job and, if the claim is wrong, challenge it: either disprove a wrong result directly, or narrow the trace with the claimant down to the single wrong gate (sixteen ways a move, so a few rounds) and prove it on-chain. Locks the job\'s bond (get_job shows it); winning returns it plus half the claimant\'s bond, and the other half is slashed to the treasury. Catching a forced error planted by the contract\'s runner pays your bond back plus a jackpot instead. Plays for up to waitSeconds, then returns; call advance_disputes to keep going. Sends transactions.',
     inputSchema: { jobId: z.number().int().min(0), waitSeconds: z.number().int().min(0).max(600).default(60) },
   }, tx('challenge_claim', async ({ jobId, waitSeconds = 60 }) => {
     ctx.watcher ??= new Challenger({ oc, signer: await signer(), name: 'watcher', circuits: ctx.circuitCache, log: (e) => (ctx.log ??= []).push(e) });
@@ -481,7 +501,7 @@ export function createServer(ctx) {
 
   ocTool('finalize_job', {
     title: 'Finalize a job',
-    description: 'After the challenge window, make an unchallenged claim final: pays the claimant bond plus fee and makes the result readable by any contract. Anyone can call it. Sends a transaction.',
+    description: 'After the challenge window (two windows if the forced-error runner committed to the claim, unless the runner calls it), make an unchallenged claim final: pays the claimant its bond back plus the fee and makes the result readable by any contract. Anyone can call it. Sends a transaction.',
     inputSchema: { jobId: z.number().int().min(0) },
   }, tx('finalize_job', async ({ jobId }) => {
     const r = await send((await ocw()).finalize(jobId));

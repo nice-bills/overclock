@@ -6,6 +6,10 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import vm from 'node:vm';
+import ganache from 'ganache';
+import { BrowserProvider, ContractFactory, parseEther, AbiCoder } from 'ethers';
+import { load, hexToBytes, bytesToHex, pack } from '../src/tap02.js';
+import { Operator, Challenger } from '../src/agents.js';
 
 const vectors = JSON.parse(readFileSync(new URL('../vendor-tap02/vectors.json', import.meta.url)));
 const out = join(mkdtempSync(join(tmpdir(), 'overclock-web-')), 'page.html');
@@ -130,11 +134,12 @@ const e2e = { skip: browser ? false : 'no Playwright and Chromium here' };
 const ADDR = '0x65E9483960015EBDDC9EE37b184211E2802d9bcd';
 const RUN_CIRCUIT = '#c/0xb00E17789f905234F1890C22E6C01015c10d2f54/11';
 
-async function open(hash, { width = 1280, height = 900, wallet = false, url = null } = {}) {
+async function open(hash, { width = 1280, height = 900, wallet = false, url = null, rpc = null } = {}) {
   const page = await browser.newPage({ viewport: { width, height } });
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
   await page.route((u) => !/^(file|data|about):/.test(u.protocol) && u.hostname !== '127.0.0.1', (r) => r.abort());
+  if (rpc) await page.route('https://rpc.xlayer.tech/', rpc); // registered last, so it wins over the abort above
   if (wallet) await page.addInitScript((a) => { window.okxwallet = { request: async ({ method }) => (method === 'eth_requestAccounts' ? [a] : null) }; }, ADDR);
   await page.goto((url || new URL(`file://${out}`).href) + hash);
   await page.waitForSelector('main:not([hidden])');
@@ -245,6 +250,110 @@ test('e2e: a fresh runs.json served next to the page updates the counters and th
     assert.deepEqual(page.errors, []);
     await page.close();
   } finally { server.close(); }
+});
+
+// ---------------------------------------------------------------- the job board, against a local v2 and a stand-in for the old contract
+
+// Answer the board's JSON-RPC calls (single or batched) with `answer(method, params)`; a throw is a JSON-RPC error.
+const rpcRoute = (answer) => async (route) => {
+  const body = JSON.parse(route.request().postData());
+  const reply = async (q) => {
+    try { return { jsonrpc: '2.0', id: q.id, result: await answer(q.method, q.params) }; } catch (e) { return { jsonrpc: '2.0', id: q.id, error: { code: -32000, message: e.message } }; }
+  };
+  const out = Array.isArray(body) ? await Promise.all(body.map(reply)) : await reply(body);
+  await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: JSON.stringify(out) });
+};
+const liveDone = (page) => page.waitForFunction(() => /^Live · block [\d,]+$/.test(document.getElementById('liveStatus').textContent), null, { timeout: 60000 });
+
+test('e2e: the job board decodes a local v2 dispute: 16-way moves, forced error, slashed pool, per-job bond', e2e, async () => {
+  const art = (n) => JSON.parse(readFileSync(new URL(`../build/${n}.json`, import.meta.url)));
+  const gp = ganache.provider({ logging: { quiet: true }, chain: { hardfork: 'shanghai' }, wallet: { totalAccounts: 8, defaultBalance: 10000 } });
+  const provider = new BrowserProvider(gp, undefined, { cacheTimeout: -1 });
+  const [poster, cheatS, watcherS, runnerS] = await Promise.all([0, 1, 2, 5].map((i) => provider.getSigner(i)));
+  const deploy = async (name, signer, ...args) => { const a = art(name); const ct = await new ContractFactory(a.abi, a.bytecode, signer).deploy(...args); await ct.waitForDeployment(); return ct; };
+  const ZERO = '0x0000000000000000000000000000000000000000';
+  const cpu = await deploy('MockProcessor', poster);
+  const oc = await deploy('Overclock', poster, parseEther('1'), 3600, ZERO, await poster.getAddress(), 0, 5000, 0, await runnerS.getAddress());
+  const v = vectors.valid.find((x) => x.name === 'popcount8_3151'), c = load(hexToBytes(v.netlist), v.nIn, v.nOut);
+  const id = Number(await cpu.nextId());
+  await (await cpu.store(v.netlist, v.nIn, v.nOut, c.nState, c.nGates)).wait();
+  const post = async (inputs) => {
+    const n = Number(await oc.jobCount());
+    await (await oc.postJob(await cpu.getAddress(), id, bytesToHex(pack(inputs)), '0x', 1, false, { value: parseEther('1') })).wait();
+    return n;
+  };
+  const log = [];
+  const watch = new Challenger({ oc, signer: watcherS, name: 'watcher', log: (e) => log.push(e) });
+  // job 0: a lie, caught through a 16-way dissection. It also fills the slashed pool.
+  let lied = false;
+  const cheat = new Operator({ oc, signer: cheatS, name: 'cheat', lie: () => (lied ? null : ((lied = true), 34)) });
+  const j0 = await post([1, 0, 1, 1, 0, 1, 1, 1]);
+  cheat.only = watch.only = new Set([j0]);
+  await cheat.tick();
+  for (let i = 0; i < 40 && !log.some((e) => e.fn === 'resolveLeaf'); i++) { await watch.tick(); await cheat.tick(); }
+  assert.ok(log.some((e) => e.fn === 'resolveLeaf'), 'the lie was proven');
+  assert.ok((await oc.slashed()) > 0n);
+  // job 1: the runner commits to a forced error, claims a wrong result and is caught for a jackpot
+  const runner = new Operator({ oc, signer: runnerS, name: 'runner', forced: () => 36 });
+  const j1 = await post([1, 1, 1, 0, 0, 1, 0, 1]);
+  runner.only = watch.only = new Set([j1]);
+  await runner.tick();
+  for (let i = 0; i < 12 && !log.some((e) => e.jackpot); i++) { await watch.tick(); await runner.tick(); }
+  assert.ok(log.some((e) => e.jackpot), 'the forced error was caught');
+  const slashed = await oc.slashed();
+
+  const answer = (m, p) => gp.request({ method: m, params: p });
+  const page = await open('#board', { url: `${new URL(`file://${out}`).href}?contract=${await oc.getAddress()}`, rpc: rpcRoute(answer) });
+  try {
+    await liveDone(page);
+    const games = await page.locator('#games tr').allTextContents();
+    assert.equal(games.length, 2, 'two games');
+    assert.match(games[0], /forced error caught\s*jackpot [\d.]+ OKB/);
+    assert.match(games[1], /cheat caught/);
+    assert.match(games[1], /half the loser's bond slashed/);
+    const moves = Number((await page.locator('#games details summary').last().textContent()).match(/(\d+) moves/)[1]); // the cheat's game is listed last
+    assert.ok(moves >= 2 && moves % 2 === 0 && moves <= 12, `reveal16/pick16 moves decoded, got ${moves}`);
+    const tickets = await page.locator('#jobs .ticket').allTextContents();
+    assert.match(tickets[0], /Bond1\.5 OKB/, 'per-job bond: 1 + 50% of the 1 OKB fee');
+    assert.match(tickets[0], /runner committed[\s\S]*forced claim[\s\S]*forced error caught · jackpot/);
+    assert.match(tickets[1], /wrong claim[\s\S]*cheat caught/);
+    assert.match(await page.textContent('#liveSpecs'), /1cheats caught · 1 forced error caught/);
+    const note = await page.textContent('#feedNote');
+    assert.ok(note.includes('Bond 1 OKB + 50% of the fee') && note.includes('1h 0m challenge window') && note.includes(`${(Number(slashed) / 1e18).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')} OKB slashed`) && note.includes('forced errors by 0x'), note);
+    const feed = await page.locator('#feed tr').allTextContents();
+    assert.ok(feed.some((r) => /forced error caught/.test(r)) && feed.some((r) => /dissection/.test(r) || /revealed/.test(r)), feed.join('\n'));
+    assert.deepEqual(page.errors, []);
+  } finally { await page.close(); }
+});
+
+test('e2e: the job board still decodes the old contract: binary Revealed events, no v2 getters', e2e, async () => {
+  const snap = read('web/board-snapshot.json');
+  const abi = AbiCoder.defaultAbiCoder();
+  const H = (n) => '0x' + n.toString(16).padStart(64, '0');
+  const head = snap.toBlock + 40;
+  const T = { revealed: '0xcceeb83fe4f7352f8b511ab8816c6f3f37a73798c028f0019b52b1b12a60b4d6', picked: '0x58bdb6a4f5f57c8cf3969bd320a3b34eca94998006fbc5feb273673b58d2ba04' };
+  // game 7: reveal at level 5, pick, reveal at level 4, pick (the old, binary shape)
+  const mk = (n, topic, level, extra) => ({ blockNumber: '0x' + (snap.toBlock + 10 + n).toString(16), transactionHash: H(0xa00 + n), logIndex: '0x0', topics: [topic, H(7)], data: abi.encode(extra ? ['uint8', 'uint256', 'bytes32', 'bytes32'] : ['uint8', 'uint256'], extra ? [level, 1, H(1), H(2)] : [level, 1]) });
+  const logs = [mk(1, T.revealed, 5, true), mk(2, T.picked, 4), mk(3, T.revealed, 4, true), mk(4, T.picked, 3)];
+  const answer = (m, p) => {
+    if (m === 'eth_getBlockByNumber') return { number: '0x' + (/^0x/.test(p[0]) ? Number(p[0]) : head).toString(16), timestamp: '0x' + (1_790_000_000).toString(16) };
+    if (m === 'eth_getLogs') { const [f, t] = [Number(p[0].fromBlock), Number(p[0].toBlock)]; return logs.filter((l) => Number(l.blockNumber) >= f && Number(l.blockNumber) <= t); }
+    if (m === 'eth_call') {
+      const sel = p[0].data.slice(0, 10);
+      const v = { '0x4c5d8a0f': 0, '0x4d1975b4': 0, '0x64c9ec6f': 10n ** 15n, '0x461645bf': 600, '0x24a9d853': 200 }[sel];
+      if (v === undefined) throw new Error('execution reverted'); // slashed, bondBps, forcedRunner: not on the old contract
+      return H(v);
+    }
+    throw new Error(`unexpected ${m}`);
+  };
+  const page = await open('#board', { rpc: rpcRoute(answer) });
+  try {
+    await liveDone(page);
+    assert.equal(await page.textContent('#feedNote'), 'Bond 0.001 OKB · 10m 00s challenge window · 2% protocol fee');
+    const feed = await page.locator('#feed tr').first().textContent();
+    assert.match(feed, /dissection[\s\S]*game 7 · 4 moves, down to level 3/);
+    assert.deepEqual(page.errors, []);
+  } finally { await page.close(); }
 });
 
 test.after(async () => { if (browser) await browser.close(); });

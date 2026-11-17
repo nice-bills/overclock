@@ -7,7 +7,7 @@ import { BrowserProvider, ContractFactory, parseEther } from 'ethers';
 import { Builder } from '../src/hdl.js';
 import { load, beat, pack, unpack, hexToBytes, bytesToHex } from '../src/tap02.js';
 import { traceJob, Tree, flatSize } from '../src/trace.js';
-import { sigPosOf, depsOf, Bisector } from '../src/game.js';
+import { sigPosOf, depsOf, Bisector, revealNodes, span } from '../src/game.js';
 import { adderCircuit, benchCircuit, benchState, benchSize, expectedVerdict, runBench, verdict, breakNand, lfsrNext, inputAt } from '../src/bench.js';
 
 // ---- designs --------------------------------------------------------------------------------
@@ -227,12 +227,11 @@ async function dispute(jobId, C, H, c, honestBits, beats) {
   const b = new Bisector(H);
   let level = C.depth, index = 0;
   while (level > 0) {
-    const left = C.node(level - 1, 2 * index), right = C.node(level - 1, 2 * index + 1);
-    await (await asClaimant().reveal(gameId, left, right)).wait();
-    const goLeft = b.choose(level, index, left, right);
-    await (await asChallenger().pick(gameId, !goLeft)).wait();
-    index = 2 * index + (goLeft ? 0 : 1);
-    level--;
+    await (await asClaimant().reveal16(gameId, revealNodes(C, level, index))).wait();
+    const which = b.choose(level, index, [...(await oc.pending(gameId))]);
+    await (await asChallenger().pick16(gameId, which)).wait();
+    index = index * 2 ** span(level) + which;
+    level -= span(level);
   }
   const deps = depsOf(c, index, beats).map((pos) => ({ pos, bit: honestBits[pos], siblings: b.siblings(pos, index) }));
   const rc = await (await asChallenger().resolveLeaf(gameId, deps)).wait();
