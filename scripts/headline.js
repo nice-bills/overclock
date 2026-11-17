@@ -257,7 +257,7 @@ const ok = got.every((v, i) => v === expect[i]);
 say(`\nOverclock.result(${job0}): ${describe(got)}`);
 say(`matches the plain-JS reference: ${ok}`);
 
-const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal', 'pick', 'resolveLeaf'].includes(e.fn));
+const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal16', 'pick16', 'resolveLeaf'].includes(e.fn));
 const gas = {
   post: Number(postRc.gasUsed),
   claim: log.find((e) => e.fn === 'claim' && e.who === 'operator').gas,

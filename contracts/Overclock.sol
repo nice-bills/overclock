@@ -22,8 +22,8 @@ interface IOverclockReceiver {
 ///
 /// An operator runs a job (any number of beats of a circuit) off-chain and claims the last
 /// beat's outputs and the final state, committing a Merkle root over the execution-order trace
-/// (see src/trace.js for the layout). Anyone who disagrees challenges; the two bisect the trace
-/// tree down to the first leaf they disagree on, and the contract re-checks that one step: a
+/// (see src/trace.js for the layout). Anyone who disagrees challenges; the two walk the trace
+/// tree, sixteen ways at a time, down to the first leaf they disagree on, and the contract re-checks that one step: a
 /// single NAND, LATCH read, LATCH write, REF wire or input.
 contract Overclock {
     uint8 internal constant NAND = 0x00;
@@ -100,7 +100,7 @@ contract Overclock {
     event JobPosted(uint256 indexed jobId, address cpu, uint256 id, uint32 beats);
     event Claimed(uint256 indexed jobId, address claimant, bytes32 traceRoot, bytes outputs);
     event Challenged(uint256 indexed jobId, uint256 indexed gameId, address challenger);
-    event Revealed(uint256 indexed gameId, uint8 level, uint256 index, bytes32 left, bytes32 right);
+    event Revealed16(uint256 indexed gameId, uint8 level, uint256 index, bytes32[] nodes);
     event Picked(uint256 indexed gameId, uint8 level, uint256 index);
     event Resolved(uint256 indexed jobId, uint256 indexed gameId, address winner, string reason);
     event Finalized(uint256 indexed jobId, bytes outputs);
@@ -226,23 +226,39 @@ contract Overclock {
         require(block.timestamp <= g.deadline, "late");
     }
 
-    /// Claimant opens the node under dispute into its two children.
-    function reveal(uint256 gameId, bytes32 left, bytes32 right) external {
+    /// Levels a move descends: four, or what is left of the tree near the bottom.
+    function _span(uint8 level) internal pure returns (uint8) {
+        return level < 4 ? level : 4;
+    }
+
+    /// Claimant opens the node under dispute into the 2^s nodes s levels down (s = 4, or the levels
+    /// left): the contract hashes them back up and checks they make the node.
+    function reveal16(uint256 gameId, bytes32[] calldata nodes) external {
         Game storage g = games[gameId];
         require(g.turn == Turn.Claimant && msg.sender == jobs[g.jobId].claimant, "turn");
         _move(g, gameId);
-        require(keccak256(abi.encodePacked(left, right)) == g.node, "hash");
-        emit Revealed(gameId, g.level, g.index, left, right);
+        uint256 n = nodes.length;
+        require(n == uint256(1) << _span(g.level), "nodes");
+        bytes32[] memory h = nodes;
+        bytes32[16] storage p = _pending[gameId];
+        for (uint256 i; i < n; i++) p[i] = nodes[i];
+        while (n > 1) {
+            n >>= 1;
+            for (uint256 i; i < n; i++) h[i] = keccak256(abi.encodePacked(h[2 * i], h[2 * i + 1]));
+        }
+        require(h[0] == g.node, "hash");
+        emit Revealed16(gameId, g.level, g.index, nodes);
         g.turn = Turn.Challenger;
         g.deadline = uint64(block.timestamp + window);
-        _pending[gameId] = [left, right];
     }
 
-    mapping(uint256 => bytes32[2]) internal _pending;
+    mapping(uint256 => bytes32[16]) internal _pending;
 
-    /// The two children the claimant revealed for the node under dispute.
-    function pending(uint256 gameId) external view returns (bytes32 left, bytes32 right) {
-        return (_pending[gameId][0], _pending[gameId][1]);
+    /// The nodes the claimant revealed for the node under dispute (2^s of them).
+    function pending(uint256 gameId) external view returns (bytes32[] memory nodes) {
+        Game storage g = games[gameId];
+        nodes = new bytes32[](uint256(1) << _span(g.level));
+        for (uint256 i; i < nodes.length; i++) nodes[i] = _pending[gameId][i];
     }
 
     function jobCount() external view returns (uint256) {
@@ -253,14 +269,16 @@ contract Overclock {
         return games.length;
     }
 
-    /// Challenger picks the child it disagrees with.
-    function pick(uint256 gameId, bool right) external {
+    /// Challenger picks the revealed node it disagrees with (0 = leftmost).
+    function pick16(uint256 gameId, uint8 which) external {
         Game storage g = games[gameId];
         require(g.turn == Turn.Challenger && msg.sender == g.challenger, "turn");
         _move(g, gameId);
-        g.node = _pending[gameId][right ? 1 : 0];
-        g.index = g.index * 2 + (right ? 1 : 0);
-        g.level -= 1;
+        uint8 s = _span(g.level);
+        require(which < (1 << s), "which");
+        g.node = _pending[gameId][which];
+        g.index = (g.index << s) + which;
+        g.level -= s;
         g.turn = g.level == 0 ? Turn.Leaf : Turn.Claimant;
         g.deadline = uint64(block.timestamp + window);
         emit Picked(gameId, g.level, g.index);

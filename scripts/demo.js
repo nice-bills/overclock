@@ -278,7 +278,7 @@ if (MORE > 0) {
 }
 
 const gasOf = (fn, who) => log.filter((e) => e.fn === fn && (!who || e.who === who)).reduce((s, e) => s + e.gas, 0);
-const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal', 'pick', 'resolveLeaf'].includes(e.fn));
+const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal16', 'pick16', 'resolveLeaf'].includes(e.fn));
 const summary = {
   directPerGeneration: perGen,
   directOneGeneration: directGas1,
@@ -293,7 +293,7 @@ const summary = {
 say(`gas: honest path ${(summary.claim + summary.finalize).toLocaleString()} (claim + finalize); dispute ${summary.disputeTotal.toLocaleString()} over ${summary.disputeTxs} transactions, largest ${summary.disputeMaxTx.toLocaleString()}`);
 say(`      direct evaluation of the same job: ${summary.directTotal.toLocaleString()} (${Math.round(summary.directTotal / (summary.claim + summary.finalize)).toLocaleString()}x the honest path)`);
 
-const steps = log.filter((e) => e.fn === 'pick').map((e) => {
+const steps = log.filter((e) => e.fn === 'pick16').map((e) => {
   const p = e.events.find((x) => x.name === 'Picked').args;
   const level = Number(p.level), index = Number(p.index);
   return { level, from: index * 2 ** level, to: Math.min((index + 1) * 2 ** level, L.n) - 1 };

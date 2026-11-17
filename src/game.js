@@ -1,7 +1,8 @@
 // Off-chain side of a dispute: which earlier leaves a step depends on, and how a challenger
 // builds proofs against the claimant's tree from the honest tree plus the nodes the claimant revealed.
 
-import { NAND, LATCH } from './tap02.js';
+import { keccak_256 } from '@noble/hashes/sha3';
+import { NAND, LATCH, hexToBytes } from './tap02.js';
 import { flatSize, layout } from './trace.js';
 
 // Trace positions of every leaf that the rule for leaf q reads. Mirrors Overclock._expected.
@@ -83,7 +84,22 @@ export function resultPos(c, beats, k) {
   return k < c.nOut ? sigPosOf(c, p, c.nSignals - c.nOut + k) : p + F + (k - c.nOut);
 }
 
-// Tracks what the challenger knows about the claimant's tree during bisection.
+// A dispute descends the trace tree sixteen ways at a time: a move covers four levels, or what is
+// left of the tree near the bottom. Mirrors Overclock._span.
+export const span = (level) => Math.min(4, level);
+
+// The 2^s nodes a claimant reveals for the node at (level, index) in its tree.
+export const revealNodes = (tree, level, index) => {
+  const s = span(level);
+  return Array.from({ length: 2 ** s }, (_, i) => tree.node(level - s, index * 2 ** s + i));
+};
+
+// Rounds (reveal + pick) a dispute over a tree of this depth takes.
+export const rounds = (depth) => Math.ceil(depth / 4);
+
+const hashUp = (l, r) => '0x' + Buffer.from(keccak_256(Buffer.concat([hexToBytes(l), hexToBytes(r)]))).toString('hex');
+
+// Tracks what the challenger knows about the claimant's tree during the dispute.
 export class Bisector {
   constructor(honest) {
     this.h = honest; // Tree
@@ -91,11 +107,21 @@ export class Bisector {
     this.known = new Map(); // `${level}:${index}` -> claimant hash
   }
 
-  // Record the claimant's two children of (level, index) and choose the one to dispute.
-  choose(level, index, left, right) {
-    this.known.set(`${level - 1}:${2 * index}`, left);
-    this.known.set(`${level - 1}:${2 * index + 1}`, right);
-    return left !== this.h.node(level - 1, 2 * index); // true -> go left
+  // Record the claimant's revealed nodes for (level, index), and every node between them and it,
+  // then choose the first revealed node that differs from the honest tree.
+  choose(level, index, nodes) {
+    const s = span(level);
+    if (nodes.length !== 2 ** s) throw new Error(`expected ${2 ** s} nodes, got ${nodes.length}`);
+    let cur = nodes, lv = level - s, first = index * 2 ** s;
+    for (;;) {
+      cur.forEach((n, i) => this.known.set(`${lv}:${first + i}`, n));
+      if (cur.length === 1) break;
+      cur = Array.from({ length: cur.length / 2 }, (_, i) => hashUp(cur[2 * i], cur[2 * i + 1]));
+      lv++;
+      first /= 2;
+    }
+    const which = nodes.findIndex((n, i) => n !== this.h.node(level - s, index * 2 ** s + i));
+    return which < 0 ? 0 : which;
   }
 
   // Merkle siblings for leaf pos in the claimant's tree. Only valid for leaves before the

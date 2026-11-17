@@ -4,10 +4,10 @@
 // steps on its claims, and finalizes them after the window. Pass `lie` to make it cheat.
 //
 // Challenger: re-runs every claim, challenges any whose trace root or result differs from its own,
-// plays the bisection, and proves the one wrong step.
+// plays the 16-way dissection, and proves the one wrong step.
 
 import { traceJob, Tree } from './trace.js';
-import { depsOf, resultPos, Bisector } from './game.js';
+import { depsOf, resultPos, revealNodes, Bisector } from './game.js';
 import { pack, bytesToHex, hexToBytes, unpack } from './tap02.js';
 import { loadCircuit, readJob, readGame, isStale, Turn, CLOSED } from './chain.js';
 
@@ -103,8 +103,7 @@ export class Operator extends Agent {
       if (job.claimant.toLowerCase() !== me || !this.mine.has(Number(game.jobId))) continue;
       if (await isStale(this.oc, g, game.jobId)) continue; // a game against an earlier claim of ours
       const { tree } = await this.trace(job, this.mine.get(Number(game.jobId)));
-      const l = game.level - 1;
-      await this.send(`reveals level ${game.level}`, 'reveal', g, tree.node(l, 2 * game.index), tree.node(l, 2 * game.index + 1));
+      await this.send(`reveals level ${game.level}`, 'reveal16', g, revealNodes(tree, game.level, game.index));
     }
   }
 }
@@ -163,9 +162,8 @@ export class Challenger extends Agent {
         await this.send('takes its bond back from a game on an overturned claim', 'timeout', g);
         this.games.delete(g);
       } else if (game.turn === Turn.Challenger) {
-        const [left, right] = await this.oc.pending(g);
-        const goLeft = bis.choose(game.level, game.index, left, right);
-        await this.send(`picks ${goLeft ? 'left' : 'right'} at level ${game.level}`, 'pick', g, !goLeft);
+        const which = bis.choose(game.level, game.index, [...(await this.oc.pending(g))]);
+        await this.send(`picks node ${which} at level ${game.level}`, 'pick16', g, which);
       } else if (game.turn === Turn.Leaf) {
         const job = await readJob(this.oc, game.jobId);
         const { t, c } = await this.trace(job);

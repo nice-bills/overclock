@@ -8,7 +8,7 @@ import ganache from 'ganache';
 import { BrowserProvider, ContractFactory, parseEther } from 'ethers';
 import { load, pack, hexToBytes, bytesToHex } from '../src/tap02.js';
 import { traceBeat, buildTree, Tree } from '../src/trace.js';
-import { depsOf, sigPosOf, Bisector } from '../src/game.js';
+import { depsOf, sigPosOf, Bisector, revealNodes, span, rounds } from '../src/game.js';
 
 const vectors = JSON.parse(readFileSync(new URL('../vendor-tap02/vectors.json', import.meta.url)));
 const art = (n) => JSON.parse(readFileSync(new URL(`../build/${n}.json`, import.meta.url)));
@@ -72,17 +72,20 @@ async function claim(jobId, from, root, outputs) {
   return send(oc.connect(from).claim(jobId, root, bytesToHex(pack(outputs)), '0x', { value: await bondOf(jobId) }));
 }
 
-// Bisect a challenge. C: the claimant's tree; choose(level, index, left, right) -> goLeft.
+// Play a dispute down to its leaf, sixteen ways a move. C: the claimant's tree;
+// choose(level, index, nodes) -> which of the revealed nodes to dispute. Checks the round count.
 async function bisect(gameId, from, C, choose) {
-  let level = C.depth, index = 0;
+  let level = C.depth, index = 0, n = 0;
   while (level > 0) {
-    const left = C.node(level - 1, 2 * index), right = C.node(level - 1, 2 * index + 1);
-    await send(oc.connect(from.claimant).reveal(gameId, left, right));
-    const goLeft = choose(level, index, left, right);
-    await send(oc.connect(from.challenger).pick(gameId, !goLeft));
-    index = 2 * index + (goLeft ? 0 : 1);
-    level--;
+    const nodes = revealNodes(C, level, index);
+    await send(oc.connect(from.claimant).reveal16(gameId, nodes));
+    const which = choose(level, index, nodes);
+    await send(oc.connect(from.challenger).pick16(gameId, which));
+    index = index * 2 ** span(level) + which;
+    level -= span(level);
+    n++;
   }
+  assert.equal(n, rounds(C.depth));
   return index;
 }
 
@@ -101,8 +104,8 @@ test('a settled game cannot be resolved again to pay its winner twice', async ()
   const H = buildTree(t.leaves);
   await claim(jobId, attacker, H.root, t.outputs);
   const gameId = await challenge(jobId, accomplice);
-  // always pick left: leaf 0 is the constant 0, so the leaf check needs no proofs at all
-  assert.equal(await bisect(gameId, { claimant: attacker, challenger: accomplice }, H, () => true), 0);
+  // always pick the first node: leaf 0 is the constant 0, so the leaf check needs no proofs at all
+  assert.equal(await bisect(gameId, { claimant: attacker, challenger: accomplice }, H, () => 0), 0);
   await send(oc.resolveLeaf(gameId, []));
   // ...then calls resolveLeaf again and again on the settled game
   for (let i = 0; i < 10 && (await bal(oc.target)) >= 2n * BOND; i++) {
@@ -142,7 +145,7 @@ test('an old game cannot wipe a later honest claim on the same job', async () =>
   await claim(jobId, attacker, C.root, honest.outputs);
   const gameId = await challenge(jobId, watcher);
   const b = new Bisector(H);
-  const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, left, right) => b.choose(l, i, left, right));
+  const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, nodes) => b.choose(l, i, nodes));
   const deps = depsOf(pop, q).map((pos) => ({ pos, bit: honest.leaves[pos], siblings: b.siblings(pos, q) }));
   await send(oc.connect(watcher).resolveLeaf(gameId, deps));
   // an honest operator now claims the right result
@@ -221,7 +224,7 @@ test('a cheat\'s accomplice who challenges first cannot keep an honest watcher o
   // the honest watcher still gets in, and wins on its own game
   const gameId = await challenge(jobId, watcher);
   const b = new Bisector(H);
-  const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, left, right) => b.choose(l, i, left, right));
+  const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, nodes) => b.choose(l, i, nodes));
   const before = await bal(watcher.address);
   await send(oc.connect(attacker).resolveLeaf(gameId, depsOf(pop, q).map((pos) => ({ pos, bit: honest.leaves[pos], siblings: b.siblings(pos, q) }))));
   const bd = await bondOf(jobId);
@@ -229,7 +232,7 @@ test('a cheat\'s accomplice who challenges first cannot keep an honest watcher o
   assert.equal(await bal(watcher.address), before + 2n * bd - cutOf(bd), 'the watcher is paid its bond and half the cheat\'s');
   assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the wrong claim is gone');
   // the accomplice's game is now stale: no more moves, and it only refunds
-  await assert.rejects(send(oc.connect(attacker).reveal(stall, C.node(C.depth - 1, 0), C.node(C.depth - 1, 1))));
+  await assert.rejects(send(oc.connect(attacker).reveal16(stall, revealNodes(C, C.depth, 0))));
   await send(oc.timeout(stall));
   assert.equal(Number((await oc.games(stall)).level), 255);
   await assert.rejects(send(oc.timeout(stall)));
@@ -266,7 +269,7 @@ test('a move after its deadline is refused, and the side that was due loses on t
   await claim(jobId, operator, H.root, t.outputs);
   const gameId = await challenge(jobId, watcher);
   await warp(WINDOW + 1);
-  await assert.rejects(send(oc.connect(operator).reveal(gameId, H.node(H.depth - 1, 0), H.node(H.depth - 1, 1))));
+  await assert.rejects(send(oc.connect(operator).reveal16(gameId, revealNodes(H, H.depth, 0))));
   await send(oc.timeout(gameId));
   assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the late claimant lost');
 });
@@ -331,6 +334,63 @@ test('sweep sends the slashed pool to the treasury and empties it', async () => 
   assert.equal(await oc.slashed(), 0n);
 });
 
+// ------------------------------------------------------------------ 16-way dissection (A3)
+
+test('round counts: 16-way dissection halves the depth four times over', () => {
+  assert.equal(rounds(18), 5); // 181,840 steps: 2^18 leaves
+  assert.equal(rounds(34), 9); // a 10-billion-step trace
+  assert.deepEqual([1, 2, 3, 4, 5, 8, 9].map(rounds), [1, 1, 1, 1, 2, 2, 3]);
+  assert.deepEqual([4, 3, 1, 0].map(span), [4, 3, 1, 0]);
+});
+
+test('a reveal must be exactly the nodes that hash to the disputed one, and a pick must be one of them', async () => {
+  const jobId = await post(INPUTS);
+  const t = traceBeat(pop, [], INPUTS);
+  const H = buildTree(t.leaves);
+  await claim(jobId, operator, H.root, t.outputs);
+  const gameId = await challenge(jobId, watcher);
+  const nodes = revealNodes(H, H.depth, 0);
+  const c = oc.connect(operator);
+  await assert.rejects(send(c.reveal16(gameId, nodes.slice(0, 8)))); // too few
+  await assert.rejects(send(c.reveal16(gameId, [...nodes, nodes[0]]))); // too many
+  const bad = nodes.slice();
+  bad[5] = bad[6];
+  await assert.rejects(send(c.reveal16(gameId, bad))); // does not hash up to the root
+  await assert.rejects(send(oc.connect(watcher).pick16(gameId, 0))); // nothing revealed yet
+  await assert.rejects(send(oc.connect(watcher).reveal16(gameId, nodes))); // not the claimant
+  await send(c.reveal16(gameId, nodes));
+  assert.deepEqual([...(await oc.pending(gameId))], nodes);
+  await assert.rejects(send(c.reveal16(gameId, nodes))); // not its turn again
+  await assert.rejects(send(oc.connect(operator).pick16(gameId, 0))); // not the challenger
+  await assert.rejects(send(oc.connect(watcher).pick16(gameId, 16)));
+  await send(oc.connect(watcher).pick16(gameId, 15));
+  const g = await oc.games(gameId);
+  assert.equal(Number(g.level), H.depth - 4);
+  assert.equal(g.index, 15n);
+  await warp(WINDOW + 1);
+  await send(oc.timeout(gameId)); // the claimant never answered: close the game
+});
+
+test('a dispute whose depth is not a multiple of four ends with a partial step, at every leaf', async () => {
+  // popcount's trace has 2^7 slots: steps of 4 then 3
+  const t = traceBeat(pop, [], INPUTS);
+  const H = buildTree(t.leaves);
+  assert.equal(H.depth % 4, 3);
+  for (const lieAt of [2 + 8, 30, t.leaves.length - 1]) {
+    const jobId = await post(INPUTS);
+    const lied = t.leaves.slice();
+    lied[lieAt] ^= 1;
+    const C = buildTree(lied);
+    await claim(jobId, operator, C.root, t.outputs);
+    const gameId = await challenge(jobId, watcher);
+    const b = new Bisector(H);
+    const q = await bisect(gameId, { claimant: operator, challenger: watcher }, C, (l, i, nodes) => b.choose(l, i, nodes));
+    assert.equal(q, lieAt);
+    await send(oc.connect(watcher).resolveLeaf(gameId, depsOf(pop, q).map((pos) => ({ pos, bit: t.leaves[pos], siblings: b.siblings(pos, q) }))));
+    assert.equal((await oc.jobs(jobId)).claimant, ZERO);
+  }
+});
+
 // ------------------------------------------------------------------ bonds that scale with the fee (A2)
 
 test('bondFor(job) is the minimum bond plus a share of the fee, and every bonded call asks for it', async () => {
@@ -371,7 +431,7 @@ test('a lie on a big job costs more than a lie on a small one, and the split fol
     await claim(jobId, attacker, C.root, honest.outputs);
     const gameId = await challenge(jobId, watcher);
     const bs = new Bisector(H);
-    const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, left, right) => bs.choose(l, i, left, right));
+    const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, nodes) => bs.choose(l, i, nodes));
     const deps = depsOf(pop, q).map((pos) => ({ pos, bit: honest.leaves[pos], siblings: bs.siblings(pos, q) }));
     const rc = await send(oc.connect(watcher).resolveLeaf(gameId, deps));
     return { b, slashedBy: (await oc.slashed()) - slashed0, watcherNet: (await bal(watcher.address)) - w0 };
@@ -472,7 +532,7 @@ for (const seed of [1, 2, 3]) {
           parked.push(gameId);
         } else {
           const b = new Bisector(new Tree(mine));
-          const q = await bisect(gameId, { claimant: j.claim.who, challenger }, j.claim.tree, (l, i, left, right) => b.choose(l, i, left, right));
+          const q = await bisect(gameId, { claimant: j.claim.who, challenger }, j.claim.tree, (l, i, nodes) => b.choose(l, i, nodes));
           const deps = depsOf(pop, q).map((pos) => ({ pos, bit: mine[pos], siblings: b.siblings(pos, q) }));
           await send(oc.resolveLeaf(gameId, deps));
           closed.push([gameId, deps]);
