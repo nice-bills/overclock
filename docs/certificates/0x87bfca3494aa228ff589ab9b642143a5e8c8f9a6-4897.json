@@ -1,0 +1,156 @@
+{
+ "schema": 1,
+ "id": "cert:196:0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6:4897",
+ "chain": {
+  "source": 196,
+  "settlement": 31337
+ },
+ "challenge": {
+  "taskId": 14,
+  "label": "GC-014 GC-014 四位全零检测器",
+  "name": "GC-014 四位全零检测器",
+  "kind": 0,
+  "cycles": 1,
+  "nIn": 4,
+  "nOut": 1,
+  "vectorCount": 256,
+  "vectorsRoot": "0x9facdf00cdc902532c623ef134fb1dfcf124f0b628350e519a8f43a88249a30c",
+  "certificateSource": "exhaustive-vectors"
+ },
+ "design": {
+  "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+  "id": 4897,
+  "status": 1,
+  "nIn": 4,
+  "nOut": 1,
+  "nState": 0,
+  "gates": 1,
+  "netlistBytes": 7,
+  "netlistHash": "0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "structHash": "0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "topoHash": "0x0059200409ac302dff5f9ce689e5038563c19ca55b50111676d54798a006d894",
+  "nand": 1,
+  "latch": 0,
+  "ref": 0
+ },
+ "reference": {
+  "processor": "0x265e2580cb9c3fc059f2aa3cf20ad30f3f0a653c",
+  "id": 14,
+  "nIn": 4,
+  "nOut": 1,
+  "nState": 0,
+  "gates": 12,
+  "netlistBytes": 84,
+  "netlistHash": "0xb6dd8f4daa3acb6cc809bbb41ec1766ea432e0dba0a0ace3aad3461c96610159",
+  "structHash": "0xb6dd8f4daa3acb6cc809bbb41ec1766ea432e0dba0a0ace3aad3461c96610159",
+  "topoHash": "0x3aa4077383b9b738f7b70662f4b7c02522a61fb6a688446c8c728cc2440cb447",
+  "nand": 12,
+  "latch": 0,
+  "ref": 0
+ },
+ "mirror": {
+  "chainId": 31337,
+  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "design": {
+   "id": 22
+  },
+  "reference": {
+   "id": 23
+  },
+  "bench": {
+   "id": 24
+  }
+ },
+ "bench": {
+  "kind": "truth-table",
+  "mode": "count",
+  "beats": 16,
+  "gatesPerBeat": 86,
+  "stateBits": 9,
+  "netlistHash": "0x280db6b0c81587b3df376a005e920c091304cd3a76b853fe25b74c48ec5aef45"
+ },
+ "inputs": 256,
+ "inputsCovered": "16 inputs (all 2^4)",
+ "coverage": "16 inputs (all 2^4)",
+ "mismatches": 16,
+ "firstFailingInput": "0x00",
+ "settled": {
+  "inputs": 16,
+  "mismatches": 1,
+  "kind": "truth-table"
+ },
+ "officialVectors": {
+  "passed": 240,
+  "failed": 16,
+  "total": 256,
+  "uniqueInputs": 16,
+  "exhaustive": true,
+  "degenerate": false,
+  "firstFailure": {
+   "index": 0,
+   "cycle": 0,
+   "input": "0x00",
+   "expected": "0x01",
+   "got": "0"
+  }
+ },
+ "verdict": "failed",
+ "job": {
+  "chainId": 31337,
+  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "benchId": 24,
+  "jobId": 7,
+  "runId": "31337:7",
+  "overclock": "0x060e8d366675569977450c8017f0025c39011c7a",
+  "txs": [
+   {
+    "what": "post job",
+    "tx": "0x4410e0755fc5699b413e1d574332f55d64efd7b515b70aa2740cc6bff91cd067",
+    "gas": 322205
+   },
+   {
+    "what": "claim",
+    "tx": "0xd89e3292c18bd10f4c3e0f7037ac53725feb5e1c98c88a1ec37bbfa417ccff57",
+    "gas": 165069
+   },
+   {
+    "what": "finalize",
+    "tx": "0x2f0929e54917a40cd56a82081dd8ef4d7194ddb6d209f13484417033c0650933",
+    "gas": 47258
+   }
+  ],
+  "gas": {
+   "post": 322205,
+   "claim": 165069,
+   "finalize": 47258,
+   "honestPath": 534532
+  },
+  "outputs": "0x21",
+  "newState": "0x1000",
+  "traceLeaves": 1776,
+  "traceRoot": "0xd4fa557e99a66d5328c1eff6c506c5557a38d3500634cffefdd2ab460d78b7e7",
+  "beats": 16,
+  "postedAt": "2026-11-17T12:52:31.480Z",
+  "finalizedAt": "2026-11-17T12:52:31.552Z",
+  "fee": "0.0",
+  "bond": "1.0",
+  "outcome": "16 mismatches in 256 official vectors; first failing input 0x00 at cycle 0."
+ },
+ "shape": {
+  "key": "14:4/1/0:0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "taskId": 14,
+  "structHash": "0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "count": 2,
+  "covers": [
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4897
+   },
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4898
+   }
+  ]
+ },
+ "issuedAt": "2026-11-17T12:52:31.558Z"
+}

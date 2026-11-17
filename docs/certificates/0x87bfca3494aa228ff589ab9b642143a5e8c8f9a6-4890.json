@@ -1,0 +1,176 @@
+{
+ "schema": 1,
+ "id": "cert:196:0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6:4890",
+ "chain": {
+  "source": 196,
+  "settlement": 31337
+ },
+ "challenge": {
+  "taskId": 13,
+  "label": "GC-013 GC-013 四位相等比较器",
+  "name": "GC-013 四位相等比较器",
+  "kind": 0,
+  "cycles": 1,
+  "nIn": 8,
+  "nOut": 1,
+  "vectorCount": 256,
+  "vectorsRoot": "0x616d059bd3dd7f9222f9405325e6a285994ef1d6264a8fcd21fe3ffe1039670f",
+  "certificateSource": "exhaustive-vectors"
+ },
+ "design": {
+  "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+  "id": 4890,
+  "status": 1,
+  "nIn": 8,
+  "nOut": 1,
+  "nState": 0,
+  "gates": 1,
+  "netlistBytes": 7,
+  "netlistHash": "0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "structHash": "0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "topoHash": "0x0059200409ac302dff5f9ce689e5038563c19ca55b50111676d54798a006d894",
+  "nand": 1,
+  "latch": 0,
+  "ref": 0
+ },
+ "reference": {
+  "processor": "0x265e2580cb9c3fc059f2aa3cf20ad30f3f0a653c",
+  "id": 13,
+  "nIn": 8,
+  "nOut": 1,
+  "nState": 0,
+  "gates": 28,
+  "netlistBytes": 196,
+  "netlistHash": "0x2328d89313f98390712ea4fe7b021f56ec85d57c028fa7e65862837eb53a093a",
+  "structHash": "0x2328d89313f98390712ea4fe7b021f56ec85d57c028fa7e65862837eb53a093a",
+  "topoHash": "0x044f65560d3048a91b97898b3a105cc73a1d979d0a74c49b8b974260134a3ee4",
+  "nand": 28,
+  "latch": 0,
+  "ref": 0
+ },
+ "mirror": {
+  "chainId": 31337,
+  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "design": {
+   "id": 19
+  },
+  "reference": {
+   "id": 20
+  },
+  "bench": {
+   "id": 21
+  }
+ },
+ "bench": {
+  "kind": "truth-table",
+  "mode": "count",
+  "beats": 256,
+  "gatesPerBeat": 162,
+  "stateBits": 17,
+  "netlistHash": "0xecec97dbc5df61bb8ff9eb8542cf006395715ecff4571b75cffc797a8a459c4d"
+ },
+ "inputs": 256,
+ "inputsCovered": "256 inputs (all 2^8)",
+ "coverage": "256 inputs (all 2^8)",
+ "mismatches": 16,
+ "firstFailingInput": "0x00",
+ "settled": {
+  "inputs": 256,
+  "mismatches": 16,
+  "kind": "truth-table"
+ },
+ "officialVectors": {
+  "passed": 240,
+  "failed": 16,
+  "total": 256,
+  "uniqueInputs": 256,
+  "exhaustive": true,
+  "degenerate": false,
+  "firstFailure": {
+   "index": 0,
+   "cycle": 0,
+   "input": "0x00",
+   "expected": "0x01",
+   "got": "0"
+  }
+ },
+ "verdict": "failed",
+ "job": {
+  "chainId": 31337,
+  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "benchId": 21,
+  "jobId": 6,
+  "runId": "31337:6",
+  "overclock": "0x060e8d366675569977450c8017f0025c39011c7a",
+  "txs": [
+   {
+    "what": "post job",
+    "tx": "0x79ad30bd7dbc9893b6f9c0d1b08a8c735e2d8273de477a3a5130c1e08e0eef2f",
+    "gas": 341507
+   },
+   {
+    "what": "claim",
+    "tx": "0x0f0a97f99291995db5bd39c56bd0185ae1c0827c22c175ef61725aaaa281c8fc",
+    "gas": 165081
+   },
+   {
+    "what": "finalize",
+    "tx": "0xcc32c247b719587815f0be6602be7f1f1e0b45057bffd4fea75973bffac76bb0",
+    "gas": 47258
+   }
+  ],
+  "gas": {
+   "post": 341507,
+   "claim": 165081,
+   "finalize": 47258,
+   "honestPath": 553846
+  },
+  "outputs": "0x0102",
+  "newState": "0x000100",
+  "traceLeaves": 51968,
+  "traceRoot": "0x2c1c6363e028eae9fd2dd046233c6e9380c18f52a76de01f4f1f120d99fc5887",
+  "beats": 256,
+  "postedAt": "2026-11-17T12:52:21.023Z",
+  "finalizedAt": "2026-11-17T12:52:21.091Z",
+  "fee": "0.0",
+  "bond": "1.0",
+  "outcome": "16 mismatches in 256 official vectors; first failing input 0x00 at cycle 0."
+ },
+ "shape": {
+  "key": "13:8/1/0:0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "taskId": 13,
+  "structHash": "0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
+  "count": 7,
+  "covers": [
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4890
+   },
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4891
+   },
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4892
+   },
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4893
+   },
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4894
+   },
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4895
+   },
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 4896
+   }
+  ]
+ },
+ "issuedAt": "2026-11-17T12:52:21.098Z"
+}
