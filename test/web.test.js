@@ -311,7 +311,7 @@ test('e2e: the job board decodes a local v2 dispute: 16-way moves, forced error,
     assert.match(games[0], /forced error caught\s*jackpot [\d.]+ OKB/);
     assert.match(games[1], /cheat caught/);
     assert.match(games[1], /half the loser's bond slashed/);
-    const moves = Number((games[1].match(/(\d+) moves/) ?? [])[1]);
+    const moves = Number((await page.locator('#games details summary').last().textContent()).match(/(\d+) moves/)[1]); // the cheat's game is listed last
     assert.ok(moves >= 2 && moves % 2 === 0 && moves <= 12, `reveal16/pick16 moves decoded, got ${moves}`);
     const tickets = await page.locator('#jobs .ticket').allTextContents();
     assert.match(tickets[0], /Bond1\.5 OKB/, 'per-job bond: 1 + 50% of the 1 OKB fee');
