@@ -701,11 +701,11 @@ node bin/overclock.js watch      # re-run every claim, challenge wrong ones</pre
 
     <section>
       <div class="sec-head">
-        <h2>Halving <span id="leafCount">1,817,800</span> steps down to one</h2>
-        <p>Each row zooms into the half where the two runs disagree.</p>
+        <h2>Narrowing <span id="leafCount">1,817,800</span> steps down to one</h2>
+        <p>Each row zooms into the part where the two runs disagree: a half per move on the first contract (this mainnet run), a sixteenth per move on v2.</p>
       </div>
       <div class="card">
-        <div class="legend"><span style="--k: var(--ink)">half that disagrees</span><span style="--k: var(--lie)">the wrong step</span></div>
+        <div class="legend"><span style="--k: var(--ink)">part that disagrees</span><span style="--k: var(--lie)">the wrong step</span></div>
         <div class="ladder" id="ladder"></div>
         <div class="verdict" id="verdict"></div>
       </div>
@@ -4176,7 +4176,7 @@ return { NAND, LATCH, REF, hexToBytes, bytesToHex, decode, load, beat, pack, unp
     return ga === gz ? `gen ${ga}, steps ${fmt(a)}–${fmt(z)}` : `gens ${ga}–${Math.min(gz, run.beats)}`;
   }
 
-  // ladder: each row shows the parent span split in two
+  // ladder: each row shows the part of the parent span the claimant's node disagrees on (a half, or a sixteenth on v2)
   const rows = [];
   let parent = { from: 0, to: 2 ** run.trace.depth - 1, level: run.trace.depth };
   for (const st of run.steps) {

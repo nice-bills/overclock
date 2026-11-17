@@ -232,7 +232,7 @@ export function createServer(ctx) {
     const claimed = [...bitsOf(j.outputs, j.nOut), ...bitsOf(j.newState, j.nState)];
     const honest = [...t.outputs, ...t.newState];
     const k = honest.findIndex((v, i) => v !== claimed[i]);
-    const verdict = root !== j.traceRoot ? 'wrong: the trace differs (challenge_claim will bisect to the wrong gate)'
+    const verdict = root !== j.traceRoot ? 'wrong: the trace differs (challenge_claim will narrow it to the wrong gate)'
       : k >= 0 ? `wrong: result bit ${k} does not match the claimant's own trace (challenge_claim disproves it in one transaction)`
         : 'correct';
     return { jobId, verdict, finalized: j.finalized, correctOutputs: bytesToHex(pack(t.outputs)), correctFinalState: bytesToHex(pack(t.newState)) };
