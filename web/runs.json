@@ -1,0 +1,213 @@
+{
+  "schema": 1,
+  "updatedAt": "2026-11-17",
+  "note": "Seeded from the three mainnet jobs in web/live-run.json, web/digits-live-run.json and web/cpu-live-run.json. The B3 runner replaces this file; see docs/runs-schema.md. A circuit with no run here is queued: nothing has run it yet.",
+  "networks": {
+    "196": {
+      "name": "X Layer",
+      "explorer": "https://www.oklink.com/x-layer",
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710"
+    }
+  },
+  "runs": [
+    {
+      "id": "196:0",
+      "chainId": 196,
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+      "jobId": 0,
+      "circuit": {
+        "processor": "0xb00f10bb4b2f32c561bf90e205e543d0a2395971",
+        "id": 5,
+        "name": "OKspace",
+        "gates": 3712,
+        "nIn": 0,
+        "nOut": 64,
+        "nState": 64,
+        "owner": "0xA9B480C2694aa3F16cd109FCD2C91aCbf3BC689F"
+      },
+      "what": "40 generations of Conway's Game of Life on the 8×8 board",
+      "beats": 40,
+      "steps": 181840,
+      "status": "final",
+      "fee": "0.0002",
+      "bond": "0.001",
+      "directGas": 441085640,
+      "gas": {
+        "post": 430756,
+        "claim": 125384,
+        "finalize": 56627,
+        "honestPath": 612767,
+        "dispute": 2433720
+      },
+      "disputes": 1,
+      "disputeTxs": 38,
+      "outcome": "A cheating claim was challenged and proven wrong in one transaction; the honest claim then finalized.",
+      "txs": [
+        {
+          "what": "post job",
+          "tx": "0x8c75adfb5da685237bc456ccdeba59ae207c365434b73ba1130aaa4a0971bf2c",
+          "gas": 430756
+        },
+        {
+          "what": "wrong claim (cheat)",
+          "tx": "0xb959394b47e6523f6877da8b00395410cf6c19ab5ef74ac75967b6b867659677",
+          "gas": 142580
+        },
+        {
+          "what": "challenge",
+          "tx": "0x942b7927db797ff55d6d67dbc2a57b2a3fbe99616123c0bb704df9abac8550b5",
+          "gas": 133899
+        },
+        {
+          "what": "prove the wrong step",
+          "tx": "0xa4fbe532791e6220310618304ce7f4f908a80411a887986984e0c7819a2a0bff",
+          "gas": 347509
+        },
+        {
+          "what": "honest claim",
+          "tx": "0x75779e7f684c3fbe11cd3b68142e726149da990d283c438fb528e784abcd66c9",
+          "gas": 125384
+        },
+        {
+          "what": "finalize",
+          "tx": "0x2c45bc0c13bf1a3c2234c98d1fa1665482c6ece5cb55e8b2bc57e50035a863c6",
+          "gas": 56627
+        }
+      ],
+      "source": "web/live-run.json"
+    },
+    {
+      "id": "196:1",
+      "chainId": 196,
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+      "jobId": 1,
+      "circuit": {
+        "processor": "0xb00e17789f905234f1890c22e6c01015c10d2f54",
+        "id": 11,
+        "name": "AlephTape",
+        "gates": 161080,
+        "nIn": 64,
+        "nOut": 70,
+        "nState": 0,
+        "owner": "0x65E9483960015EBDDC9EE37b184211E2802d9bcd"
+      },
+      "what": "One image through the 161,080-gate digit-recognition net",
+      "beats": 1,
+      "steps": 180640,
+      "status": "final",
+      "fee": "0.0001",
+      "bond": "0.001",
+      "directGas": 388354847,
+      "gas": {
+        "post": 2082094,
+        "claim": 105340,
+        "finalize": 56639,
+        "honestPath": 2244073,
+        "dispute": 4157974
+      },
+      "disputes": 1,
+      "disputeTxs": 38,
+      "outcome": "A cheating claim was challenged and proven wrong in one transaction; the honest claim then finalized.",
+      "txs": [
+        {
+          "what": "post job",
+          "tx": "0xe09c5980c522de487f0feefa2d770264ab79d405ac01bcbd832e80218bbf90a6",
+          "gas": 2082094
+        },
+        {
+          "what": "wrong claim (cheat)",
+          "tx": "0x4c74d868d71c94de7596f5d0cc91ca19c0c561a647193ee1010b737c5dd596c1",
+          "gas": 122464
+        },
+        {
+          "what": "challenge",
+          "tx": "0x981df02aa86d5f22e6864b6da28dc34e212b7607cfa984598d2e580cf108532e",
+          "gas": 136711
+        },
+        {
+          "what": "prove the wrong step",
+          "tx": "0x010a2a356747492df112b843c766111a806e454680a6f542eb529d0a963c9a3b",
+          "gas": 2065659
+        },
+        {
+          "what": "honest claim",
+          "tx": "0x32b5deb5500ebd8f8e27eac622196f6364c9e5c2cebc1bd098640dd2d1e65515",
+          "gas": 105340
+        },
+        {
+          "what": "finalize",
+          "tx": "0xcf992d6a5af2c575b2efa5c205bcae232413121a6e1ecc02230025a2d4021848",
+          "gas": 56639
+        }
+      ],
+      "source": "web/digits-live-run.json"
+    },
+    {
+      "id": "196:2",
+      "chainId": 196,
+      "overclock": "0xe29FD6E33De7810181BdA3FcAE4A8B5B0824E710",
+      "jobId": 2,
+      "circuit": {
+        "processor": "0xb00f10bb4b2f32c561bf90e205e543d0a2395971",
+        "id": 6,
+        "name": "OKspace",
+        "gates": 1437,
+        "nIn": 0,
+        "nOut": 4,
+        "nState": 205,
+        "owner": "0xA9B480C2694aa3F16cd109FCD2C91aCbf3BC689F"
+      },
+      "what": "10,000 beats of the 4-bit CPU running Fibonacci",
+      "beats": 10000,
+      "steps": 16440000,
+      "status": "final",
+      "fee": "0.00001",
+      "bond": "0.001",
+      "directGas": 34277810000,
+      "gas": {
+        "post": 633856,
+        "claim": 125588,
+        "finalize": 56639,
+        "honestPath": 816083,
+        "dispute": 3615122
+      },
+      "disputes": 1,
+      "disputeTxs": 50,
+      "outcome": "A cheating claim was challenged and proven wrong in one transaction; the honest claim then finalized.",
+      "txs": [
+        {
+          "what": "post job",
+          "tx": "0xe430e82304ce56a89dedb7331713a7385f6dc2ee3b6485cfd1456368977c694d",
+          "gas": 633856
+        },
+        {
+          "what": "wrong claim (cheat)",
+          "tx": "0x954ffb9796c91b131b4f091a2d82e07975e585aab3829b7544279c218fe8dab7",
+          "gas": 142688
+        },
+        {
+          "what": "challenge",
+          "tx": "0x6a0965c7f5bb63301eb4daff09936fa99f1c014a20add9507b8f4f6dbec15669",
+          "gas": 137287
+        },
+        {
+          "what": "prove the wrong step",
+          "tx": "0x3e14144d80a5322b228ab39f2b6b47cf90148f49186cd6bf2dcd6ba048f74937",
+          "gas": 887491
+        },
+        {
+          "what": "honest claim",
+          "tx": "0x437b3c4861d683038620812a272dad96e4ed9c1e7bbe270e507033d1de421015",
+          "gas": 125588
+        },
+        {
+          "what": "finalize",
+          "tx": "0xf9e3738e5cc9ce905197526b755579d2da0d416b6ba07d5cdbe0a717bfd2ea6d",
+          "gas": 56639
+        }
+      ],
+      "source": "web/cpu-live-run.json"
+    }
+  ],
+  "certificates": []
+}
