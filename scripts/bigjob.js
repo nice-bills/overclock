@@ -7,7 +7,7 @@
 // to pass --steps trace leaves (a step is one leaf: one wire value in one beat).
 //
 //   lie:    a cheat claims a result with one corrupted gate deep in the job. The watcher re-runs the
-//           job, sees the root differ, bisects 30 levels to the leaf and proves it with resolveLeaf.
+//           job, sees the root differ, descends the 30 levels (16 ways at a time) to the leaf and proves it with resolveLeaf.
 //           Then an honest operator claims the same job, the window passes, and it finalizes to the
 //           result the reference emulator gives.
 //   honest: an honest claim is challenged by a griefer who bisects against a doctored trace, and wins.
@@ -21,7 +21,7 @@ import ganache from 'ganache';
 import { BrowserProvider, ContractFactory, parseEther } from 'ethers';
 import { load, pack, unpack, hexToBytes, bytesToHex } from '../src/tap02.js';
 import { layout } from '../src/trace.js';
-import { depsOf, Bisector } from '../src/game.js';
+import { depsOf, Bisector, revealNodes, span } from '../src/game.js';
 import { Operator, Challenger } from '../src/agents.js';
 import { artifact } from '../src/chain.js';
 import { cpuCircuit, toState, fibonacciMachine, cpuRun } from '../src/cpu4.js';
@@ -120,12 +120,11 @@ try {
       const bis = new Bisector(fake);
       let level = claimed.depth, index = 0;
       while (level > 0) {
-        const left = claimed.node(level - 1, 2 * index), right = claimed.node(level - 1, 2 * index + 1);
-        await (await oc.connect(honestS).reveal(gameId, left, right)).wait();
-        const goLeft = bis.choose(level, index, left, right);
-        await (await oc.connect(watcherS).pick(gameId, !goLeft)).wait();
-        index = 2 * index + (goLeft ? 0 : 1);
-        level--;
+        await (await oc.connect(honestS).reveal16(gameId, revealNodes(claimed, level, index))).wait();
+        const which = bis.choose(level, index, [...(await oc.pending(gameId))]);
+        await (await oc.connect(watcherS).pick16(gameId, which)).wait();
+        index = index * 2 ** span(level) + which;
+        level -= span(level);
       }
       if (index !== fakeLeaf) throw new Error(`bisection landed on ${index}, not ${fakeLeaf}`);
       const deps = depsOf(c, index, BEATS).map((pos) => ({ pos, bit: fake.leaf(pos), siblings: bis.siblings(pos, index) }));

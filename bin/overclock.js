@@ -2,7 +2,8 @@
 // Overclock command line. Network settings come from the environment:
 //   RPC_URL      JSON-RPC endpoint (X Layer mainnet: https://rpc.xlayer.tech, chain 196)
 //   PRIVATE_KEY  key for commands that send transactions
-//   OVERCLOCK    address of the Overclock contract (default: the X Layer mainnet deployment)
+//   OVERCLOCK    address of the Overclock contract (default: the X Layer mainnet deployment, the first version:
+//                `job` and `trace` read it, but operator, watch and post need a v2 contract, which asks a per-job bond)
 //
 //   overclock operator [--lie-at LEAF]     claim open jobs and defend the claims
 //   overclock watch                        re-run every claim and challenge wrong ones
@@ -88,7 +89,9 @@ switch (cmd) {
   case 'job': {
     const oc = overclock(provider());
     const j = await readJob(oc, BigInt(rest[0]));
-    console.log(JSON.stringify({ ...j, fee: formatEther(j.fee), jobId: String(j.jobId), id: String(j.id), inputBits: undefined, stateBits: undefined }, null, 1));
+    // what claiming or challenging this job locks: v2 asks bondFor(job), the first contract version a flat bond
+    const bond = await oc.bondFor(j.jobId).catch(() => oc.bond());
+    console.log(JSON.stringify({ ...j, fee: formatEther(j.fee), bond: formatEther(bond), jobId: String(j.jobId), id: String(j.id), inputBits: undefined, stateBits: undefined }, null, 1));
     break;
   }
   case 'life': {

@@ -599,7 +599,7 @@ footer a:hover { color: var(--ink); }
       <div class="pinout" id="pinout">
         <div class="pr" data-step="0"><span>1</span><b>POST</b><p>Name any taped-out circuit, a starting state and a number of beats. Attach a fee.</p></div>
         <div class="pr" data-step="1"><span>2</span><b>CLAIM</b><p>An operator runs it off-chain and posts the result with a Merkle root over every wire value, plus a bond.</p></div>
-        <div class="pr lie" data-step="2"><span>3</span><b>CHALLENGE</b><p>A watcher re-runs it for free. If the roots differ, both sides halve the trace until one step is left.</p></div>
+        <div class="pr lie" data-step="2"><span>3</span><b>CHALLENGE</b><p>A watcher re-runs it for free. If the roots differ, both sides narrow the trace, sixteen ways a move, until one step is left.</p></div>
         <div class="pr lie" data-step="4"><span>4</span><b>RESOLVE</b><p>The contract recomputes that NAND, LATCH or REF wire from the circuit's on-chain netlist. The liar loses the bond.</p></div>
         <div class="pr" data-step="5"><span>5</span><b>FINALIZE</b><p>Nobody challenged in the window: the result is final and the operator is paid.</p></div>
       </div>
