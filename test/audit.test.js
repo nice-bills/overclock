@@ -5,10 +5,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import solc from 'solc';
 import ganache from 'ganache';
-import { BrowserProvider, ContractFactory, parseEther } from 'ethers';
+import { BrowserProvider, ContractFactory, parseEther, keccak256 as ethersKeccak, AbiCoder, ZeroHash as ethersZero } from 'ethers';
+const abiCoder = AbiCoder.defaultAbiCoder();
 import { load, pack, hexToBytes, bytesToHex } from '../src/tap02.js';
 import { traceBeat, traceJob, buildTree, Tree } from '../src/trace.js';
 import { depsOf, sigPosOf, Bisector, revealNodes, span, rounds } from '../src/game.js';
+import { Operator, Challenger } from '../src/agents.js';
 
 const vectors = JSON.parse(readFileSync(new URL('../vendor-tap02/vectors.json', import.meta.url)));
 const art = (n) => JSON.parse(readFileSync(new URL(`../build/${n}.json`, import.meta.url)));
@@ -56,7 +58,7 @@ before(async () => {
   signers = await Promise.all([...Array(8).keys()].map((i) => provider.getSigner(i)));
   [attacker, accomplice, poster, operator, watcher] = signers;
   cpu = await deploy(art('MockProcessor'), poster);
-  oc = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS, 0);
+  oc = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS, 0, signers[5].address);
   const v = vectors.valid.find((x) => x.name === 'popcount8_3151');
   pop = load(hexToBytes(v.netlist), v.nIn, v.nOut);
   popId = Number(await cpu.nextId());
@@ -445,7 +447,7 @@ test('a lie on a big job costs more than a lie on a small one, and the split fol
 });
 
 test('a bond share above 10x the fee is refused at deploy', async () => {
-  await assert.rejects(deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, 100_001, 0));
+  await assert.rejects(deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, 100_001, 0, ZERO));
 });
 
 // ------------------------------------------------------------------ gas bound for the one-step check (A5, audit I-1)
@@ -477,7 +479,7 @@ test('postJob refuses a circuit whose worst-case check would cost too much gas, 
   const bound = await oc.leafGasBound.staticCall(cpuAddr, id);
   assert.ok(bound > 1_500_000n && bound < 5_000_000n, `bound ${bound}`);
   // a contract that tolerates at most 1.5M gas for a check refuses it; the default one accepts
-  const strict = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS, 1_500_000);
+  const strict = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS, 1_500_000, ZERO);
   await assert.rejects(send(strict.postJob(cpuAddr, id, '0x', '0x', 1, false)));
   const shallow = await chain(20);
   assert.ok((await oc.leafGasBound.staticCall(cpuAddr, shallow.id)) < 1_500_000n);
@@ -515,6 +517,182 @@ test('the gas bound covers the real check on every leaf of the stateful REF circ
     const rc = await send(oc.connect(watcher).resolveLeaf(gameId, depsOf(pop, q).map((pos) => ({ pos, bit: t.leaves[pos], siblings: b.siblings(pos, q) }))));
     assert.ok(rc.gasUsed < bound, `leaf ${lieAt}: ${rc.gasUsed} gas, bound ${bound}`);
   }
+});
+
+// ------------------------------------------------------------------ forced errors (A4)
+
+const runnerS = () => signers[5];
+const commitOf = (jobId, salt) => ethersKeccak(abiCoder.encode(['uint256', 'bytes32'], [jobId, salt]));
+const SALT = '0x' + '5a'.repeat(32);
+
+// Play a full dispute on job `jobId` from `from` against the claimant's tree C; returns the Resolved event.
+async function catchClaim(jobId, from, C, H, t) {
+  const gameId = await challenge(jobId, from);
+  const b = new Bisector(H);
+  const q = await bisect(gameId, { claimant: await (async () => (await oc.jobs(jobId)).claimant)().then((a) => signers.find((x) => x.address === a)), challenger: from }, C, (l, i, nodes) => b.choose(l, i, nodes));
+  const rc = await send(oc.connect(from).resolveLeaf(gameId, depsOf(pop, q).map((pos) => ({ pos, bit: t.leaves[pos], siblings: b.siblings(pos, q) }))));
+  return { rc, gameId };
+}
+
+async function lie(inputs, at = 30) {
+  const honest = traceBeat(pop, [], inputs);
+  const lied = honest.leaves.slice();
+  lied[at] ^= 1;
+  return { honest, H: buildTree(honest.leaves), C: buildTree(lied) };
+}
+
+test('only the runner can commit to a forced error, and only before it claims', async () => {
+  const jobId = await post(INPUTS, parseEther('1'));
+  const c = commitOf(jobId, SALT);
+  await assert.rejects(send(oc.connect(attacker).commitForced(jobId, c)));
+  await send(oc.connect(runnerS()).commitForced(jobId, c));
+  assert.equal(await oc.forcedCommit(jobId), c);
+  await assert.rejects(send(oc.connect(runnerS()).commitForced(jobId, c))); // once
+  const job2 = await post(INPUTS);
+  const t = traceBeat(pop, [], INPUTS);
+  await claim(job2, operator, buildTree(t.leaves).root, t.outputs);
+  await assert.rejects(send(oc.connect(runnerS()).commitForced(job2, commitOf(job2, SALT)))); // already claimed
+  assert.equal(await oc.forcedRunner(), runnerS().address);
+  // an honest operator claiming a committed job is not a forced claim
+  await claim(jobId, operator, buildTree(t.leaves).root, t.outputs);
+  assert.equal(await oc.forcedAt(jobId), 0n);
+  await warp(WINDOW + 1);
+  await send(oc.finalize(jobId));
+  await send(oc.finalize(job2));
+});
+
+test('a forced error is caught and paid: the catcher gets a jackpot from the pool, the runner loses nothing', async () => {
+  // fill the pool with a normal cheat first
+  const jobA = await post(INPUTS, parseEther('1'));
+  const a = await lie(INPUTS, 35);
+  await claim(jobA, attacker, a.C.root, a.honest.outputs);
+  await catchClaim(jobA, accomplice, a.C, a.H, a.honest);
+  const pool = await oc.slashed();
+  assert.ok(pool > 0n);
+  // the runner forces an error
+  const inputs = [1, 1, 0, 1, 0, 0, 1, 1];
+  const jobId = await post(inputs, parseEther('2'));
+  const f = await lie(inputs, 33);
+  const B = await bondOf(jobId);
+  const r0 = await bal(runnerS().address), w0 = await bal(watcher.address);
+  await send(oc.connect(runnerS()).commitForced(jobId, commitOf(jobId, SALT)));
+  await send(oc.connect(runnerS()).claim(jobId, f.C.root, bytesToHex(pack(f.honest.outputs)), '0x', { value: B }));
+  assert.equal(await oc.forcedAt(jobId), await oc.claimCount(jobId));
+  const { rc } = await catchClaim(jobId, watcher, f.C, f.H, f.honest);
+  const ev = events(rc, 'ForcedCaught')[0];
+  assert.equal(ev.catcher, watcher.address);
+  assert.equal(ev.jackpot, B < pool ? B : pool);
+  assert.equal(await oc.slashed(), pool - ev.jackpot, 'the jackpot comes out of the slashed pool');
+  const gasCap = parseEther('0.05'); // the dispute's transactions cost gas, nothing like a bond
+  const rLoss = r0 - (await bal(runnerS().address)), wGain = (await bal(watcher.address)) - w0;
+  assert.ok(rLoss >= 0n && rLoss < gasCap, `the runner lost ${rLoss}: only gas, not a bond`);
+  assert.ok(wGain > ev.jackpot - gasCap && wGain < ev.jackpot, `the watcher earned the jackpot (${wGain} vs ${ev.jackpot})`);
+  assert.equal((await oc.jobs(jobId)).claimant, ZERO);
+  assert.equal(await oc.forcedCommit(jobId), ethersZero);
+});
+
+test('an uncaught forced error is revealed after the window and its bond refunded, with no penalty', async () => {
+  const inputs = [0, 0, 1, 1, 0, 1, 0, 1];
+  const jobId = await post(inputs, parseEther('1'));
+  const f = await lie(inputs, 31);
+  const B = await bondOf(jobId);
+  const cost = (rc) => rc.gasUsed * rc.gasPrice;
+  const R = runnerS();
+  const r0 = await bal(R.address);
+  const slashed0 = await oc.slashed();
+  let gas = 0n;
+  gas += cost(await send(oc.connect(R).commitForced(jobId, commitOf(jobId, SALT))));
+  gas += cost(await send(oc.connect(R).claim(jobId, f.C.root, bytesToHex(pack(f.honest.outputs)), '0x', { value: B })));
+  await assert.rejects(send(oc.connect(R).revealForced(jobId, SALT)), undefined, 'not before the window ends');
+  await warp(WINDOW + 1);
+  // after the window a stranger still cannot finalize the wrong claim: it waits for the runner
+  await assert.rejects(send(oc.connect(attacker).finalize(jobId)));
+  await assert.rejects(send(oc.connect(R).revealForced(jobId, '0x' + '11'.repeat(32)))); // wrong salt
+  await assert.rejects(send(oc.connect(attacker).revealForced(jobId, SALT))); // not the runner
+  gas += cost(await send(oc.connect(R).revealForced(jobId, SALT)));
+  assert.equal(await bal(R.address), r0 - gas, 'bond refunded in full: the runner paid only gas');
+  assert.equal(await oc.slashed(), slashed0, 'nothing was slashed');
+  assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the wrong claim is void');
+  await assert.rejects(send(oc.connect(R).revealForced(jobId, SALT)), undefined, 'once');
+  // an honest operator now claims the job and is paid
+  await claim(jobId, operator, f.H.root, f.honest.outputs);
+  await warp(WINDOW + 1);
+  await send(oc.finalize(jobId));
+  assert.equal((await oc.jobs(jobId)).finalized, true);
+});
+
+test('a forced claim that is in no game and whose runner never reveals finalizes only after a second window', async () => {
+  const jobId = await post(INPUTS);
+  const t = traceBeat(pop, [], INPUTS);
+  const R = runnerS();
+  await send(oc.connect(R).commitForced(jobId, commitOf(jobId, SALT)));
+  await send(oc.connect(R).claim(jobId, buildTree(t.leaves).root, bytesToHex(pack(t.outputs)), '0x', { value: await bondOf(jobId) }));
+  await warp(WINDOW + 1);
+  await assert.rejects(send(oc.connect(attacker).finalize(jobId)));
+  await send(oc.connect(R).finalize(jobId)); // a decoy: the runner lets its honest claim through
+  assert.equal((await oc.jobs(jobId)).finalized, true);
+});
+
+test('a runner with no commitment is slashed like anyone else', async () => {
+  const inputs = [1, 0, 0, 0, 1, 1, 0, 1];
+  const jobId = await post(inputs, parseEther('1'));
+  const f = await lie(inputs, 36);
+  const B = await bondOf(jobId);
+  const slashed0 = await oc.slashed();
+  await send(oc.connect(runnerS()).claim(jobId, f.C.root, bytesToHex(pack(f.honest.outputs)), '0x', { value: B }));
+  await catchClaim(jobId, watcher, f.C, f.H, f.honest);
+  assert.equal((await oc.slashed()) - slashed0, cutOf(B));
+});
+
+test('the runner and watcher bots play forced errors: one is caught and paid, one is revealed and refunded', async () => {
+  const mk = async (Cls, signer, name, extra = {}) => {
+    const a = new Cls({ oc, signer, name, log: (e) => logs.push(e), circuits: new Map(), ...extra });
+    return a;
+  };
+  const logs = [];
+  const tick = async (...agents) => { for (const a of agents) await a.tick(); };
+  const cpuAddr = await cpu.getAddress();
+  // the pool must hold something to pay a jackpot from
+  const seed = await post(INPUTS, parseEther('1'));
+  const sl = await lie(INPUTS, 34);
+  await claim(seed, attacker, sl.C.root, sl.honest.outputs);
+  await catchClaim(seed, accomplice, sl.C, sl.H, sl.honest);
+  assert.ok((await oc.slashed()) > 0n);
+  // caught
+  const jobA = await post([1, 1, 1, 0, 0, 1, 0, 1], parseEther('1'));
+  const runnerBot = await mk(Operator, runnerS(), 'runner', { forced: () => 36 });
+  const watcherBot = await mk(Challenger, watcher, 'watcher');
+  runnerBot.only = watcherBot.only = new Set([Number(jobA)]);
+  const slashed0 = await oc.slashed();
+  await tick(runnerBot);
+  assert.notEqual(await oc.forcedCommit(jobA), ethersZero, 'the runner committed first');
+  assert.notEqual((await oc.jobs(jobA)).claimant, ZERO);
+  // the runner re-claims the job honestly in the tick right after it is caught
+  for (let i = 0; i < 12 && !logs.some((e) => e.jackpot); i++) await tick(watcherBot, runnerBot);
+  const caught = logs.find((e) => e.jackpot);
+  assert.ok(caught && BigInt(caught.jackpot) > 0n, 'and was paid a jackpot');
+  assert.ok((await oc.slashed()) < slashed0);
+  assert.equal((await oc.jobs(jobA)).claimant, runnerS().address, 'the runner then claims the job honestly');
+  assert.equal(await oc.forcedCommit(jobA), ethersZero);
+  await warp(WINDOW + 1);
+  await tick(runnerBot);
+  assert.equal((await oc.jobs(jobA)).finalized, true);
+  // uncaught: nobody watches, the runner reveals after the window, claims again and is paid
+  const jobB = await post([0, 1, 1, 1, 0, 0, 1, 1], parseEther('1'));
+  const r2 = await mk(Operator, runnerS(), 'runner', { forced: () => 36 });
+  r2.only = new Set([Number(jobB)]);
+  const r0 = await bal(runnerS().address);
+  await tick(r2);
+  await warp(WINDOW + 1);
+  await tick(r2);
+  assert.equal((await oc.jobs(jobB)).claimant, ZERO, 'revealed and voided');
+  assert.ok(logs.some((e) => e.what === 'reveals its forced error'));
+  await tick(r2);
+  await warp(WINDOW + 1);
+  await tick(r2);
+  assert.equal((await oc.jobs(jobB)).finalized, true);
+  const net = (await bal(runnerS().address)) - r0;
+  assert.ok(net > parseEther('1') - parseEther('0.05') && net <= parseEther('1'), `the runner earned the fee and paid only gas (net ${net})`);
 });
 
 // ------------------------------------------------------------------ randomized solvency invariant
@@ -572,9 +750,13 @@ for (const seed of [1, 2, 3]) {
         const kind = rand();
         if (kind < 0.35) leaves[2 + 8 + Math.floor(rand() * 50)] ^= 1; // lie in the trace
         else if (kind < 0.55) outputs[Math.floor(rand() * 4)] ^= 1; // lie in the result
-        const who = pick(players);
+        // a quarter of the claims come from the runner under a forced-error commitment (a lie or a decoy)
+        const forced = rand() < 0.25 && (await oc.forcedCommit(j.jobId)) === ethersZero;
+        const who = forced ? runnerS() : pick(players);
+        const salt = '0x' + BigInt(j.jobId).toString(16).padStart(64, '0');
+        if (forced) await send(oc.connect(who).commitForced(j.jobId, commitOf(j.jobId, salt)));
         await claim(j.jobId, who, buildTree(leaves).root, outputs);
-        j.claim = { who, leaves, tree: buildTree(leaves), outputs };
+        j.claim = { who, leaves, tree: buildTree(leaves), outputs, forced, salt };
         await check('claim');
       } else if (r < 0.65 && open.length) {
         const j = pick(open);
@@ -639,7 +821,14 @@ for (const seed of [1, 2, 3]) {
         for (const j of open) {
           const s = await oc.jobs(j.jobId);
           if (s.openGames > 0n || s.finalized) continue;
-          await send(oc.finalize(j.jobId));
+          if (j.claim.forced && rand() < 0.5) {
+            // the runner owns up to the claim, true or not: it is voided and the bond comes back
+            await send(oc.connect(runnerS()).revealForced(j.jobId, j.claim.salt));
+            j.claim = null;
+            await check('revealForced');
+            continue;
+          }
+          await send(oc.connect(j.claim.forced ? runnerS() : signers[0]).finalize(j.jobId));
           j.claim = null;
           j.done = true;
           await check('finalize');

@@ -197,7 +197,7 @@ let oc;
 if (arg('overclock', null)) {
   oc = new Contract(arg('overclock'), artifact('Overclock').abi, deployer);
   say(`using Overclock at ${arg('overclock')}`);
-} else oc = await deploy('Overclock', BOND, WINDOW, factoryAddr, await deployer.getAddress(), FEE_BPS, BOND_BPS, 0);
+} else oc = await deploy('Overclock', BOND, WINDOW, factoryAddr, await deployer.getAddress(), FEE_BPS, BOND_BPS, 0, '0x0000000000000000000000000000000000000000');
 const ocAddr = await oc.getAddress();
 if ((await oc.bond()) !== BOND || (await oc.bondBps()) !== BOND_BPS || Number(await oc.window()) !== WINDOW) throw new Error(`Overclock at ${ocAddr} has a different bond, bond-bps or window`);
 const job0 = Number(await oc.jobCount()), game0 = Number(await oc.gameCount());

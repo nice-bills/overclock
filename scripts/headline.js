@@ -79,7 +79,7 @@ const balance0 = LIVE ? await provider.getBalance(deployer.address) : null;
 let oc;
 if (arg('deploy', null) !== null) {
   const a = artifact('Overclock');
-  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200, 10000, 0);
+  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200, 10000, 0, '0x0000000000000000000000000000000000000000');
   await oc.waitForDeployment();
   note('deploy Overclock', await oc.deploymentTransaction().wait());
 } else {

@@ -46,6 +46,8 @@ contract Overclock {
     /// by the bound in leafGasBound. 0 at deploy means DEFAULT_MAX_LEAF_GAS.
     uint256 public constant DEFAULT_MAX_LEAF_GAS = 30_000_000;
     uint256 public immutable maxLeafGas;
+    /// The one address allowed to post forced errors (see commitForced). Zero: none.
+    address public immutable forcedRunner;
     // Worst-case gas model of the check, per circuit on the path from the top to the disputed leaf:
     // a fixed cost for the external reads, plus a walk's cost per netlist record and per byte
     // (the check walks a circuit's netlist up to three times). Calibrated against measured
@@ -109,6 +111,15 @@ contract Overclock {
     /// Half of every losing bond in a settled game, held for the treasury. A cheat who settles
     /// its own claim through an accomplice, or stalls it with self-challenges, loses this much.
     uint256 public slashed;
+    /// Forced errors (Truebit's answer to the verifier's dilemma). The forcedRunner commits to a job
+    /// before claiming it, keccak256(abi.encode(jobId, salt)), and may then claim a deliberately
+    /// wrong result. Whoever proves it wrong first is paid a jackpot out of `slashed`; the forcedRunner
+    /// loses nothing. A forced claim nobody catches is revealed by the forcedRunner after the window
+    /// and voided with its bond refunded. The forcedRunner may also commit to claims that are right,
+    /// so a commitment alone says nothing about the claim.
+    mapping(uint256 => bytes32) public forcedCommit;
+    /// claimCount of the claim that is under a commitment, 0 if none.
+    mapping(uint256 => uint256) public forcedAt;
 
     event JobPosted(uint256 indexed jobId, address cpu, uint256 id, uint32 beats);
     event Claimed(uint256 indexed jobId, address claimant, bytes32 traceRoot, bytes outputs);
@@ -117,13 +128,17 @@ contract Overclock {
     event Picked(uint256 indexed gameId, uint8 level, uint256 index);
     event Resolved(uint256 indexed jobId, uint256 indexed gameId, address winner, string reason);
     event Finalized(uint256 indexed jobId, bytes outputs);
+    event ForcedCommitted(uint256 indexed jobId);
+    event ForcedCaught(uint256 indexed jobId, uint256 indexed gameId, address catcher, uint256 jackpot);
+    event ForcedRevealed(uint256 indexed jobId);
     event Continued(uint256 indexed jobId, uint256 indexed parentJobId);
 
-    constructor(uint256 bond_, uint256 window_, ITapeOutFactory factory_, address treasury_, uint256 feeBps_, uint256 bondBps_, uint256 maxLeafGas_) {
+    constructor(uint256 bond_, uint256 window_, ITapeOutFactory factory_, address treasury_, uint256 feeBps_, uint256 bondBps_, uint256 maxLeafGas_, address runner_) {
         require(feeBps_ <= 1000, "fee");
         require(bondBps_ <= 100_000, "bond bps"); // at most 10x the fee on top of the minimum
         (bond, window, factory, treasury, feeBps, bondBps) = (bond_, window_, factory_, treasury_, feeBps_, bondBps_);
         maxLeafGas = maxLeafGas_ == 0 ? DEFAULT_MAX_LEAF_GAS : maxLeafGas_;
+        forcedRunner = runner_;
     }
 
     /// What claiming, challenging or disputing job `jobId` puts at stake: the minimum bond plus a
@@ -187,6 +202,7 @@ contract Overclock {
         require(_padded(outputs, j.nOut) && _padded(newState, j.nState), "result padding");
         (j.claimant, j.traceRoot, j.outputs, j.newState, j.claimedAt) = (msg.sender, traceRoot, outputs, newState, uint64(block.timestamp));
         claimCount[jobId] += 1;
+        if (msg.sender == forcedRunner && forcedCommit[jobId] != 0) forcedAt[jobId] = claimCount[jobId];
         emit Claimed(jobId, msg.sender, traceRoot, outputs);
     }
 
@@ -194,6 +210,8 @@ contract Overclock {
         Job storage j = jobs[jobId];
         require(j.claimant != address(0) && j.openGames == 0 && !j.finalized, "state");
         require(block.timestamp >= j.claimedAt + window, "window");
+        // a claim under a forced-error commitment waits a second window, for the forcedRunner to reveal it
+        if (forcedAt[jobId] == claimCount[jobId] && msg.sender != forcedRunner) require(block.timestamp >= j.claimedAt + 2 * window, "forced");
         j.finalized = true;
         uint256 cut = j.fee * feeBps / 10_000;
         if (cut > 0) _pay(treasury, cut);
@@ -357,6 +375,31 @@ contract Overclock {
         _settle(gameId, claimantLate, claimantLate ? "claimant timed out" : "challenger timed out");
     }
 
+    /// Runner only, before it claims: commit to this job's claim being a forced error (or a decoy).
+    function commitForced(uint256 jobId, bytes32 commitment) external {
+        Job storage j = jobs[jobId];
+        require(forcedRunner != address(0) && msg.sender == forcedRunner, "forcedRunner");
+        require(j.claimant == address(0) && !j.finalized && commitment != 0 && forcedCommit[jobId] == 0, "state");
+        forcedCommit[jobId] = commitment;
+        emit ForcedCommitted(jobId);
+    }
+
+    /// The forcedRunner owns up to a forced error nobody caught: after the window, with no game open,
+    /// its claim is voided and its bond comes back in full. The job reopens for an honest claim.
+    function revealForced(uint256 jobId, bytes32 salt) external {
+        Job storage j = jobs[jobId];
+        require(msg.sender == forcedRunner && j.claimant == msg.sender && !j.finalized && j.openGames == 0, "state");
+        require(forcedAt[jobId] == claimCount[jobId] && forcedCommit[jobId] == keccak256(abi.encode(jobId, salt)), "commit");
+        require(block.timestamp >= j.claimedAt + window, "window");
+        (j.claimant, j.traceRoot) = (address(0), bytes32(0));
+        claimCount[jobId] += 1;
+        delete j.outputs;
+        delete j.newState;
+        (forcedCommit[jobId], forcedAt[jobId]) = (bytes32(0), 0);
+        _pay(msg.sender, bondFor(jobId));
+        emit ForcedRevealed(jobId);
+    }
+
     function _settle(uint256 gameId, bool claimantWrong, string memory reason) internal {
         Game storage g = games[gameId];
         Job storage j = jobs[g.jobId];
@@ -367,17 +410,31 @@ contract Overclock {
         // the loser's bond is split: half to the winner, the rest held for the treasury
         uint256 b = bondFor(g.jobId);
         uint256 cut = b - b / 2;
-        slashed += cut;
         if (claimantWrong) {
-            // the challenger gets its bond back plus half the claimant's
-            (winner, prize) = (g.challenger, 2 * b - cut);
+            address loser = j.claimant;
+            bool forced = loser == forcedRunner && forcedAt[g.jobId] == claimCount[g.jobId];
             // reopen the job for an honest claim; other games on this claim become stale
             (j.claimant, j.traceRoot, j.openGames) = (address(0), bytes32(0), 0);
             claimCount[g.jobId] += 1; // the claim is gone, so its other games are stale from now on
             delete j.outputs;
             delete j.newState;
+            if (forced) {
+                // the forcedRunner meant to be caught: it gets its bond back and the catcher a jackpot from the pool
+                uint256 jackpot = b < slashed ? b : slashed;
+                slashed -= jackpot;
+                (forcedCommit[g.jobId], forcedAt[g.jobId]) = (bytes32(0), 0);
+                (winner, prize) = (g.challenger, b + jackpot);
+                g.level = 255;
+                _pay(loser, b);
+                emit ForcedCaught(g.jobId, gameId, winner, jackpot);
+            } else {
+                // the challenger gets its bond back plus half the claimant's, the rest is held for the treasury
+                slashed += cut;
+                (winner, prize) = (g.challenger, 2 * b - cut);
+            }
         } else {
             // the claimant gets half the challenger's bond; its own stays staked on the claim until finalize
+            slashed += cut;
             (winner, prize) = (j.claimant, b - cut);
             j.openGames -= 1;
             j.claimedAt = uint64(block.timestamp); // a fresh window for other watchers

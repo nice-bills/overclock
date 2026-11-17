@@ -73,7 +73,7 @@ const worldId = await put('16x16 world', wd);
 const cc = load(cell.netlist, cell.nIn, cell.nOut);
 const wc = load(wd.netlist, wd.nIn, wd.nOut, (a, i) => (a.toLowerCase() === cpuAddr && Number(i) === cellId ? cc : null));
 
-const oc = await deploy('Overclock', BOND, WINDOW, XLAYER.factory, me.address, 200, 0, 0);
+const oc = await deploy('Overclock', BOND, WINDOW, XLAYER.factory, me.address, 200, 0, 0, '0x0000000000000000000000000000000000000000');
 const world = await deploy('World', await oc.getAddress(), cpuAddr, worldId, BEATS, 1, PRICE, JOB_FEE, TIP, HUB);
 const opener = new Contract(XLAYER.opener, OPENER_ABI, me);
 note('hand the world circuit to World', await (await cpu.circuits.transferFrom(me.address, await world.getAddress(), worldId)).wait());

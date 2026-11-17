@@ -47,7 +47,7 @@ before(async () => {
   boardId = (await tapeout(cpu.circuits, bd)).id;
   cellC = load(cell.netlist, 9, 1);
   bdC = load(bd.netlist, 0, W * H, (a, i) => (a === addr && i === 1n ? cellC : null));
-  oc = await deploy('Overclock', owner, BOND, WINDOW, await factory.getAddress(), await treasury.getAddress(), 200, 0, 0);
+  oc = await deploy('Overclock', owner, BOND, WINDOW, await factory.getAddress(), await treasury.getAddress(), 200, 0, 0, '0x0000000000000000000000000000000000000000');
   start = board(W, H, [[PATTERNS.glider, 0, 0]]);
 });
 
