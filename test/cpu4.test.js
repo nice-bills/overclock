@@ -62,7 +62,7 @@ test('a cheat on a 400-beat CPU job is caught and the honest result finalizes', 
     return ct;
   };
   const proc = await deploy('MockProcessor');
-  const oc = await deploy('Overclock', parseEther('1'), 3600, '0x0000000000000000000000000000000000000000', await poster.getAddress(), 0);
+  const oc = await deploy('Overclock', parseEther('1'), 3600, '0x0000000000000000000000000000000000000000', await poster.getAddress(), 0, 0);
   await (await proc.store(bytesToHex(built.netlist), 0, built.nOut, c.nState, c.nGates)).wait();
   const BEATS = 400;
   const m0 = fibonacciMachine();

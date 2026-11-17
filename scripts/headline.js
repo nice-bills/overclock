@@ -79,7 +79,7 @@ const balance0 = LIVE ? await provider.getBalance(deployer.address) : null;
 let oc;
 if (arg('deploy', null) !== null) {
   const a = artifact('Overclock');
-  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200);
+  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200, 10000);
   await oc.waitForDeployment();
   note('deploy Overclock', await oc.deploymentTransaction().wait());
 } else {
@@ -88,7 +88,7 @@ if (arg('deploy', null) !== null) {
   oc = new Contract(addr, artifact('Overclock').abi, deployer);
 }
 const ocAddr = await oc.getAddress();
-const BOND = await oc.bond(), WINDOW = Number(await oc.window());
+const BOND = (await oc.bond()) + FEE * (await oc.bondBps().catch(() => 0n)) / 10_000n, WINDOW = Number(await oc.window());
 say(`\nOverclock headline demo: ${MACHINE}, chain ${net.chainId} at block ${startBlock} (${MODE})`);
 say(`Overclock ${ocAddr}: bond ${formatEther(BOND)} OKB, window ${WINDOW} s\n`);
 

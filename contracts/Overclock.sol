@@ -34,7 +34,9 @@ contract Overclock {
     bytes32 internal constant LEAF1 = keccak256(hex"01");
     bytes32 internal constant PAD = bytes32(0);
 
+    /// The smallest bond: a job's bond is bond + bondBps of its fee (see bondFor).
     uint256 public immutable bond;
+    uint256 public immutable bondBps; // share of a job's fee added to its bond, in basis points
     uint256 public immutable window;
     ITapeOutFactory public immutable factory; // zero only in tests: then any processor is accepted
     address public immutable treasury;
@@ -104,9 +106,16 @@ contract Overclock {
     event Finalized(uint256 indexed jobId, bytes outputs);
     event Continued(uint256 indexed jobId, uint256 indexed parentJobId);
 
-    constructor(uint256 bond_, uint256 window_, ITapeOutFactory factory_, address treasury_, uint256 feeBps_) {
+    constructor(uint256 bond_, uint256 window_, ITapeOutFactory factory_, address treasury_, uint256 feeBps_, uint256 bondBps_) {
         require(feeBps_ <= 1000, "fee");
-        (bond, window, factory, treasury, feeBps) = (bond_, window_, factory_, treasury_, feeBps_);
+        require(bondBps_ <= 100_000, "bond bps"); // at most 10x the fee on top of the minimum
+        (bond, window, factory, treasury, feeBps, bondBps) = (bond_, window_, factory_, treasury_, feeBps_, bondBps_);
+    }
+
+    /// What claiming, challenging or disputing job `jobId` puts at stake: the minimum bond plus a
+    /// share of the job's fee, so a lie on a big job always risks more than the job pays.
+    function bondFor(uint256 jobId) public view returns (uint256) {
+        return bond + jobs[jobId].fee * bondBps / 10_000;
     }
 
     // ---------------------------------------------------------------- jobs and claims
@@ -157,7 +166,7 @@ contract Overclock {
     function claim(uint256 jobId, bytes32 traceRoot, bytes calldata outputs, bytes calldata newState) external payable {
         Job storage j = jobs[jobId];
         require(j.claimant == address(0) && !j.finalized, "claimed");
-        require(msg.value == bond, "bond");
+        require(msg.value == bondFor(jobId), "bond");
         require(outputs.length == _bytes(j.nOut) && newState.length == _bytes(j.nState), "result length");
         // bits past nOut / nState are out of reach of any dispute, so they must be zero
         require(_padded(outputs, j.nOut) && _padded(newState, j.nState), "result padding");
@@ -173,7 +182,7 @@ contract Overclock {
         j.finalized = true;
         uint256 cut = j.fee * feeBps / 10_000;
         if (cut > 0) _pay(treasury, cut);
-        _pay(j.claimant, bond + j.fee - cut);
+        _pay(j.claimant, bondFor(jobId) + j.fee - cut);
         emit Finalized(jobId, j.outputs);
         if (j.poster.code.length > 0) {
             // best effort: a receiver that reverts or runs out of gas does not block finalization,
@@ -198,7 +207,7 @@ contract Overclock {
         Job storage j = jobs[jobId];
         require(j.claimant != address(0) && !j.finalized, "state");
         require(block.timestamp < j.claimedAt + window, "window");
-        require(msg.value == bond, "bond");
+        require(msg.value == bondFor(jobId), "bond");
         gameId = _open(jobId, Game(jobId, msg.sender, _depth(traceSize(jobId)), 0, j.traceRoot, Turn.Claimant, uint64(block.timestamp + window)));
         emit Challenged(jobId, gameId, msg.sender);
     }
@@ -281,7 +290,7 @@ contract Overclock {
         Job storage j = jobs[jobId];
         require(j.claimant != address(0) && !j.finalized, "state");
         require(block.timestamp < j.claimedAt + window, "window");
-        require(msg.value == bond, "bond");
+        require(msg.value == bondFor(jobId), "bond");
         require(k < uint256(j.nOut) + j.nState, "k");
         Ctx memory ctx = _ctx(j, _depth(traceSize(jobId)), deps);
         uint256 last = uint256(j.beats - 1) * (j.flat + j.nState);
@@ -306,7 +315,7 @@ contract Overclock {
         require(g.deadline != 0, "closed");
         if (gameClaim[gameId] != claimCount[g.jobId]) {
             (g.deadline, g.turn, g.level) = (0, Turn.Done, 255);
-            _pay(g.challenger, bond);
+            _pay(g.challenger, bondFor(g.jobId));
             emit Resolved(g.jobId, gameId, g.challenger, "claim already overturned");
             return;
         }
@@ -323,11 +332,12 @@ contract Overclock {
         address winner;
         uint256 prize;
         // the loser's bond is split: half to the winner, the rest held for the treasury
-        uint256 cut = bond - bond / 2;
+        uint256 b = bondFor(g.jobId);
+        uint256 cut = b - b / 2;
         slashed += cut;
         if (claimantWrong) {
             // the challenger gets its bond back plus half the claimant's
-            (winner, prize) = (g.challenger, 2 * bond - cut);
+            (winner, prize) = (g.challenger, 2 * b - cut);
             // reopen the job for an honest claim; other games on this claim become stale
             (j.claimant, j.traceRoot, j.openGames) = (address(0), bytes32(0), 0);
             claimCount[g.jobId] += 1; // the claim is gone, so its other games are stale from now on
@@ -335,7 +345,7 @@ contract Overclock {
             delete j.newState;
         } else {
             // the claimant gets half the challenger's bond; its own stays staked on the claim until finalize
-            (winner, prize) = (j.claimant, bond - cut);
+            (winner, prize) = (j.claimant, b - cut);
             j.openGames -= 1;
             j.claimedAt = uint64(block.timestamp); // a fresh window for other watchers
         }

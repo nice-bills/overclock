@@ -74,7 +74,6 @@ export class Operator extends Agent {
 
   async tick() {
     const me = await this.address();
-    const bond = (this._bond ??= await this.oc.bond());
     const window = (this._window ??= Number(await this.oc.window()));
     const now = await this.now();
     const nJobs = Number(await this.oc.jobCount());
@@ -89,7 +88,7 @@ export class Operator extends Agent {
         const { t, tree, ms } = await this.trace(job, fault);
         this.mine.set(i, fault);
         this.log({ who: this.name, what: fault >= 0 ? `computed ${t.n} leaves and corrupted leaf ${fault}` : `computed ${t.n} leaves`, ms });
-        await this.send(fault >= 0 ? 'claims a wrong result' : 'claims the result', 'claim', i, tree.root, bytesToHex(pack(t.outputs)), bytesToHex(pack(t.newState)), { value: bond });
+        await this.send(fault >= 0 ? 'claims a wrong result' : 'claims the result', 'claim', i, tree.root, bytesToHex(pack(t.outputs)), bytesToHex(pack(t.newState)), { value: await this.oc.bondFor(i) });
       } else if (job.claimant.toLowerCase() === me && !job.challenged && now >= job.claimedAt + window) {
         await this.send('finalizes', 'finalize', i);
         this.skip.add(i);
@@ -119,7 +118,6 @@ export class Challenger extends Agent {
 
   async tick() {
     const me = await this.address();
-    const bond = (this._bond ??= await this.oc.bond());
     const window = (this._window ??= Number(await this.oc.window()));
     const now = await this.now();
     const nJobs = Number(await this.oc.jobCount());
@@ -137,7 +135,7 @@ export class Challenger extends Agent {
       const { t, tree, c } = await this.trace(job);
       if (tree.root !== job.traceRoot) {
         this.log({ who: this.name, what: `re-ran job ${i}: trace root differs, challenging` });
-        const { events } = await this.send('challenges', 'challenge', i, { value: bond });
+        const { events } = await this.send('challenges', 'challenge', i, { value: await this.oc.bondFor(i) });
         const gameId = events.find((e) => e.name === 'Challenged').args.gameId;
         const bis = new Bisector(tree);
         bis.jobId = i;
@@ -154,7 +152,7 @@ export class Challenger extends Agent {
       }
       const pos = resultPos(c, job.beats, k);
       this.log({ who: this.name, what: `re-ran job ${i}: trace is right but result bit ${k} is not` });
-      await this.send('disputes the result', 'disputeOutput', i, k, [{ pos, bit: t.leaves[pos], siblings: tree.proof(pos) }], { value: bond });
+      await this.send('disputes the result', 'disputeOutput', i, k, [{ pos, bit: t.leaves[pos], siblings: tree.proof(pos) }], { value: await this.oc.bondFor(i) });
     }
     for (const [g, bis] of this.games) {
       const game = await readGame(this.oc, g);
