@@ -1,0 +1,152 @@
+{
+ "schema": 1,
+ "id": "cert:196:0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6:2346",
+ "chain": {
+  "source": 196,
+  "settlement": 31337
+ },
+ "challenge": {
+  "taskId": 94,
+  "label": "GC-094 GC-094 双拍位周期8位同步UART接收器",
+  "name": "GC-094 双拍位周期8位同步UART接收器",
+  "kind": 1,
+  "cycles": 5,
+  "nIn": 2,
+  "nOut": 11,
+  "vectorCount": 256,
+  "vectorsRoot": "0xc8ba8c5c4afd33b462caf8451bbcead79af4f8650f5990c1545c225655cb4878",
+  "certificateSource": "reference-equivalence"
+ },
+ "design": {
+  "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+  "id": 2346,
+  "status": 1,
+  "nIn": 2,
+  "nOut": 11,
+  "nState": 2,
+  "gates": 16,
+  "netlistBytes": 106,
+  "netlistHash": "0xd25b3900d1732697f4895ea4ee5ef2454c776e42f6664529db8c4dbd134cd85a",
+  "structHash": "0xd25b3900d1732697f4895ea4ee5ef2454c776e42f6664529db8c4dbd134cd85a",
+  "topoHash": "0x6e1dac192e4a7643f83d57b1f8e32c8421356c501b2007ec1fa03e10501bd616",
+  "nand": 14,
+  "latch": 2,
+  "ref": 0
+ },
+ "reference": {
+  "processor": "0x265e2580cb9c3fc059f2aa3cf20ad30f3f0a653c",
+  "id": 94,
+  "nIn": 2,
+  "nOut": 11,
+  "nState": 24,
+  "gates": 242,
+  "netlistBytes": 1622,
+  "netlistHash": "0x3d7a1fdc0b2c8e204a1ce1e367528a9ef15bcd05a79cbb0579476f54da659999",
+  "structHash": "0x3d7a1fdc0b2c8e204a1ce1e367528a9ef15bcd05a79cbb0579476f54da659999",
+  "topoHash": "0x3664d5f6304a8f971a25be83e5b929e3ebe8764d09f03294ec060823eb36e1f8",
+  "nand": 218,
+  "latch": 24,
+  "ref": 0
+ },
+ "mirror": {
+  "chainId": 31337,
+  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "design": {
+   "id": 16
+  },
+  "reference": {
+   "id": 17
+  },
+  "bench": {
+   "id": 18
+  }
+ },
+ "bench": {
+  "kind": "official-vector",
+  "mode": "frames",
+  "beats": 5,
+  "gatesPerBeat": 419,
+  "stateBits": 33,
+  "netlistHash": "0x217863ca9f38ebe1fa4937c1696b48109ac73263a7e877bd23142fa62885fb07"
+ },
+ "inputs": 256,
+ "inputsCovered": "1 official vector (5 frames from reset)",
+ "coverage": "1 official vector (5 frames from reset)",
+ "mismatches": 35,
+ "firstFailingInput": "0x0302000200",
+ "settled": {
+  "inputs": 5,
+  "mismatches": 1,
+  "kind": "official-vector"
+ },
+ "officialVectors": {
+  "passed": 221,
+  "failed": 35,
+  "total": 256,
+  "uniqueInputs": 229,
+  "exhaustive": false,
+  "degenerate": false,
+  "firstFailure": {
+   "index": 17,
+   "cycle": 4,
+   "input": "0x0302000200",
+   "expected": "0x00000000000001000004",
+   "got": "10000000000"
+  }
+ },
+ "verdict": "failed",
+ "job": {
+  "chainId": 31337,
+  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "benchId": 18,
+  "jobId": 5,
+  "runId": "31337:5",
+  "overclock": "0x060e8d366675569977450c8017f0025c39011c7a",
+  "txs": [
+   {
+    "what": "post job",
+    "tx": "0x23304a1525a44887055bac51ed9aa0890eea737bdd26af25201b13dbd504df3a",
+    "gas": 445487
+   },
+   {
+    "what": "claim",
+    "tx": "0xac1f2802f014bef0a07175f823eab81b39c1d630c35102d9d2dca942b0bf2351",
+    "gas": 165093
+   },
+   {
+    "what": "finalize",
+    "tx": "0x451b77b4a5d51269536863e2ecbd5c2563e98d7f25c68525cbe66cd2d93a8c6b",
+    "gas": 47258
+   }
+  ],
+  "gas": {
+   "post": 445487,
+   "claim": 165093,
+   "finalize": 47258,
+   "honestPath": 657838
+  },
+  "outputs": "0x19",
+  "newState": "0x7d00002001",
+  "traceLeaves": 2420,
+  "traceRoot": "0x449cbe95a230e4e7b30d2d624cb8816276b7fa7a8a41f8168effd24568514be0",
+  "beats": 5,
+  "postedAt": "2026-11-17T12:52:09.318Z",
+  "finalizedAt": "2026-11-17T12:52:09.411Z",
+  "fee": "0.0",
+  "bond": "1.0",
+  "outcome": "35 mismatches in 256 official vectors; first failing input 0x0302000200 at cycle 4."
+ },
+ "shape": {
+  "key": "94:2/11/2:0xd25b3900d1732697f4895ea4ee5ef2454c776e42f6664529db8c4dbd134cd85a",
+  "taskId": 94,
+  "structHash": "0xd25b3900d1732697f4895ea4ee5ef2454c776e42f6664529db8c4dbd134cd85a",
+  "count": 1,
+  "covers": [
+   {
+    "processor": "0x87bfca3494aa228ff589ab9b642143a5e8c8f9a6",
+    "id": 2346
+   }
+  ]
+ },
+ "issuedAt": "2026-11-17T12:52:09.420Z"
+}

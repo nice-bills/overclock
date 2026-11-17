@@ -3,7 +3,7 @@
 The site reads one file to know what has been run and what has been certified. The B3 runner
 writes it; the site only reads it. [`web/runs.json`](../web/runs.json) in this repository is the seed:
 the three mainnet jobs we ran by hand (`web/live-run.json`, `web/digits-live-run.json`,
-`web/cpu-live-run.json`) and no certificates yet.
+`web/cpu-live-run.json`) plus the certificates and local runs issued by `scripts/certify.js`.
 
 How the site uses it:
 
@@ -73,6 +73,29 @@ A finalized job whose result says a design matches its reference on its entire i
 A circuit counts as **certified** when it has a certificate with `status: "certified"`. A shape-level
 certificate (the same bytecode on hundreds of circuits) lists the circuits it covers in
 `covers: [{ processor, id }]`; each of them is certified too.
+
+### Certificates from `scripts/certify.js`
+
+[`scripts/certify.js`](../scripts/certify.js) issues certificates for FabX miners by replaying a
+Gate Challenge's published vectors and settling a bench against the challenge's official reference.
+It writes the same `Certificate` record above to [`web/runs.json`](../web/runs.json) and a full
+document to `docs/certificates/<processor>-<id>.json`. The index entry keeps the site fields and
+adds:
+
+| Field | Type | Notes |
+|---|---|---|
+| `certificate` | string | File name under `docs/certificates/`, e.g. `0x87bf…f9a6-2346.json` |
+| `coverage` | string | What the settled job covered, e.g. `all 256 inputs (0..255)` or `1 official vector (5 frames from reset)` |
+| `covers` | array | Every circuit with the same challenge and byte-identical netlist, as in a shape certificate |
+| `caveat` | string | Optional. Set when the published reference is degenerate, e.g. constant zero |
+
+The full certificate document also records `chain: { source, settlement }` (the challenge is read
+from mainnet `196`; the job settles on the local certifier chain `31337`), the design and reference
+netlist fingerprints, `officialVectors` counts and the exact `firstFailure` (`index`, `cycle`,
+`input`, `expected`, `got`), and the mirror ids and gas of the settling job. A `failed` certificate
+keeps `firstFailingInput` as the exact published vector input, so the same miner always reports the
+same first failure. Certifier Runs use `source: "scripts/certify.js"` and `status: "final"`; their
+`chainId` is the settlement chain, so treat `31337` as a local run.
 
 ## What the site derives
 

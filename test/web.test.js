@@ -76,6 +76,8 @@ test('web: runs.json follows docs/runs-schema.md and is inlined', () => {
   assert.deepEqual(inlined('runs-data'), doc);
   assert.equal(doc.schema, 1);
   const ids = new Set();
+  // every mainnet run is one of the three real jobs: its transactions are in the raw run files
+  const raw = JSON.stringify(['web/live-run.json', 'web/digits-live-run.json', 'web/cpu-live-run.json'].map(read));
   for (const r of doc.runs) {
     assert.ok(!ids.has(r.id), 'unique run ids');
     ids.add(r.id);
@@ -84,11 +86,24 @@ test('web: runs.json follows docs/runs-schema.md and is inlined', () => {
     assert.ok(['posted', 'claimed', 'challenged', 'final'].includes(r.status));
     assert.equal(r.gas.honestPath, r.gas.post + r.gas.claim + r.gas.finalize);
     for (const t of r.txs) assert.match(t.tx, /^0x[0-9a-f]{64}$/);
-    // every mainnet run is one of the three real jobs: its transactions are in the raw run files
-    const raw = JSON.stringify(['web/live-run.json', 'web/digits-live-run.json', 'web/cpu-live-run.json'].map(read));
-    for (const t of r.txs) assert.ok(raw.includes(t.tx), `${t.tx} is in a recorded run`);
+    if (r.chainId === 196) {
+      for (const t of r.txs) assert.ok(raw.includes(t.tx), `${t.tx} is in a recorded run`);
+    } else {
+      assert.equal(r.chainId, 31337, 'local certifier runs settle on the certifier chain');
+      assert.equal(r.source, 'scripts/certify.js');
+    }
   }
-  assert.deepEqual(doc.certificates, [], 'no certificate is claimed before one has run');
+  // every certificate has a full document next to the page, and a finalized run behind it
+  for (const c of doc.certificates) {
+    assert.ok(['certified', 'failed'].includes(c.status));
+    assert.ok(ids.has(c.runId), `${c.id} has a run`);
+    const file = new URL(`../docs/certificates/${c.certificate}`, import.meta.url);
+    assert.ok(existsSync(file), `${c.certificate} is on disk`);
+    const cert = JSON.parse(readFileSync(file, 'utf8'));
+    assert.equal(cert.verdict, c.status);
+    assert.equal(cert.job.runId, c.runId);
+    assert.equal(cert.schema, 1);
+  }
 });
 
 test('web: World is cut from the site', () => {
@@ -144,8 +159,8 @@ async function open(hash, { width = 1280, height = 900, wallet = false, url = nu
 test('e2e: landing says the new thing and shows live counters', e2e, async () => {
   const page = await open('');
   assert.match(await page.textContent('#home h1'), /Every machine on X Layer, running\.\s*Every design, proven\./);
-  assert.deepEqual(await page.locator('.proof b').allTextContents(), ['3', '0', '16.8M', '42,003×']);
-  assert.equal(await page.textContent('#cTotal'), '1,022');
+  assert.deepEqual(await page.locator('.proof b').allTextContents(), ['11', '4', '677.6M', '42,003×']);
+  assert.equal(await page.textContent('#cTotal'), '1,029');
   assert.deepEqual(await page.locator('.tabs a').allTextContents(), ['The Floor', 'Owner lookup', 'Job board', 'Replay', 'Your circuit', 'Run a job']);
   assert.deepEqual(page.errors, []);
   await page.close();
@@ -153,12 +168,12 @@ test('e2e: landing says the new thing and shows live counters', e2e, async () =>
 
 test('e2e: the Floor draws every circuit by status and links to its page', e2e, async () => {
   const page = await open('#floor');
-  assert.equal(await page.locator('#floorGrid .cell').count(), 1022);
-  assert.equal(await page.locator('.cell.s-final').count(), 3);
-  assert.equal(await page.locator('.cell.s-queued').count(), 1019);
-  assert.equal(await page.locator('.cell.s-certified').count(), 0);
+  assert.equal(await page.locator('#floorGrid .cell').count(), 1029);
+  assert.equal(await page.locator('.cell.s-final').count(), 7);
+  assert.equal(await page.locator('.cell.s-queued').count(), 814);
+  assert.equal(await page.locator('.cell.s-certified').count(), 208);
   await page.click('#floorFilters [data-f=miner]');
-  assert.equal(await page.locator('#floorGrid .cell').count(), 996);
+  assert.equal(await page.locator('#floorGrid .cell').count(), 1003);
   await page.click('#floorFilters [data-f=machine]');
   assert.equal(await page.locator('#floorGrid .cell').count(), 26);
   await page.locator('.cell.s-final').first().click();
@@ -237,7 +252,7 @@ test('e2e: a fresh runs.json served next to the page updates the counters and th
     await page.waitForFunction(() => document.querySelectorAll('.cell.s-certified').length > 0);
     assert.equal(await page.locator('.cell.s-certified').count(), 2, 'the certificate covers a second circuit');
     assert.equal(await page.locator('.cell.s-running').count(), 1);
-    assert.equal(await page.locator('#floorGrid .cell').count(), 1023, 'a run on a circuit outside the census adds a cell');
+    assert.equal(await page.locator('#floorGrid .cell').count(), 1030, 'a run on a circuit outside the census adds a cell');
     assert.equal(await page.textContent('#cCerts'), '1');
     await page.goto(`http://127.0.0.1:${server.address().port}/#c/0x00586A4C37039aCbFC6aC135cAdd49367ABf390A/1`);
     await page.waitForFunction(() => document.querySelector('#circuitBody .titlerow .tag')?.textContent === 'Certified');
