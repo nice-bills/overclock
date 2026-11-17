@@ -3,12 +3,18 @@
 // Operator: claims open jobs (computing the trace with the TAP-02 evaluator), answers bisection
 // steps on its claims, and finalizes them after the window. Pass `lie` to make it cheat.
 //
+// Forced errors: an Operator whose address is the contract's runner can pass `forced(job) ->
+// leaf | null`. For such a job it commits (hash of jobId + salt), then claims a deliberately wrong
+// trace. A watcher that catches it is paid a jackpot; if nobody does, the operator reveals the salt
+// after the window and its bond comes back, then claims the job honestly.
+//
 // Challenger: re-runs every claim, challenges any whose trace root or result differs from its own,
-// plays the bisection, and proves the one wrong step.
+// plays the 16-way dissection, and proves the one wrong step.
 
 import { traceJob, Tree, layout } from './trace.js';
-import { depsOf, resultPos, Bisector } from './game.js';
+import { depsOf, resultPos, revealNodes, Bisector } from './game.js';
 import { pack, bytesToHex, hexToBytes, unpack } from './tap02.js';
+import { keccak256, AbiCoder, randomBytes, hexlify } from 'ethers';
 import { loadCircuit, readJob, readGame, isStale, Turn, CLOSED } from './chain.js';
 
 class Agent {
@@ -34,6 +40,12 @@ class Agent {
 
   async address() {
     return (this._addr ??= (await this.signer.getAddress()).toLowerCase());
+  }
+
+  // The contract's forced-error runner, or null for contracts without one.
+  async forcedRunner() {
+    if (this._runner === undefined) this._runner = await this.oc.forcedRunner().then((a) => a.toLowerCase(), () => null);
+    return this._runner;
   }
 
   async trace(job, fault = -1) {
@@ -77,13 +89,15 @@ export class Operator extends Agent {
   constructor(opts) {
     super(opts);
     this.lie = opts.lie ?? (() => -1);
+    this.forced = opts.forced ?? (() => null); // (job, layout) -> leaf to corrupt on purpose, or null
+    this.salts = new Map(); // jobId -> salt of a forced claim we have not revealed yet
+    this.forcedDone = new Set(); // jobs already forced once: the next claim is honest
     this.mine = new Map(); // jobId -> fault used
     this.skip = new Set();
   }
 
   async tick() {
     const me = await this.address();
-    const bond = (this._bond ??= await this.oc.bond());
     const window = (this._window ??= Number(await this.oc.window()));
     const now = await this.now();
     const nJobs = Number(await this.oc.jobCount());
@@ -93,12 +107,29 @@ export class Operator extends Agent {
       const job = await readJob(this.oc, i);
       if (job.finalized) { this.skip.add(i); this.forget(i); continue; }
       if (job.claimant === '0x0000000000000000000000000000000000000000') {
-        const fault = this.lie(job, { flat: job.flat, block: job.flat + job.nState });
+        this.salts.delete(i); // a forced claim that was caught needs no reveal
+        let fault = this.lie(job, { flat: job.flat, block: job.flat + job.nState });
         if (fault === null) continue; // this operator passes on the job
+        if (fault < 0 && !this.forcedDone.has(i) && me === (await this.forcedRunner())) {
+          const leaf = this.forced(job, { flat: job.flat, block: job.flat + job.nState });
+          if (leaf !== null && leaf >= 0) {
+            const salt = hexlify(randomBytes(32));
+            await this.send('commits to a forced error', 'commitForced', i, keccak256(AbiCoder.defaultAbiCoder().encode(['uint256', 'bytes32'], [i, salt])));
+            this.salts.set(i, salt);
+            this.forcedDone.add(i);
+            fault = leaf;
+          }
+        }
         const { t, tree, ms } = await this.trace(job, fault);
         this.mine.set(i, fault);
         this.log({ who: this.name, what: fault >= 0 ? `computed ${t.n} leaves and corrupted leaf ${fault}` : `computed ${t.n} leaves`, ms });
-        await this.send(fault >= 0 ? 'claims a wrong result' : 'claims the result', 'claim', i, tree.root, bytesToHex(pack(t.outputs)), bytesToHex(pack(t.newState)), { value: bond });
+        await this.send(fault >= 0 ? 'claims a wrong result' : 'claims the result', 'claim', i, tree.root, bytesToHex(pack(t.outputs)), bytesToHex(pack(t.newState)), { value: await this.oc.bondFor(i) });
+      } else if (this.salts.has(i) && job.claimant.toLowerCase() === me && !job.challenged && now >= job.claimedAt + window) {
+        // our forced error went unnoticed: own up and get the bond back, then claim honestly
+        await this.send('reveals its forced error', 'revealForced', i, this.salts.get(i));
+        this.salts.delete(i);
+        this.mine.delete(i);
+        for (const k of [...this.traces.keys()]) if (k.startsWith(`${i}:`) && k !== `${i}:-1`) this.traces.delete(k);
       } else if (job.claimant.toLowerCase() === me && !job.challenged && now >= job.claimedAt + window) {
         await this.send('finalizes', 'finalize', i);
         this.skip.add(i);
@@ -109,12 +140,12 @@ export class Operator extends Agent {
     for (let g = 0; g < nGames; g++) {
       const game = await readGame(this.oc, g);
       if (game.level === CLOSED || game.turn !== Turn.Claimant) continue;
+      // (a forced error that gets caught needs no reveal: the contract refunds the runner)
       const job = await readJob(this.oc, game.jobId);
       if (job.claimant.toLowerCase() !== me || !this.mine.has(Number(game.jobId))) continue;
       if (await isStale(this.oc, g, game.jobId)) continue; // a game against an earlier claim of ours
       const { tree } = await this.trace(job, this.mine.get(Number(game.jobId)));
-      const l = game.level - 1;
-      await this.send(`reveals level ${game.level}`, 'reveal', g, tree.node(l, 2 * game.index), tree.node(l, 2 * game.index + 1));
+      await this.send(`reveals level ${game.level}`, 'reveal16', g, revealNodes(tree, game.level, game.index));
     }
   }
 }
@@ -128,7 +159,6 @@ export class Challenger extends Agent {
 
   async tick() {
     const me = await this.address();
-    const bond = (this._bond ??= await this.oc.bond());
     const window = (this._window ??= Number(await this.oc.window()));
     const now = await this.now();
     const nJobs = Number(await this.oc.jobCount());
@@ -146,7 +176,7 @@ export class Challenger extends Agent {
       const { t, tree, c } = await this.trace(job);
       if (tree.root !== job.traceRoot) {
         this.log({ who: this.name, what: `re-ran job ${i}: trace root differs, challenging` });
-        const { events } = await this.send('challenges', 'challenge', i, { value: bond });
+        const { events } = await this.send('challenges', 'challenge', i, { value: await this.oc.bondFor(i) });
         const gameId = events.find((e) => e.name === 'Challenged').args.gameId;
         const bis = new Bisector(tree);
         bis.jobId = i;
@@ -163,7 +193,7 @@ export class Challenger extends Agent {
       }
       const pos = resultPos(c, job.beats, k);
       this.log({ who: this.name, what: `re-ran job ${i}: trace is right but result bit ${k} is not` });
-      await this.send('disputes the result', 'disputeOutput', i, k, [{ pos, bit: t.leaves[pos], siblings: tree.proof(pos) }], { value: bond });
+      await this.send('disputes the result', 'disputeOutput', i, k, [{ pos, bit: t.leaves[pos], siblings: tree.proof(pos) }], { value: await this.oc.bondFor(i) });
     }
     for (const [g, bis] of this.games) {
       const game = await readGame(this.oc, g);
@@ -174,16 +204,17 @@ export class Challenger extends Agent {
         await this.send('takes its bond back from a game on an overturned claim', 'timeout', g);
         this.games.delete(g);
       } else if (game.turn === Turn.Challenger) {
-        const [left, right] = await this.oc.pending(g);
-        const goLeft = bis.choose(game.level, game.index, left, right);
-        await this.send(`picks ${goLeft ? 'left' : 'right'} at level ${game.level}`, 'pick', g, !goLeft);
+        const which = bis.choose(game.level, game.index, [...(await this.oc.pending(g))]);
+        await this.send(`picks node ${which} at level ${game.level}`, 'pick16', g, which);
       } else if (game.turn === Turn.Leaf) {
         const job = await readJob(this.oc, game.jobId);
         const { t, c } = await this.trace(job);
         const q = game.index;
         const deps = q < t.n ? depsOf(c, q, job.beats).map((pos) => ({ pos, bit: t.leaves[pos], siblings: bis.siblings(pos, q) })) : [];
         this.log({ who: this.name, what: `narrowed the dispute to leaf ${q}`, leaf: q, deps: deps.length });
-        await this.send('proves the wrong step', 'resolveLeaf', g, deps);
+        const { events } = await this.send('proves the wrong step', 'resolveLeaf', g, deps);
+        const fc = events.find((e) => e.name === 'ForcedCaught');
+        if (fc) this.log({ who: this.name, what: `caught a forced error on job ${fc.args.jobId} and earned a jackpot of ${fc.args.jackpot}`, jackpot: fc.args.jackpot.toString() });
         this.games.delete(g);
       } else if (game.turn === Turn.Claimant && now > game.deadline) {
         await this.send('claims a timeout', 'timeout', g);

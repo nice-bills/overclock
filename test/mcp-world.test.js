@@ -44,7 +44,7 @@ before(async () => {
   worldC = load(wd.netlist, wd.nIn, wd.nOut, (a, i) => (a.toLowerCase() === cpuAddr && Number(i) === cellId ? cc : null));
   const worldId = Number(await cpu.nextId());
   await (await cpu.store(bytesToHex(wd.netlist), wd.nIn, wd.nOut, worldC.nState, worldC.nGates)).wait();
-  oc = await deploy('Overclock', owner, BOND, WINDOW, '0x0000000000000000000000000000000000000000', owner.address, 0);
+  oc = await deploy('Overclock', owner, BOND, WINDOW, '0x0000000000000000000000000000000000000000', owner.address, 0, 0, 0, '0x0000000000000000000000000000000000000000');
   world = await deploy('World', owner, await oc.getAddress(), cpuAddr, worldId, BEATS, 1, PRICE, parseEther('0.001'), parseEther('0.0001'), '0x0000000000000000000000000000000000000000');
   await (await world.fund({ value: parseEther('0.01') })).wait();
 

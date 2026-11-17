@@ -3,7 +3,7 @@
 // (the Game of Life cell and 8x8 board, the 4-bit CPU), and Overclock itself. Writes
 // deployments/<chainId>.json, which the MCP server reads for the default contract and machines.
 //
-//   RPC_URL=https://testrpc.xlayer.tech PRIVATE_KEY=0x... node scripts/deploy-stack.js [--bond 0.001] [--window 120]
+//   RPC_URL=https://testrpc.xlayer.tech PRIVATE_KEY=0x... node scripts/deploy-stack.js [--bond 0.001] [--bond-bps 10000] [--window 120]
 
 import { JsonRpcProvider, Wallet, ContractFactory, parseEther, formatEther } from 'ethers';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -62,11 +62,11 @@ const cellId = await put('life cell', cellCircuit());
 const boardId = await put('life 8x8 board', boardCircuit(8, 8, processor, cellId));
 const cpuId = await put('4-bit CPU', cpuCircuit());
 
-const bond = arg('bond', '0.001'), window = Number(arg('window', 120));
-const oc = await deploy('Overclock', parseEther(bond), window, await factory.getAddress(), me.address, 200);
+const bond = arg('bond', '0.001'), window = Number(arg('window', 120)), BOND_BPS = Number(arg('bond-bps', 10000));
+const oc = await deploy('Overclock', parseEther(bond), window, await factory.getAddress(), me.address, 200, BOND_BPS, 0, '0x0000000000000000000000000000000000000000');
 const out = {
   chainId: Number(net.chainId), overclock: await oc.getAddress(), factory: await factory.getAddress(),
-  bond: parseEther(bond).toString(), window, feeBps: 200, treasury: me.address, tapeout: 'TapeOutLocal stand-in',
+  bond: parseEther(bond).toString(), window, feeBps: 200, bondBps: BOND_BPS, treasury: me.address, tapeout: 'TapeOutLocal stand-in',
   machines: { life: { processor, circuitId: boardId }, cpu: { processor, circuitId: cpuId } },
 };
 mkdirSync('deployments', { recursive: true });

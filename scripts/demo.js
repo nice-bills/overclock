@@ -35,7 +35,8 @@ const LIVE = arg('live', null);
 const FORK = LIVE ?? arg('fork', null);
 const OUT = arg('out', LIVE ? 'web/live-run.json' : FORK ? 'web/fork-run.json' : 'web/demo-run.json');
 const BOND = parseEther(arg('bond', LIVE ? '0.001' : '1')), WINDOW = Number(arg('window', LIVE ? 600 : 3600));
-const FEE = parseEther(arg('fee', LIVE ? '0.0002' : '0.1')), FEE_BPS = 200;
+const FEE = parseEther(arg('fee', LIVE ? '0.0002' : '0.1')), FEE_BPS = 200, BOND_BPS = BigInt(arg('bond-bps', 10000));
+const JOB_BOND = BOND + FEE * BOND_BPS / 10_000n; // what Overclock.bondFor asks of this job
 
 const say = (s) => console.log(s);
 const log = [];
@@ -69,7 +70,7 @@ if (LIVE) {
 if (LIVE) {
   // A bond plus 4M gas each: the watcher's whole dispute is about 1.3M, the cheat's about 1.2M.
   const { maxFeePerGas, gasPrice } = await provider.getFeeData();
-  const fund = BOND + 4_000_000n * (maxFeePerGas ?? gasPrice);
+  const fund = JOB_BOND + 4_000_000n * (maxFeePerGas ?? gasPrice);
   for (const w of [honest, cheat, watcher]) {
     const have = await provider.getBalance(w.address);
     if (have < fund) note(`fund ${w === honest ? 'operator' : w === cheat ? 'cheat' : 'watcher'} wallet`, await (await deployer.sendTransaction({ to: w.address, value: fund - have })).wait(), { account: w.address });
@@ -196,9 +197,9 @@ let oc;
 if (arg('overclock', null)) {
   oc = new Contract(arg('overclock'), artifact('Overclock').abi, deployer);
   say(`using Overclock at ${arg('overclock')}`);
-} else oc = await deploy('Overclock', BOND, WINDOW, factoryAddr, await deployer.getAddress(), FEE_BPS);
+} else oc = await deploy('Overclock', BOND, WINDOW, factoryAddr, await deployer.getAddress(), FEE_BPS, BOND_BPS, 0, '0x0000000000000000000000000000000000000000');
 const ocAddr = await oc.getAddress();
-if ((await oc.bond()) !== BOND || Number(await oc.window()) !== WINDOW) throw new Error(`Overclock at ${ocAddr} has a different bond or window`);
+if ((await oc.bond()) !== BOND || (await oc.bondBps()) !== BOND_BPS || Number(await oc.window()) !== WINDOW) throw new Error(`Overclock at ${ocAddr} has a different bond, bond-bps or window`);
 const job0 = Number(await oc.jobCount()), game0 = Number(await oc.gameCount());
 
 // Post the job.
@@ -277,7 +278,7 @@ if (MORE > 0) {
 }
 
 const gasOf = (fn, who) => log.filter((e) => e.fn === fn && (!who || e.who === who)).reduce((s, e) => s + e.gas, 0);
-const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal', 'pick', 'resolveLeaf'].includes(e.fn));
+const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal16', 'pick16', 'resolveLeaf'].includes(e.fn));
 const summary = {
   directPerGeneration: perGen,
   directOneGeneration: directGas1,
@@ -292,14 +293,21 @@ const summary = {
 say(`gas: honest path ${(summary.claim + summary.finalize).toLocaleString()} (claim + finalize); dispute ${summary.disputeTotal.toLocaleString()} over ${summary.disputeTxs} transactions, largest ${summary.disputeMaxTx.toLocaleString()}`);
 say(`      direct evaluation of the same job: ${summary.directTotal.toLocaleString()} (${Math.round(summary.directTotal / (summary.claim + summary.finalize)).toLocaleString()}x the honest path)`);
 
-const steps = log.filter((e) => e.fn === 'pick').map((e) => {
+// the contract's worst-case bound for a one-step check must cover the check we measured
+const leafBound = Number(await oc.leafGasBound.staticCall(cpuAddr, boardId).catch(() => 0));
+if (leafBound) {
+  say(`      one-step check: ${summary.resolveLeaf.toLocaleString()} gas used, bound ${leafBound.toLocaleString()}`);
+  if (summary.resolveLeaf >= leafBound) throw new Error('the one-step gas bound is below a measured check');
+  summary.leafGasBound = leafBound;
+}
+const steps = log.filter((e) => e.fn === 'pick16').map((e) => {
   const p = e.events.find((x) => x.name === 'Picked').args;
   const level = Number(p.level), index = Number(p.index);
   return { level, from: index * 2 ** level, to: Math.min((index + 1) * 2 ** level, L.n) - 1 };
 });
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, JSON.stringify({
-  w: W, h: H, beats: BEATS, bond: formatEther(BOND), fee: formatEther(FEE),
+  w: W, h: H, beats: BEATS, bond: formatEther(JOB_BOND), fee: formatEther(FEE),
   mode: LIVE ? 'live' : realTapeOut ? 'fork' : 'local', jobIds: [job0, job0 + 1], gameId: game0, realTapeOut, chainId: Number(net.chainId), startBlock, more: MORE,
   addresses: { factory: factoryAddr, circuits: cpuAddr, transistors: await transistors.getAddress(), overclock: ocAddr, cellId, boardId, circuitAccount: poster },
   setup, stepChecks, directSource, continued: ok2,

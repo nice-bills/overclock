@@ -6,7 +6,7 @@ import ganache from 'ganache';
 import { BrowserProvider, ContractFactory, Contract, parseEther } from 'ethers';
 import { load, beat, pack, unpack, hexToBytes, bytesToHex } from '../src/tap02.js';
 import { traceBeat, traceJob, buildTree, Tree, flatSize } from '../src/trace.js';
-import { depsOf, sigPosOf, resultPos, Bisector } from '../src/game.js';
+import { depsOf, sigPosOf, resultPos, Bisector, revealNodes, span, rounds } from '../src/game.js';
 
 const vectors = JSON.parse(readFileSync(new URL('../vendor-tap02/vectors.json', import.meta.url)));
 const art = (n) => JSON.parse(readFileSync(new URL(`../build/${n}.json`, import.meta.url)));
@@ -38,7 +38,7 @@ before(async () => {
   provider = new BrowserProvider(ganache.provider({ logging: { quiet: true }, chain: { hardfork: 'shanghai' }, wallet: { totalAccounts: 3, defaultBalance: 1000 } }));
   [claimant, challenger, poster] = await Promise.all([0, 1, 2].map((i) => provider.getSigner(i)));
   cpu = await deploy('MockProcessor', poster);
-  oc = await deploy('Overclock', poster, BOND, WINDOW, '0x0000000000000000000000000000000000000000', await poster.getAddress(), 0);
+  oc = await deploy('Overclock', poster, BOND, WINDOW, '0x0000000000000000000000000000000000000000', await poster.getAddress(), 0, 0, 0, '0x0000000000000000000000000000000000000000');
   const byName = Object.fromEntries(vectors.valid.map((v) => [v.name, v]));
   await register('popcount', byName.popcount8_3151);
   await register('toggle', byName.toggle);
@@ -65,15 +65,17 @@ async function dispute(jobId, C, H, c, honestBits, beats = 1) {
   const rc0 = await (await asChallenger().challenge(jobId, { value: BOND })).wait();
   const gameId = rc0.logs.map((l) => oc.interface.parseLog(l)).find((e) => e?.name === 'Challenged').args.gameId;
   const b = new Bisector(H);
-  let level = C.depth, index = 0;
+  let level = C.depth, index = 0, n = 0;
   while (level > 0) {
-    const left = C.node(level - 1, 2 * index), right = C.node(level - 1, 2 * index + 1);
-    await (await asClaimant().reveal(gameId, left, right)).wait();
-    const goLeft = b.choose(level, index, left, right);
-    await (await asChallenger().pick(gameId, !goLeft)).wait();
-    index = 2 * index + (goLeft ? 0 : 1);
-    level--;
+    const nodes = revealNodes(C, level, index);
+    await (await asClaimant().reveal16(gameId, nodes)).wait();
+    const which = b.choose(level, index, nodes);
+    await (await asChallenger().pick16(gameId, which)).wait();
+    index = index * 2 ** span(level) + which;
+    level -= span(level);
+    n++;
   }
+  assert.equal(n, rounds(C.depth));
   const q = index;
   const deps = q < honestBits.length ? depsOf(c, q, beats).map((pos) => ({ pos, bit: honestBits[pos], siblings: b.siblings(pos, q) })) : [];
   const rc = await (await asChallenger().resolveLeaf(gameId, deps)).wait();

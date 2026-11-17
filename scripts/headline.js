@@ -79,7 +79,7 @@ const balance0 = LIVE ? await provider.getBalance(deployer.address) : null;
 let oc;
 if (arg('deploy', null) !== null) {
   const a = artifact('Overclock');
-  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200);
+  oc = await new ContractFactory(a.abi, a.bytecode, deployer).deploy(parseEther('1'), 3600, XLAYER.factory, deployer.address, 200, 10000, 0, '0x0000000000000000000000000000000000000000');
   await oc.waitForDeployment();
   note('deploy Overclock', await oc.deploymentTransaction().wait());
 } else {
@@ -88,7 +88,7 @@ if (arg('deploy', null) !== null) {
   oc = new Contract(addr, artifact('Overclock').abi, deployer);
 }
 const ocAddr = await oc.getAddress();
-const BOND = await oc.bond(), WINDOW = Number(await oc.window());
+const BOND = (await oc.bond()) + FEE * (await oc.bondBps().catch(() => 0n)) / 10_000n, WINDOW = Number(await oc.window());
 say(`\nOverclock headline demo: ${MACHINE}, chain ${net.chainId} at block ${startBlock} (${MODE})`);
 say(`Overclock ${ocAddr}: bond ${formatEther(BOND)} OKB, window ${WINDOW} s\n`);
 
@@ -257,7 +257,7 @@ const ok = got.every((v, i) => v === expect[i]);
 say(`\nOverclock.result(${job0}): ${describe(got)}`);
 say(`matches the plain-JS reference: ${ok}`);
 
-const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal', 'pick', 'resolveLeaf'].includes(e.fn));
+const disputeTx = log.filter((e) => e.gas && ['challenge', 'reveal16', 'pick16', 'resolveLeaf'].includes(e.fn));
 const gas = {
   post: Number(postRc.gasUsed),
   claim: log.find((e) => e.fn === 'claim' && e.who === 'operator').gas,
@@ -269,6 +269,12 @@ const gas = {
   directPerBeat: direct.perBeat,
   directTotal: direct.total,
 };
+const leafBound = Number(await oc.leafGasBound.staticCall(cpuAddr, circuitId).catch(() => 0));
+if (leafBound) {
+  say(`one-step check: ${gas.resolveLeaf.toLocaleString()} gas used, contract's bound ${leafBound.toLocaleString()}`);
+  if (gas.resolveLeaf >= leafBound) throw new Error('the one-step gas bound is below a measured check');
+  gas.leafGasBound = leafBound;
+}
 gas.honestPath = gas.post + gas.claim + gas.finalize;
 gas.ratio = Math.round(gas.directTotal / gas.honestPath);
 say(`gas: honest path ${gas.honestPath.toLocaleString()} (post + claim + finalize); whole dispute ${gas.disputeTotal.toLocaleString()} over ${gas.disputeTxs} transactions, largest ${gas.disputeMaxTx.toLocaleString()}`);
