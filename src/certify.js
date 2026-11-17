@@ -12,32 +12,29 @@
 //                     A failing vector fixes the exact first failing input and cycle; this is what
 //                     the research doc reports for #2346, #4890 and #4897.
 //   4. Bench.         src/bench.js builds one circuit that runs both sides on every input (counter
-//                     for stateless designs, LFSR from reset for stateful ones). If the official
-//                     vectors already fail, a fixed-frame bench replays that vector from reset so
-//                     the failure itself is what the job settles.
+//                     for stateless designs, LFSR from reset for stateful ones). Stateful
+//                     challenges additionally settle a frames-mode bench over ALL official vectors:
+//                     each vector replays its per-cycle frames from reset and the bench latches the
+//                     first failing (vector index, cycle). That is what catches #2346 (GC-094) in
+//                     the job itself; its LFSR sweep still passes, which is exactly the gap this
+//                     closes. The verdict fails if either bench fails.
 //   5. Job.           Tape the bench out, postJob / claim / finalize on Overclock, read result().
-//   6. Certificate.   docs/certificates/<processor>-<id>.json plus a web/runs.json entry. Circuits
+//   6. Certificate.   docs/certificates/<processor>-<id>.json (plus an optional runs-index entry). Circuits
 //                     with the same challenge and byte-identical netlist share one certificate:
-//                     `covers` lists them all.
+//                     `covers` lists them all. A constant reference or vector set yields
+//                     `verdict: "unsound-reference"` and a finding, never `certified` (GC-098).
 //
 // Every write in this file goes to the destination the caller passes (a local ganache or the
 // testnet TapeOutLocal). certifyMiner refuses a mainnet or testnet destination.
-//
-// Reported issue in src/bench.js (not edited here): its LFSR/counter inputs cannot replay the
-// official sequential vectors, which are `cycles` input frames from reset. That is why a failing
-// sequential design (#2346, GC-094) passes the LFSR bench yet fails the official vectors. The
-// fixed-frame bench below is the minimal addition needed; src/bench.js could grow a `frames` mode
-// with the same layout.
 
 import { Contract, Interface, JsonRpcProvider, formatEther, keccak256 } from 'ethers';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { Builder } from './hdl.js';
 import {
   LATCH, NAND, REF, beat, bytesToHex, decode, hexToBytes, load, pack, unpack,
 } from './tap02.js';
 import {
-  benchCircuit, benchSize, benchState, expectedVerdict, verdict,
+  benchCircuit, benchSize, benchState, expectedVerdict, framesVerdict, verdict,
 } from './bench.js';
 import { refKey, fetchCircuit, mirrorCircuit } from './mirror.js';
 import { loadCircuit } from './chain.js';
@@ -79,7 +76,6 @@ const ZERO = '0x0000000000000000000000000000000000000000';
 const hex = (v) => (typeof v === 'string' ? v.toLowerCase() : bytesToHex(v));
 const asBytes = (v) => (v instanceof Uint8Array ? v : hexToBytes(String(v)));
 const inputBits = (v, n) => Array.from({ length: n }, (_, i) => (Number(v) >> i) & 1);
-const bitsValue = (bs) => bs.reduce((v, b, i) => v + b * 2 ** i, 0);
 
 // Pack an input value the way TAP-02 vectors do: bit i is bit (i & 7) of byte (i >> 3).
 export function inputHex(value, nIn) {
@@ -230,7 +226,7 @@ export function officialCheck(design, task, vectors) {
     if (ok) passed++;
   }
 
-  const zeroOnly = expectedOuts.size === 1 && /^0x0*$/.test([...expectedOuts][0]);
+  const constant = expectedOuts.size === 1 ? [...expectedOuts][0] : null;
   const exhaustive = Number(task.kind) === 0 && cycles === 1 && unique.size >= 2 ** nIn;
   return {
     passed,
@@ -239,9 +235,34 @@ export function officialCheck(design, task, vectors) {
     firstFailure,
     uniqueInputs: unique.size,
     exhaustive,
-    degenerate: zeroOnly,
+    degenerate: constant !== null,
+    constantOutput: constant,
     cycles,
   };
+}
+
+// Replay the reference through every official vector and report whether its output is constant.
+// A challenge can be degenerate because the published expected outputs are constant or because the
+// reference itself only ever emits one value; either way passing it proves nothing (GC-098).
+export function constantReference(reference, task, vectors) {
+  const nIn = Number(reference.nIn), nOut = Number(reference.nOut);
+  const cycles = Math.max(1, Number(task.cycles ?? 1));
+  const inFrame = Math.ceil(nIn / 8);
+  const circuit = load(asBytes(reference.netlist), nIn, nOut);
+  let seen = null;
+  for (const v of vectors) {
+    const input = hexToBytes(v.input);
+    let state = new Array(circuit.nState).fill(0);
+    for (let k = 0; k < cycles; k++) {
+      const frame = unpack(input.slice(k * inFrame, (k + 1) * inFrame), nIn);
+      const [next, out] = beat(circuit, state, frame);
+      state = next;
+      const value = out.join('');
+      if (seen === null) seen = value;
+      else if (seen !== value) return { constant: false, output: null };
+    }
+  }
+  return { constant: seen !== null, output: seen };
 }
 
 export function certificateSource(check, task) {
@@ -250,102 +271,13 @@ export function certificateSource(check, task) {
   return 'reference-equivalence';
 }
 
-// --------------------------------------------------------------------- fixed-frame bench
+// --------------------------------------------------------------------- official frames
 
-// A bench for one fixed sequence of input frames. src/bench.js drives a counter or LFSR; the
-// official sequential vectors are specific frame sequences from reset, so this variant drives
-// frames[k] on beat k with a small ROM built from the bench counter.
-//
-// Outputs: [mismatch, firstBeat[0..m-1], done]. State: counter[m], mismatch, firstBeat[m],
-// design state, reference state. m = ceil(log2(frames.length)).
-export function sequenceBenchCircuit(design, reference, frames) {
-  const n = design.nIn;
-  const k = frames.length;
-  if (!(k >= 1)) throw new Error('fixed-frame bench needs at least one frame');
-  if (reference.nIn !== n || reference.nOut !== design.nOut) throw new Error('design and reference must have the same inputs and outputs');
-  if (k > 2 ** 16) throw new Error('fixed-frame bench needs a short frame sequence');
-  const m = Math.max(1, Math.ceil(Math.log2(k)));
-
-  const b = new Builder(0);
-  const cnt = Array.from({ length: m }, () => b.latch());
-  let carry = b.one;
-  cnt.forEach((q, i) => { const [s, c] = b.halfAdd(q, carry); b.setLatch(q, s); carry = c; });
-  const eq = (value) => {
-    const bits = inputBits(value, m);
-    return bits.map((x, i) => (x ? cnt[i] : b.not(cnt[i]))).reduce((x, y) => b.and(x, y));
-  };
-
-  const ins = Array.from({ length: n }, (_, i) => {
-    const terms = frames.map((frame, beat) => (frame[i] ? eq(beat) : null)).filter((x) => x !== null);
-    if (!terms.length) return b.zero;
-    return terms.reduce((x, y) => b.or(x, y));
-  });
-
-  const dOut = b.ref(design.cpu, design.id, design.nOut, ins);
-  const rOut = b.ref(reference.cpu, reference.id, reference.nOut, ins);
-  const diff = dOut.map((x, i) => b.xor(x, rOut[i])).reduce((x, y) => b.or(x, y));
-  const mm = b.latch();
-  const mmNext = b.or(mm, diff);
-  b.setLatch(mm, mmNext);
-  const capture = b.and(diff, b.not(mm));
-  const first = Array.from({ length: m }, () => b.latch());
-  const firstNext = first.map((q, i) => {
-    const nx = b.nand(b.nand(q, b.not(capture)), b.nand(cnt[i], capture));
-    b.setLatch(q, nx);
-    return nx;
-  });
-  const done = eq(k - 1);
-  const built = b.build([mmNext, ...firstNext, done]);
-
-  const dState = design.nState ?? 0, rState = reference.nState ?? 0;
-  return {
-    ...built,
-    beats: k,
-    mode: 'frames',
-    n: m,
-    inputBits: n,
-    counterBits: m,
-    frames,
-    design,
-    reference,
-    layout: { count: 0, mm: m, first: m + 1, design: 2 * m + 1, reference: 2 * m + 1 + dState },
-  };
-}
-
-export function sequenceVerdict(outputs, counterBits) {
-  return {
-    mismatch: outputs[0] === 1,
-    firstBeat: outputs[0] ? bitsValue(outputs.slice(1, 1 + counterBits)) : null,
-    done: outputs[counterBits + 1] === 1,
-  };
-}
-
-// Off-chain expected result of a fixed-frame bench, computed with src/tap02.js directly.
-export function expectedSequenceVerdict(bench, resolve) {
-  const { frames, design, reference } = bench;
-  const d = resolve(design.cpu, BigInt(design.id));
-  const r = resolve(reference.cpu, BigInt(reference.id));
-  const state = benchState(bench);
-  let ds = state.slice(bench.layout.design, bench.layout.reference);
-  let rs = state.slice(bench.layout.reference);
-  let mismatches = 0, firstBeat = null;
-  for (let k = 0; k < frames.length; k++) {
-    const [dn, dOut] = beat(d, ds, frames[k]);
-    const [rn, rOut] = beat(r, rs, frames[k]);
-    ds = dn; rs = rn;
-    if (dOut.some((v, i) => v !== rOut[i])) {
-      if (!mismatches) firstBeat = k;
-      mismatches++;
-    }
-  }
-  return {
-    mismatch: mismatches > 0,
-    firstInput: firstBeat,
-    firstBeat,
-    mismatches,
-    beats: frames.length,
-    outputs: [mismatches ? 1 : 0, ...inputBits(firstBeat ?? 0, bench.counterBits), 1],
-  };
+// Every official vector as a frames-mode bench vector: its `cycles` input frames from reset.
+// The bench compares the design with the official reference every cycle and latches the first
+// failing (vector index, cycle), so the job settles exactly what the published vectors say.
+export function officialFrames(vectors, task, nIn) {
+  return vectors.map((v, i) => ({ index: v.index ?? i, frames: vectorFrames(String(v.input), task, nIn) }));
 }
 
 // The input frames of one official vector, split the way TAP-02 packs them.
@@ -580,6 +512,7 @@ export function certificateEntry(cert) {
     issuedAt: cert.issuedAt,
     txs: cert.job.txs,
     ...(cert.caveat ? { caveat: cert.caveat } : {}),
+    ...(cert.findings?.length ? { findings: cert.findings } : {}),
     ...(cert.coverage ? { coverage: cert.coverage } : {}),
     ...(cert.shape?.covers?.length ? { covers: cert.shape.covers } : {}),
     certificate: certificateFilename(cert.design.processor, cert.design.id),
@@ -794,35 +727,7 @@ export async function certifyMiner({
   };
   const designLocal = localOf(designMirror, processor, id);
   const refLocal = localOf(refMirror, task.refCircuits, refId);
-  const dDesc = { cpu: dest.processor, id: designLocal.id, nIn: design.nIn, nOut: design.nOut, nState: design.nState };
-  const rDesc = { cpu: dest.processor, id: refLocal.id, nIn: reference.nIn, nOut: reference.nOut, nState: reference.nState };
-
-  // ---- choose what the job settles
-  let bench, expected, benchKind, coverage, state;
-  if (official.failed > 0) {
-    const first = official.firstFailure;
-    let candidate = null;
-    if (Number(task.kind) === 0 && Math.max(1, Number(task.cycles)) === 1) {
-      // A stateless combinational failure can be settled over the whole truth table, which is
-      // stronger than replaying one vector. The first-input check below falls back to the vector
-      // replay if the truth-table bench fails somewhere else first.
-      candidate = benchCircuit(dDesc, rDesc);
-    }
-    bench = candidate ?? sequenceBenchCircuit(dDesc, rDesc, vectorFrames(first.input, task, design.nIn));
-    benchKind = candidate ? (bench.mode === 'count' ? 'truth-table' : 'lfsr') : 'official-vector';
-    coverage = candidate
-      ? `${bench.beats} ${bench.mode === 'count' ? 'inputs (all 2^' + design.nIn + ')' : 'LFSR inputs from reset'}`
-      : `1 official vector (${vectorFrames(first.input, task, design.nIn).length} frame${vectorFrames(first.input, task, design.nIn).length === 1 ? '' : 's'} from reset)`;
-  } else {
-    bench = benchCircuit(dDesc, rDesc);
-    benchKind = bench.mode === 'count' ? 'truth-table' : 'lfsr';
-    coverage = bench.mode === 'count'
-      ? `all ${bench.beats} inputs (0..${bench.beats - 1})`
-      : `${bench.beats} LFSR inputs from reset (every non-zero ${design.nIn}-bit input once)`;
-  }
-  state = benchState(bench);
-
-  // ---- load the mirrored design and reference for the off-chain expectation
+  // ---- load the mirrored design and reference for off-chain expectations
   const designLoaded = await loadCircuit(dest.provider, dest.processor, Number(designLocal.id));
   const refLoaded = await loadCircuit(dest.provider, dest.processor, Number(refLocal.id));
   const resolveLocal = (cpu, cid) => {
@@ -832,53 +737,157 @@ export async function certifyMiner({
     if (n === Number(refLocal.id)) return refLoaded;
     return null;
   };
-  expected = bench.mode === 'frames' ? expectedSequenceVerdict(bench, resolveLocal) : expectedVerdict(bench, resolveLocal);
-  if (official.failed > 0 && !expected.mismatch) {
-    throw new Error(`${challengeName(task.taskId)} #${id}: the official vector failure at ${official.firstFailure.input} did not reproduce in a bench`);
-  }
+  // Frames mode inlines these circuits so it can reset their state at every vector boundary.
+  const dDesc = { cpu: dest.processor, id: designLocal.id, nIn: design.nIn, nOut: design.nOut, nState: design.nState, circuit: designLoaded, reset: [] };
+  const rDesc = { cpu: dest.processor, id: refLocal.id, nIn: reference.nIn, nOut: reference.nOut, nState: reference.nState, circuit: refLoaded, reset: [] };
 
-  // A combinational candidate is only better than the exact vector replay if it fails on the same
-  // first input; otherwise replay the official vector itself.
-  if (official.failed > 0 && bench.mode !== 'frames') {
-    const officialInput = String(official.firstFailure.input).toLowerCase();
-    const benchInput = inputHex(expected.firstInput, design.nIn);
-    if (officialInput !== benchInput) {
-      bench = sequenceBenchCircuit(dDesc, rDesc, vectorFrames(official.firstFailure.input, task, design.nIn));
-      state = benchState(bench);
-      benchKind = 'official-vector';
-      coverage = `1 official vector (${bench.beats} frame${bench.beats === 1 ? '' : 's'} from reset)`;
-      expected = expectedSequenceVerdict(bench, resolveLocal);
-      if (!expected.mismatch) {
-        throw new Error(`${challengeName(task.taskId)} #${id}: the official vector failure at ${official.firstFailure.input} did not reproduce in a fixed-frame bench`);
+  // ---- choose what the job(s) settle
+  // Stateful challenges need both schedules: all official per-cycle vectors (frames, the exact
+  // published behaviour) and the LFSR sweep (broader equivalence against the reference). The
+  // verdict fails if either bench fails. Stateless designs keep the stronger truth table when the
+  // vectors are exhaustive, and replay the published failure otherwise.
+  const stateful = (design.nState ?? 0) > 0 || (reference.nState ?? 0) > 0;
+  const plans = [];
+  if (stateful) {
+    plans.push({
+      kind: 'official-vectors',
+      bench: benchCircuit(dDesc, rDesc, { mode: 'frames', vectors: officialFrames(vectors, task, design.nIn) }),
+    });
+    plans.push({ kind: 'lfsr', bench: benchCircuit(dDesc, rDesc, { mode: 'lfsr' }) });
+  } else {
+    const complete = Number(task.kind) === 0 && Math.max(1, Number(task.cycles)) === 1;
+    const base = benchCircuit(dDesc, rDesc);
+    plans.push({ kind: base.mode === 'count' ? 'truth-table' : 'lfsr', bench: base });
+    if (official.failed > 0) {
+      const exp = expectedVerdict(base, resolveLocal);
+      const sameFirst = complete && exp.mismatch && inputHex(exp.firstInput, design.nIn) === String(official.firstFailure.input).toLowerCase();
+      if (!sameFirst) {
+        const replay = benchCircuit(dDesc, rDesc, {
+          mode: 'frames',
+          vectors: [{ index: official.firstFailure.index, input: String(official.firstFailure.input).toLowerCase(), frames: vectorFrames(official.firstFailure.input, task, design.nIn) }],
+        });
+        const rexp = expectedVerdict(replay, resolveLocal);
+        if (!rexp.mismatch) {
+          throw new Error(`${challengeName(task.taskId)} #${id}: the official vector failure at ${official.firstFailure.input} did not reproduce in a frames bench`);
+        }
+        plans[0] = { kind: 'official-vector', bench: replay };
       }
     }
   }
+  const coverageOf = (plan) => {
+    const b = plan.bench;
+    if (b.mode === 'frames') {
+      return plan.kind === 'official-vector'
+        ? `1 official vector (${b.beats} frame${b.beats === 1 ? '' : 's'} from reset)`
+        : `${b.vectors.length} official vectors (${b.beats} frames from reset)`;
+    }
+    if (b.mode === 'count') return `all ${b.beats} inputs (0..${b.beats - 1})`;
+    return `${b.beats} LFSR inputs from reset (every non-zero ${design.nIn}-bit input once)`;
+  };
+  const coverage = plans.map(coverageOf).join(' + ');
 
-  // ---- settle the job
-  const job = await runBenchJob({ dest, bench, state, log });
-  const counterBits = bench.mode === 'frames' ? bench.counterBits : bench.n;
-  const outs = unpack(hexToBytes(job.outputs), bench.nOut);
-  const got = bench.mode === 'frames' ? sequenceVerdict(outs, counterBits) : verdict(outs, bench.n);
-  if (got.mismatch !== expected.mismatch) {
-    throw new Error(`bench verdict disagrees with the off-chain run: job ${JSON.stringify(got)} vs expected ${JSON.stringify(expected)}`);
+  // ---- settle every bench as an Overclock job
+  const settledRuns = [];
+  for (const plan of plans) {
+    const bench = plan.bench;
+    const expected = expectedVerdict(bench, resolveLocal);
+    const job = await runBenchJob({ dest, bench, state: benchState(bench), log });
+    const outs = unpack(hexToBytes(job.outputs), bench.nOut);
+    const got = bench.mode === 'frames' ? framesVerdict(outs, bench) : verdict(outs, bench.n);
+    if (got.mismatch !== expected.mismatch) {
+      throw new Error(`bench verdict disagrees with the off-chain run: job ${JSON.stringify(got)} vs expected ${JSON.stringify(expected)}`);
+    }
+    if (!got.done) throw new Error('bench did not signal done on the last beat');
+    if (expected.mismatch) {
+      const same = bench.mode === 'frames'
+        ? got.firstVector === expected.firstVector && got.firstCycle === expected.firstCycle
+        : got.firstInput === expected.firstInput;
+      if (!same) throw new Error(`bench first failure disagrees: job ${JSON.stringify(got)} vs expected ${JSON.stringify(expected)}`);
+    }
+    settledRuns.push({ plan, expected, got, job, size: benchSize(bench, resolveLocal) });
   }
-  if (!got.done) throw new Error('bench did not signal done on the last beat');
-  if (expected.mismatch) {
-    const same = bench.mode === 'frames' ? got.firstBeat === expected.firstBeat : got.firstInput === expected.firstInput;
-    if (!same) throw new Error(`bench first failure disagrees: job ${JSON.stringify(got)} vs expected ${JSON.stringify(expected)}`);
+  const primary = settledRuns[0];
+  const primaryBench = primary.plan.bench;
+  const primaryExpected = primary.expected;
+
+  // The frames bench settles the same failure the official vectors report, not merely "an input".
+  if (stateful && official.failed > 0) {
+    if (!primaryExpected.mismatch) {
+      throw new Error(`${challengeName(task.taskId)} #${id}: the official vector failure at ${official.firstFailure.input} did not reproduce in the frames bench`);
+    }
+    const vector = primaryBench.vectors[primaryExpected.firstVector];
+    const vectorIndex = Number(vector?.index ?? primaryExpected.firstVector);
+    if (vectorIndex !== Number(official.firstFailure.index) || primaryExpected.firstCycle !== Number(official.firstFailure.cycle)) {
+      throw new Error(`${challengeName(task.taskId)} #${id}: the frames bench first failure (vector ${vectorIndex} cycle ${primaryExpected.firstCycle}) disagrees with the official vectors (vector ${official.firstFailure.index} cycle ${official.firstFailure.cycle})`);
+    }
   }
 
-  const certified = !expected.mismatch;
-  const firstFailingInput = official.failed > 0
-    ? String(official.firstFailure.input).toLowerCase()
-    : expected.mismatch
-      ? inputHex(expected.firstInput, design.nIn)
-      : null;
-  const mismatches = official.failed > 0 ? official.failed : expected.mismatches;
-  const inputs = official.failed > 0 ? official.total : bench.beats;
-  const caveat = official.degenerate
-    ? 'The published vectors for this challenge are all zero and the official reference is constant zero. This certifies equivalence to that reference, not the advertised function.'
+  const failed = official.failed > 0 || settledRuns.some((r) => r.expected.mismatch);
+  const constant = constantReference(reference, task, vectors);
+  const degenerate = official.degenerate || constant.constant;
+  const mismatches = official.failed > 0 ? official.failed : settledRuns.reduce((s, r) => s + r.expected.mismatches, 0);
+  const inputs = official.failed > 0 ? official.total : settledRuns.reduce((s, r) => s + r.plan.bench.beats, 0);
+  const verdictName = degenerate ? 'unsound-reference' : failed ? 'failed' : 'certified';
+
+  let firstFailingInput = null;
+  if (official.failed > 0) firstFailingInput = String(official.firstFailure.input).toLowerCase();
+  else {
+    const failing = settledRuns.find((r) => r.expected.mismatch);
+    if (failing) {
+      const b = failing.plan.bench;
+      firstFailingInput = b.mode === 'frames'
+        ? b.vectors[failing.expected.firstVector]?.input ?? null
+        : inputHex(failing.expected.firstInput, design.nIn);
+    }
+  }
+
+  const findings = [];
+  if (degenerate) {
+    findings.push({
+      code: 'degenerate-reference',
+      output: constant.constant ? constant.output : official.constantOutput,
+      detail: 'The official reference or its published vectors produce a constant output. Equivalence to that reference can never establish the advertised function, so the verdict is withheld.',
+    });
+    for (const r of settledRuns) {
+      if (!r.expected.mismatch) continue;
+      findings.push({
+        code: 'divergence',
+        bench: r.plan.kind,
+        mode: r.plan.bench.mode,
+        mismatches: r.expected.mismatches,
+        ...(r.plan.bench.mode === 'frames'
+          ? { firstVector: r.expected.firstVector, firstCycle: r.expected.firstCycle }
+          : { firstInput: inputHex(r.expected.firstInput, design.nIn) }),
+        detail: 'The design diverges from the official reference under the swept inputs. This is reported as a finding; it is not a passing certificate.',
+      });
+    }
+  }
+  const caveat = degenerate
+    ? 'The official reference or vectors are constant; equivalence to them is not evidence for the advertised function. Verdict withheld as unsound-reference.'
     : null;
+  const failureAt = official.firstFailure
+    ? ` at vector ${official.firstFailure.index} cycle ${official.firstFailure.cycle}`
+    : '';
+  const outcome = verdictName === 'certified'
+    ? `0 mismatches over ${inputs} settled inputs (${coverage}); ${official.passed}/${official.total} official vectors pass.`
+    : verdictName === 'unsound-reference'
+      ? `Verdict withheld (unsound-reference): ${official.passed}/${official.total} official vectors pass over a constant reference; no sound certificate is possible from the published data.`
+      : `${mismatches} mismatch${mismatches === 1 ? '' : 'es'}${official.failed > 0 ? ` in ${official.total} official vectors` : ''}; first failing input ${firstFailingInput}${failureAt}.`;
+
+  const sweeps = settledRuns.map((r) => ({
+    kind: r.plan.kind,
+    mode: r.plan.bench.mode,
+    beats: r.plan.bench.beats,
+    ...(r.plan.bench.mode === 'frames' ? { vectors: r.plan.bench.vectors.length } : {}),
+    mismatches: r.expected.mismatches,
+    ...(r.expected.mismatch
+      ? (r.plan.bench.mode === 'frames'
+        ? { firstVector: r.expected.firstVector, firstCycle: r.expected.firstCycle }
+        : { firstInput: inputHex(r.expected.firstInput, design.nIn) })
+      : {}),
+    outputs: r.job.outputs,
+    job: { runId: r.job.runId, jobId: r.job.jobId, benchId: r.job.benchId },
+  }));
 
   const suffix = task.name ? ` ${task.name}` : '';
   const cert = {
@@ -895,7 +904,7 @@ export async function certifyMiner({
       nOut: Number(task.nOut),
       vectorCount: official.total,
       vectorsRoot: task.vectorsRoot,
-      certificateSource: certificateSource(official, task),
+      certificateSource: certificateSource({ ...official, degenerate }, task),
     },
     design: {
       processor: String(processor).toLowerCase(),
@@ -913,22 +922,33 @@ export async function certifyMiner({
       processor: dest.processor,
       design: { id: Number(designLocal.id) },
       reference: { id: Number(refLocal.id) },
-      bench: { id: job.benchId },
+      bench: { id: primary.job.benchId },
     },
     bench: {
-      kind: benchKind,
-      mode: bench.mode,
-      beats: bench.beats,
-      gatesPerBeat: benchSize(bench, resolveLocal).gates,
-      stateBits: benchState(bench).length,
-      netlistHash: keccak256(asBytes(bench.netlist)),
+      kind: primary.plan.kind,
+      mode: primaryBench.mode,
+      beats: primaryBench.beats,
+      nOut: primaryBench.nOut,
+      gatesPerBeat: primary.size.gates,
+      stateBits: benchState(primaryBench).length,
+      netlistHash: keccak256(asBytes(primaryBench.netlist)),
+      ...(primaryBench.mode === 'frames' ? { vectors: primaryBench.vectors.length, vectorBits: primaryBench.vectorBits, cycleBits: primaryBench.cycleBits } : {}),
     },
     inputs,
     inputsCovered: coverage,
     coverage,
     mismatches,
     firstFailingInput,
-    settled: { inputs: bench.beats, mismatches: expected.mismatches, kind: benchKind },
+    settled: {
+      inputs: primaryBench.beats,
+      mismatches: primaryExpected.mismatches,
+      kind: primary.plan.kind,
+      ...(primaryBench.mode === 'frames' ? { vectors: primaryBench.vectors.length } : {}),
+      ...(primaryBench.mode === 'frames' && primaryExpected.mismatch
+        ? { firstVector: primaryExpected.firstVector, firstCycle: primaryExpected.firstCycle, firstVectorIndex: Number(primaryBench.vectors[primaryExpected.firstVector]?.index ?? primaryExpected.firstVector) }
+        : {}),
+    },
+    sweeps,
     officialVectors: {
       passed: official.passed,
       failed: official.failed,
@@ -936,17 +956,19 @@ export async function certifyMiner({
       uniqueInputs: official.uniqueInputs,
       exhaustive: official.exhaustive,
       degenerate: official.degenerate,
+      constantOutput: official.constantOutput,
+      referenceConstant: constant.constant,
+      referenceOutput: constant.output,
       firstFailure: official.firstFailure,
     },
-    verdict: certified ? 'certified' : 'failed',
+    verdict: verdictName,
     ...(caveat ? { caveat } : {}),
+    ...(findings.length ? { findings } : {}),
     job: {
-      ...job,
+      ...primary.job,
       fee: formatEther(dest.fee ?? 0n),
       bond: formatEther(dest.bond),
-      outcome: certified
-        ? `0 mismatches over ${bench.beats} settled ${bench.mode === 'frames' ? 'beats' : 'inputs'}; ${official.passed}/${official.total} official vectors pass.`
-        : `${mismatches} mismatch${mismatches === 1 ? '' : 'es'} in ${inputs} official vectors; first failing input ${firstFailingInput}${official.firstFailure ? ` at cycle ${official.firstFailure.cycle}` : ''}.`,
+      outcome,
     },
     shape: shape
       ? {

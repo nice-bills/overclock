@@ -68,9 +68,11 @@ A finalized job whose result says a design matches its reference on its entire i
 | `inputs` | number | Inputs checked (`2^n`) |
 | `mismatches` | number | `0` means certified |
 | `firstFailingInput` | string | Hex, only when `mismatches > 0` |
-| `status` | string | `certified` (a final run with `mismatches === 0`) or `failed` |
+| `status` | string | `certified` (a final run with `mismatches === 0`), `failed`, or `unsound-reference` (the published reference or its vectors are degenerate, so equivalence proves nothing) |
 | `issuedAt` | string | ISO timestamp. Optional |
 | `txs` | array | As in a Run |
+| `findings` | array | Optional. `{ code, detail, ... }` records what was found. `degenerate-reference` marks a constant reference or vector set; `divergence` records a design that differs from an unsound reference. A finding is reported, never counted as a pass |
+| `sweeps` | array | Optional, in the full certificate document. One entry per settled bench: `kind`, `mode`, `beats`, `vectors` (frames mode), `mismatches`, and `firstVector`/`firstCycle` (frames) or `firstInput` (truth table / LFSR) |
 
 A circuit counts as **certified** when it has a certificate with `status: "certified"`. A shape-level
 certificate (the same bytecode on hundreds of circuits) lists the circuits it covers in
@@ -98,6 +100,36 @@ netlist fingerprints, `officialVectors` counts and the exact `firstFailure` (`in
 keeps `firstFailingInput` as the exact published vector input, so the same miner always reports the
 same first failure. Certifier Runs use `source: "scripts/certify.js"` and `status: "final"`; their
 `chainId` is the settlement chain, so treat `31337` as a local run.
+
+### Stateful challenges: frames mode and the LFSR sweep
+
+A challenge is stateful when the design or the reference has `nState > 0`. For those,
+`scripts/certify.js` settles two benches and writes both under `sweeps`:
+
+- `official-vectors` replays **all 256** published vectors in frames mode. Each vector is its
+  `cycles` input frames starting from the reset state, and the bench latches the first failing
+  `(vector index, cycle)`. This is stricter than "some input fails": #2346 (GC-094) is caught at
+  vector 17 cycle 4 even though its LFSR sweep passes.
+- `lfsr` applies every non-zero `n`-bit input from reset, in the usual LFSR order.
+
+The verdict is `failed` if either bench fails and `certified` only if both pass. `settled`
+describes the primary (`official-vectors`) bench, including `firstVector` and `firstCycle`;
+`bench.mode` is `frames` and `bench.vectors` is `256`.
+
+Stateless designs keep the stronger truth table when the 256 vectors are exhaustive
+(`nIn <= 8`, one cycle); otherwise they settle the LFSR sweep, and a published failure is
+replayed as a one-vector frames bench so `firstFailingInput` stays exact.
+
+### Degenerate references: `unsound-reference`
+
+GC-098 is the published counter-example: its reference and all 256 expected outputs are
+constant zero. Passing it proves nothing about the advertised sorter, so such certificates are
+written with `verdict: "unsound-reference"`, a `caveat`, and a `findings` entry
+(`degenerate-reference`). A design that also diverges from that reference adds a `divergence`
+finding. They are never `certified` and do not count toward "Certificates issued".
+
+`scripts/certify.js` writes only `docs/certificates/` by default; it touches `web/runs.json`
+only when given `--runs <file>`, because these jobs settle on the local chain.
 
 ## What the site derives
 

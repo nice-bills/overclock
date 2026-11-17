@@ -7,8 +7,8 @@ import { BrowserProvider, ContractFactory, parseEther } from 'ethers';
 import { Builder } from '../src/hdl.js';
 import { load, beat, pack, unpack, hexToBytes, bytesToHex } from '../src/tap02.js';
 import { traceJob, Tree, flatSize } from '../src/trace.js';
-import { sigPosOf, depsOf, Bisector } from '../src/game.js';
-import { adderCircuit, benchCircuit, benchState, benchSize, expectedVerdict, runBench, verdict, breakNand, lfsrNext, inputAt } from '../src/bench.js';
+import { sigPosOf, depsOf, Bisector, revealNodes, rounds, span } from '../src/game.js';
+import { adderCircuit, benchCircuit, benchState, benchSize, expectedVerdict, framesVerdict, runBench, verdict, breakNand, lfsrNext, inputAt } from '../src/bench.js';
 
 // ---- designs --------------------------------------------------------------------------------
 const addRef = (x, w) => (x & (2 ** w - 1)) + (x >> w); // plain JS: a + b
@@ -36,6 +36,20 @@ const accumXor = () => {
   acc.forEach((q, i) => b.setLatch(q, b.xor(q, b.in[i])));
   return b.build(acc.map((q) => b.not(b.not(q))));
 };
+// one-input, one-state ticker: out = state, state' = in (or state' = state XOR in)
+const ticker = (flip = false) => {
+  const b = new Builder(1);
+  const q = b.latch();
+  b.setLatch(q, flip ? b.xor(q, b.in[0]) : b.in[0]);
+  return b.build([q]);
+};
+
+// Two official-style vectors. The accumulator and XOR designs agree on the first, then diverge
+// at vector 1, cycle 2 (acc reaches 2 while XOR has wrapped to 0).
+const frameVectors = () => [
+  { frames: [[1, 0, 0], [0, 1, 0]] },
+  { frames: [[1, 0, 0], [1, 0, 0], [1, 0, 0], [1, 0, 0]] },
+];
 
 // ---- a local registry of circuits, optionally backed by the mock processor --------------------
 const CPU = '0x' + 'ab'.repeat(20);
@@ -47,7 +61,7 @@ function registry(addr = CPU, store = null) {
     const c = load(nl.netlist, nl.nIn, nl.nOut, resolve);
     const id = store ? await store(nl, c) : next++;
     byId.set(id, c);
-    return { cpu: addr, id, nIn: nl.nIn, nOut: nl.nOut, nState: c.nState, ...extra };
+    return { cpu: addr, id, nIn: nl.nIn, nOut: nl.nOut, nState: c.nState, circuit: c, ...extra };
   };
   return { add, resolve, addr };
 }
@@ -151,6 +165,78 @@ test('stateful designs: LFSR inputs from reset, state carried between beats', as
   assert.deepEqual(verdict(runBench(bad, R.resolve).outputs, 3), { mismatch: true, firstInput: first, done: true });
 });
 
+// ---- frames mode: official per-cycle vectors from reset -------------------------------------
+
+test('frames mode: a correct stateful design passes every vector from reset', async () => {
+  const R = registry();
+  const good = await R.add(accum(false), { reset: [0, 0, 0] });
+  const alt = await R.add(accum(true), { reset: [0, 0, 0] });
+  const bench = benchCircuit(good, alt, { mode: 'frames', vectors: frameVectors() });
+  assert.equal(bench.mode, 'frames');
+  assert.equal(bench.beats, 6);
+  assert.equal(bench.vectors.length, 2);
+  assert.equal(bench.vectorBits, 1);
+  assert.equal(bench.cycleBits, 2);
+  assert.equal(bench.nOut, 5); // mismatch + vector + cycle + done
+  assert.equal(benchState(bench).length, load(bench.netlist, 0, bench.nOut, R.resolve).nState);
+  const exp = expectedVerdict(bench, R.resolve);
+  assert.equal(exp.mismatch, false);
+  assert.equal(exp.mismatches, 0);
+  const run = runBench(bench, R.resolve);
+  assert.deepEqual(run.outputs, exp.outputs);
+  assert.deepEqual(framesVerdict(run.outputs, bench), { mismatch: false, firstVector: null, firstCycle: null, done: true });
+});
+
+test('frames mode: a broken stateful design latches the exact failing vector and cycle', async () => {
+  const R = registry();
+  const good = await R.add(accum(false), { reset: [0, 0, 0] });
+  const bad = await R.add(accumXor(), { reset: [0, 0, 0] });
+  const bench = benchCircuit(bad, good, { mode: 'frames', vectors: frameVectors() });
+  const exp = expectedVerdict(bench, R.resolve);
+  assert.equal(exp.mismatch, true);
+  assert.equal(exp.firstVector, 1);
+  assert.equal(exp.firstCycle, 2);
+  assert.equal(exp.mismatches, 2, 'cycles 2 and 3 of the second vector differ');
+  const run = runBench(bench, R.resolve);
+  assert.deepEqual(run.outputs, exp.outputs);
+  assert.deepEqual(framesVerdict(run.outputs, bench), { mismatch: true, firstVector: 1, firstCycle: 2, done: true });
+  // the latch keeps the first failure, not a later one
+  assert.equal(framesVerdict(run.outputs, bench).firstCycle, 2);
+});
+
+test('frames mode resets design state between vectors', async () => {
+  const R = registry();
+  const plain = await R.add(ticker(false));
+  const flip = await R.add(ticker(true));
+  // Within each vector the two tickers agree. Without the reset, vector 1 would start from the
+  // state left by vector 0 (plain 1, flip 0) and fail on its first cycle.
+  const bench = benchCircuit(flip, plain, { mode: 'frames', vectors: [{ frames: [[1], [1]] }, { frames: [[0], [0]] }] });
+  const exp = expectedVerdict(bench, R.resolve);
+  assert.equal(exp.mismatch, false, 'vector 1 starts from reset state on both sides');
+  assert.deepEqual(framesVerdict(runBench(bench, R.resolve).outputs, bench), { mismatch: false, firstVector: null, firstCycle: null, done: true });
+});
+
+test('frames mode can compare against published expected outputs instead of the reference', async () => {
+  const R = registry();
+  const d = await R.add(accum(false), { reset: [0, 0, 0] });
+  // accum outputs 0, 1, 2 on these frames; the expected vector says 0, 1, 0, so cycle 2 fails.
+  const vectors = [{ index: 7, frames: [[1, 0, 0], [1, 0, 0], [1, 0, 0]], expected: [[0, 0, 0], [1, 0, 0], [0, 0, 0]] }];
+  const bench = benchCircuit(d, d, { mode: 'frames', vectors });
+  assert.equal(bench.oracle, 'expected');
+  const exp = expectedVerdict(bench, R.resolve);
+  assert.equal(exp.firstVector, 0);
+  assert.equal(exp.firstCycle, 2);
+  assert.deepEqual(framesVerdict(runBench(bench, R.resolve).outputs, bench), { mismatch: true, firstVector: 0, firstCycle: 2, done: true });
+});
+
+test('frames mode rejects malformed vector lists', async () => {
+  const R = registry();
+  const d = await R.add(accum(false), { reset: [0, 0, 0] });
+  assert.throws(() => benchCircuit(d, d, { mode: 'frames', vectors: [] }), /at least one vector/);
+  assert.throws(() => benchCircuit(d, d, { mode: 'frames', vectors: [{ frames: [[2, 0, 0]] }] }), /non-bit input/);
+  assert.throws(() => benchCircuit(d, d, { mode: 'frames', vectors: [{ frames: [[1, 0, 0]] }, { frames: [[1, 0, 0]], expected: [[0, 0, 0]] }] }), /every vector or on none/);
+});
+
 test('a mismatch stays latched and the first failing input is not overwritten', async () => {
   const R = registry();
   const good = await R.add(adderAlt(3));
@@ -225,27 +311,29 @@ async function postBench(bench) {
 async function dispute(jobId, C, H, c, honestBits, beats) {
   const gameId = evOf(await (await asChallenger().challenge(jobId, { value: BOND })).wait(), 'Challenged').gameId;
   const b = new Bisector(H);
-  let level = C.depth, index = 0;
+  let level = C.depth, index = 0, n = 0;
   while (level > 0) {
-    const left = C.node(level - 1, 2 * index), right = C.node(level - 1, 2 * index + 1);
-    await (await asClaimant().reveal(gameId, left, right)).wait();
-    const goLeft = b.choose(level, index, left, right);
-    await (await asChallenger().pick(gameId, !goLeft)).wait();
-    index = 2 * index + (goLeft ? 0 : 1);
-    level--;
+    const nodes = revealNodes(C, level, index);
+    await (await asClaimant().reveal16(gameId, nodes)).wait();
+    const which = b.choose(level, index, nodes);
+    await (await asChallenger().pick16(gameId, which)).wait();
+    index = index * 2 ** span(level) + which;
+    level -= span(level);
+    n++;
   }
+  assert.equal(n, rounds(C.depth));
   const deps = depsOf(c, index, beats).map((pos) => ({ pos, bit: honestBits[pos], siblings: b.siblings(pos, index) }));
   const rc = await (await asChallenger().resolveLeaf(gameId, deps)).wait();
   return { q: index, ev: evOf(rc, 'Resolved') };
 }
 
 const claimTrace = (jobId, t) => asClaimant().claim(jobId, new Tree(t.leaves).root, bytesToHex(pack(t.outputs)), bytesToHex(pack(t.newState)), { value: BOND });
-const finalize = async (jobId) => {
+const finalize = async (jobId, nOut = 10) => {
   await provider.send('evm_increaseTime', [WINDOW + 1]);
   await provider.send('evm_mine', []);
   await (await oc.finalize(jobId)).wait();
   const [outs] = await oc.result(jobId);
-  return unpack(hexToBytes(outs), 10);
+  return unpack(hexToBytes(outs), nOut);
 };
 
 test('e2e: a bench over a correct design finalizes as a certificate (0 mismatches over 256 inputs)', async () => {
@@ -264,6 +352,19 @@ test('e2e: a bench over a broken design finalizes with the exact failing input',
   const t = traceJob(c, { state, beats: bench.beats });
   await (await claimTrace(jobId, t)).wait();
   assert.deepEqual(verdict(await finalize(jobId), 8), { mismatch: true, firstInput: 0xa5, done: true });
+});
+
+test('e2e: a frames-mode bench finalizes with the exact first failing vector and cycle', async () => {
+  const bench = benchCircuit(
+    await E.add(accumXor(), { reset: [0, 0, 0] }),
+    await E.add(accum(false), { reset: [0, 0, 0] }),
+    { mode: 'frames', vectors: frameVectors() },
+  );
+  const { jobId, c, state } = await postBench(bench);
+  const t = traceJob(c, { state, beats: bench.beats });
+  await (await claimTrace(jobId, t)).wait();
+  const outs = await finalize(jobId, bench.nOut);
+  assert.deepEqual(framesVerdict(outs, bench), { mismatch: true, firstVector: 1, firstCycle: 2, done: true });
 });
 
 test('e2e: a false "certified" claim over a broken design is challenged and the liar is slashed', async () => {

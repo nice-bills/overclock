@@ -50,28 +50,29 @@
  },
  "mirror": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
   "design": {
-   "id": 22
+   "id": 25
   },
   "reference": {
-   "id": 23
+   "id": 26
   },
   "bench": {
-   "id": 24
+   "id": 27
   }
  },
  "bench": {
   "kind": "truth-table",
   "mode": "count",
   "beats": 16,
+  "nOut": 6,
   "gatesPerBeat": 86,
   "stateBits": 9,
-  "netlistHash": "0x280db6b0c81587b3df376a005e920c091304cd3a76b853fe25b74c48ec5aef45"
+  "netlistHash": "0x3d94797c17a94435e43f3e1691e5a04a40b2d435d80571590607dc89de733df7"
  },
  "inputs": 256,
- "inputsCovered": "16 inputs (all 2^4)",
- "coverage": "16 inputs (all 2^4)",
+ "inputsCovered": "all 16 inputs (0..15)",
+ "coverage": "all 16 inputs (0..15)",
  "mismatches": 16,
  "firstFailingInput": "0x00",
  "settled": {
@@ -79,6 +80,21 @@
   "mismatches": 1,
   "kind": "truth-table"
  },
+ "sweeps": [
+  {
+   "kind": "truth-table",
+   "mode": "count",
+   "beats": 16,
+   "mismatches": 1,
+   "firstInput": "0x00",
+   "outputs": "0x21",
+   "job": {
+    "runId": "31337:10",
+    "jobId": 10,
+    "benchId": 27
+   }
+  }
+ ],
  "officialVectors": {
   "passed": 240,
   "failed": 16,
@@ -86,6 +102,9 @@
   "uniqueInputs": 16,
   "exhaustive": true,
   "degenerate": false,
+  "constantOutput": null,
+  "referenceConstant": false,
+  "referenceOutput": null,
   "firstFailure": {
    "index": 0,
    "cycle": 0,
@@ -97,44 +116,44 @@
  "verdict": "failed",
  "job": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
-  "benchId": 24,
-  "jobId": 7,
-  "runId": "31337:7",
-  "overclock": "0x060e8d366675569977450c8017f0025c39011c7a",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
+  "benchId": 27,
+  "jobId": 10,
+  "runId": "31337:10",
+  "overclock": "0x0fd546c3f3ec6d68016c0dc2bbb92c291e325f65",
   "txs": [
    {
     "what": "post job",
-    "tx": "0x4410e0755fc5699b413e1d574332f55d64efd7b515b70aa2740cc6bff91cd067",
-    "gas": 322205
+    "tx": "0x20da1856adfe7b896ab57edaf15ed835c2a68309dcc9e6f56c17795826d2353f",
+    "gas": 397182
    },
    {
     "what": "claim",
-    "tx": "0xd89e3292c18bd10f4c3e0f7037ac53725feb5e1c98c88a1ec37bbfa417ccff57",
-    "gas": 165069
+    "tx": "0xd518c33fda19ac6f31d21c6c8bf1ed56b54d19a357361c2afc2b11f0ddb157a0",
+    "gas": 167735
    },
    {
     "what": "finalize",
-    "tx": "0x2f0929e54917a40cd56a82081dd8ef4d7194ddb6d209f13484417033c0650933",
-    "gas": 47258
+    "tx": "0x883aca796462d7b646c042011cde2b40e374fb7b39ad0763301a8bd229787c53",
+    "gas": 52116
    }
   ],
   "gas": {
-   "post": 322205,
-   "claim": 165069,
-   "finalize": 47258,
-   "honestPath": 534532
+   "post": 397182,
+   "claim": 167735,
+   "finalize": 52116,
+   "honestPath": 617033
   },
   "outputs": "0x21",
   "newState": "0x1000",
   "traceLeaves": 1776,
   "traceRoot": "0xd4fa557e99a66d5328c1eff6c506c5557a38d3500634cffefdd2ab460d78b7e7",
   "beats": 16,
-  "postedAt": "2026-11-17T12:52:31.480Z",
-  "finalizedAt": "2026-11-17T12:52:31.552Z",
+  "postedAt": "2026-11-17T14:49:40.470Z",
+  "finalizedAt": "2026-11-17T14:49:40.550Z",
   "fee": "0.0",
   "bond": "1.0",
-  "outcome": "16 mismatches in 256 official vectors; first failing input 0x00 at cycle 0."
+  "outcome": "16 mismatches in 256 official vectors; first failing input 0x00 at vector 0 cycle 0."
  },
  "shape": {
   "key": "14:4/1/0:0xadb3ef016304d5e33e3a7e4443c579da6729380a7a1432e21007bd9c70cbaf76",
@@ -152,5 +171,5 @@
    }
   ]
  },
- "issuedAt": "2026-11-17T12:52:31.558Z"
+ "issuedAt": "2026-11-17T14:49:40.557Z"
 }

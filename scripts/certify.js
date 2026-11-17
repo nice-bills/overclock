@@ -32,6 +32,9 @@ const LOCAL_CHAIN_ID = 31337;
 const BOND = parseEther('1');
 const WINDOW = 3600;
 const FEE = 0n;
+// Frames benches for 18-input challenges (GC-098) need about 30.7M leaf gas, just over Overclock's
+// 30M default. The certifier is a local destination, not a production dispute venue, so allow 50M.
+const MAX_LEAF_GAS = 50_000_000n;
 
 const usage = `Certify FabX miners against their Gate Challenge's official reference.
 
@@ -96,7 +99,7 @@ async function localDestination() {
   });
   const ocArt = artifact('Overclock');
   const overclock = await new ContractFactory(ocArt.abi, ocArt.bytecode, owner).deploy(
-    BOND, WINDOW, await factory.getAddress(), await owner.getAddress(), 0, 0, 0, '0x0000000000000000000000000000000000000000',
+    BOND, WINDOW, await factory.getAddress(), await owner.getAddress(), 0, 0, MAX_LEAF_GAS, '0x0000000000000000000000000000000000000000',
   );
   await overclock.waitForDeployment();
   const chainId = Number((await provider.getNetwork()).chainId);
@@ -179,8 +182,11 @@ async function main() {
       log: (line) => log(`  ${line}`),
     });
     certs.push(cert);
-    log(`  ${cert.verdict.toUpperCase()}: ${cert.mismatches} mismatch${cert.mismatches === 1 ? '' : 'es'} in ${cert.inputs} inputs${cert.firstFailingInput ? `, first ${cert.firstFailingInput}` : ''}; job ${cert.job.runId}`);
+    const at = cert.settled.firstVector !== undefined ? ` (vector ${cert.settled.firstVector} cycle ${cert.settled.firstCycle})` : '';
+    log(`  ${cert.verdict.toUpperCase()}: ${cert.mismatches} mismatch${cert.mismatches === 1 ? '' : 'es'} in ${cert.inputs} inputs${cert.firstFailingInput ? `, first ${cert.firstFailingInput}` : ''}${at}; job ${cert.job.runId}`);
+    for (const s of cert.sweeps ?? []) log(`    ${s.kind}: ${s.mismatches} mismatch${s.mismatches === 1 ? '' : 'es'} over ${s.beats} beats (${s.mode})`);
     if (cert.caveat) log(`  caveat: ${cert.caveat}`);
+    for (const f of cert.findings ?? []) log(`  finding ${f.code}: ${f.detail}`);
   }
 
   if (dryRun) {
