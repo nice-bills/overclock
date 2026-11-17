@@ -91,6 +91,9 @@ contract Overclock {
     /// (gameClaim); once that claim is overturned, its other games are stale and only refund.
     mapping(uint256 => uint256) public claimCount;
     mapping(uint256 => uint256) public gameClaim;
+    /// Half of every losing bond in a settled game, held for the treasury. A cheat who settles
+    /// its own claim through an accomplice, or stalls it with self-challenges, loses this much.
+    uint256 public slashed;
 
     event JobPosted(uint256 indexed jobId, address cpu, uint256 id, uint32 beats);
     event Claimed(uint256 indexed jobId, address claimant, bytes32 traceRoot, bytes outputs);
@@ -319,17 +322,20 @@ contract Overclock {
         g.turn = Turn.Done; // a settled game takes no more moves
         address winner;
         uint256 prize;
+        // the loser's bond is split: half to the winner, the rest held for the treasury
+        uint256 cut = bond - bond / 2;
+        slashed += cut;
         if (claimantWrong) {
-            // the challenger gets its bond back plus the claimant's
-            (winner, prize) = (g.challenger, 2 * bond);
+            // the challenger gets its bond back plus half the claimant's
+            (winner, prize) = (g.challenger, 2 * bond - cut);
             // reopen the job for an honest claim; other games on this claim become stale
             (j.claimant, j.traceRoot, j.openGames) = (address(0), bytes32(0), 0);
             claimCount[g.jobId] += 1; // the claim is gone, so its other games are stale from now on
             delete j.outputs;
             delete j.newState;
         } else {
-            // the claimant gets the challenger's bond; its own stays staked on the claim until finalize
-            (winner, prize) = (j.claimant, bond);
+            // the claimant gets half the challenger's bond; its own stays staked on the claim until finalize
+            (winner, prize) = (j.claimant, bond - cut);
             j.openGames -= 1;
             j.claimedAt = uint64(block.timestamp); // a fresh window for other watchers
         }
@@ -630,6 +636,14 @@ contract Overclock {
             size <<= 1;
             d++;
         }
+    }
+
+    /// Sends the slashed pool to the treasury. Pull-based, so a treasury that rejects payment
+    /// can never block a dispute.
+    function sweep() external {
+        uint256 amount = slashed;
+        slashed = 0;
+        _pay(treasury, amount);
     }
 
     function _pay(address to, uint256 amount) internal {

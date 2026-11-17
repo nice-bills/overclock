@@ -44,6 +44,9 @@ async function deploy(a, signer, ...args) {
 const events = (rc, name) => rc.logs.map((l) => { try { return oc.interface.parseLog(l); } catch { return null; } }).filter((e) => e?.name === name).map((e) => e.args);
 const send = async (p) => (await p).wait();
 const bal = (a) => provider.getBalance(a);
+// the contract's balance minus the slashed pool it holds for the treasury
+const free = async () => (await bal(oc.target)) - (await oc.slashed());
+const CUT = BOND - BOND / 2n; // the part of a losing bond that goes to the treasury
 const warp = async (s) => { await provider.send('evm_increaseTime', [s]); await provider.send('evm_mine', []); };
 
 before(async () => {
@@ -89,7 +92,7 @@ const INPUTS = [1, 0, 1, 1, 0, 1, 1, 1];
 
 test('a settled game cannot be resolved again to pay its winner twice', async () => {
   await post([0, 0, 0, 0, 0, 0, 0, 1], parseEther('5')); // someone else's fee, held by the contract
-  const held = await bal(oc.target);
+  const held = await free();
   // the attacker claims its own job honestly and challenges itself from a second account
   const jobId = await post(INPUTS, 0n, attacker);
   const t = traceBeat(pop, [], INPUTS);
@@ -105,12 +108,12 @@ test('a settled game cannot be resolved again to pay its winner twice', async ()
   }
   await warp(WINDOW + 1);
   await send(oc.finalize(jobId));
-  assert.equal(await bal(oc.target), held, 'the contract paid out money it did not owe');
+  assert.equal(await free(), held, 'the contract paid out money it did not owe');
 });
 
 test('a claimant who survives a challenge is paid the challenger\'s bond, not two bonds', async () => {
   await post([0, 0, 0, 0, 0, 0, 1, 1], parseEther('5'));
-  const held = await bal(oc.target);
+  const held = await free();
   const jobId = await post(INPUTS, 0n, attacker);
   const t = traceBeat(pop, [], INPUTS);
   const H = buildTree(t.leaves);
@@ -123,7 +126,7 @@ test('a claimant who survives a challenge is paid the challenger\'s bond, not tw
   }
   await warp(WINDOW + 1);
   try { await send(oc.finalize(jobId)); } catch {}
-  assert.equal(await bal(oc.target), held, 'every failed dispute minted a bond out of other users\' money');
+  assert.equal(await free(), held, 'every failed dispute minted a bond out of other users\' money');
 });
 
 test('an old game cannot wipe a later honest claim on the same job', async () => {
@@ -209,7 +212,7 @@ test('a cheat\'s accomplice who challenges first cannot keep an honest watcher o
   const lied = honest.leaves.slice();
   lied[40] ^= 1;
   const H = buildTree(honest.leaves), C = buildTree(lied);
-  const held = await bal(oc.target);
+  const held = await free();
   await claim(jobId, attacker, C.root, honest.outputs);
   // the accomplice opens a game it means to lose slowly
   const stall = await challenge(jobId, accomplice);
@@ -219,7 +222,7 @@ test('a cheat\'s accomplice who challenges first cannot keep an honest watcher o
   const q = await bisect(gameId, { claimant: attacker, challenger: watcher }, C, (l, i, left, right) => b.choose(l, i, left, right));
   const before = await bal(watcher.address);
   await send(oc.connect(attacker).resolveLeaf(gameId, depsOf(pop, q).map((pos) => ({ pos, bit: honest.leaves[pos], siblings: b.siblings(pos, q) }))));
-  assert.equal(await bal(watcher.address), before + 2n * BOND, 'the watcher is paid its bond and the cheat\'s');
+  assert.equal(await bal(watcher.address), before + 2n * BOND - CUT, 'the watcher is paid its bond and half the cheat\'s');
   assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the wrong claim is gone');
   // the accomplice's game is now stale: no more moves, and it only refunds
   await assert.rejects(send(oc.connect(attacker).reveal(stall, C.node(C.depth - 1, 0), C.node(C.depth - 1, 1))));
@@ -230,7 +233,7 @@ test('a cheat\'s accomplice who challenges first cannot keep an honest watcher o
   await claim(jobId, operator, H.root, honest.outputs);
   await warp(WINDOW + 1);
   await send(oc.finalize(jobId));
-  assert.equal(await bal(oc.target), held - fee);
+  assert.equal(await free(), held - fee);
 });
 
 test('a claim cannot finalize while any game against it is open', async () => {
@@ -264,6 +267,64 @@ test('a move after its deadline is refused, and the side that was due loses on t
   assert.equal((await oc.jobs(jobId)).claimant, ZERO, 'the late claimant lost');
 });
 
+// ------------------------------------------------------------------ slashing split (16 Nov 2026)
+
+test('a caught cheat cannot rescue its bond by settling the claim through an accomplice', async () => {
+  const inputs = [1, 0, 1, 1, 0, 1, 1, 1];
+  const jobId = await post(inputs, parseEther('0.1'));
+  const t = traceBeat(pop, [], inputs);
+  const H = buildTree(t.leaves);
+  const lie = t.outputs.slice();
+  lie[0] ^= 1;
+  const slashed0 = await oc.slashed();
+  const cost = (rc) => rc.gasUsed * rc.gasPrice;
+  const start = { c: await bal(attacker.address), a: await bal(accomplice.address), w: await bal(watcher.address) };
+  let gas = 0n, wgas = 0n;
+  gas += cost(await send(oc.connect(attacker).claim(jobId, H.root, bytesToHex(pack(lie)), '0x', { value: BOND })));
+  // the honest watcher sees the wrong result and opens a bisection game
+  const rc = await send(oc.connect(watcher).challenge(jobId, { value: BOND }));
+  wgas += cost(rc);
+  const gameId = events(rc, 'Challenged')[0].gameId;
+  // the cheat's second account settles it first, in one transaction
+  const pos = sigPosOf(pop, 0, pop.nSignals - pop.nOut);
+  gas += cost(await send(oc.connect(accomplice).disputeOutput(jobId, 0, [{ pos, bit: t.leaves[pos], siblings: H.proof(pos) }], { value: BOND })));
+  wgas += cost(await send(oc.connect(watcher).timeout(gameId)));
+  const cheatNet = (await bal(attacker.address)) + (await bal(accomplice.address)) - start.c - start.a + gas;
+  const watcherNet = (await bal(watcher.address)) - start.w + wgas;
+  assert.equal(cheatNet, -CUT, 'the cheat and its accomplice together lose half a bond');
+  assert.equal(watcherNet, 0n, 'the honest watcher gets its bond back');
+  assert.equal((await oc.slashed()) - slashed0, CUT, 'the slashed half is held for the treasury');
+});
+
+test('stalling a claim with self-challenges costs half a bond each time', async () => {
+  const inputs = [0, 1, 0, 1, 0, 1, 0, 1];
+  const jobId = await post(inputs, parseEther('0.1'));
+  const t = traceBeat(pop, [], inputs);
+  const H = buildTree(t.leaves);
+  await claim(jobId, attacker, H.root, t.outputs);
+  const pos = sigPosOf(pop, 0, pop.nSignals - pop.nOut);
+  const dep = [{ pos, bit: t.leaves[pos], siblings: H.proof(pos) }];
+  const cost = (rc) => rc.gasUsed * rc.gasPrice;
+  const start = (await bal(attacker.address)) + (await bal(accomplice.address));
+  let gas = 0n;
+  // gasLimit: ganache under-estimates calls that forward value
+  for (let i = 0; i < 3; i++) gas += cost(await send(oc.connect(accomplice).disputeOutput(jobId, 0, dep, { value: BOND, gasLimit: 1_000_000 })));
+  const net = (await bal(attacker.address)) + (await bal(accomplice.address)) - start + gas;
+  assert.equal(net, -3n * CUT);
+  await warp(WINDOW + 1);
+  await send(oc.finalize(jobId));
+});
+
+test('sweep sends the slashed pool to the treasury and empties it', async () => {
+  const treasury = signers[7].address;
+  const pool = await oc.slashed();
+  assert.ok(pool > 0n, 'earlier tests slashed something');
+  const before = await bal(treasury);
+  await send(oc.connect(poster).sweep());
+  assert.equal(await bal(treasury), before + pool);
+  assert.equal(await oc.slashed(), 0n);
+});
+
 // ------------------------------------------------------------------ randomized solvency invariant
 
 // Whatever sequence of posts, claims, challenges, games, timeouts, replays and finalizations
@@ -278,6 +339,7 @@ async function owed() {
     sum += j.fee;
     if (j.claimant !== ZERO) sum += BOND;
   }
+  sum += await oc.slashed();
   const nGames = Number(await oc.gameCount());
   for (let g = 0; g < nGames; g++) if (Number((await oc.games(g)).level) !== 255) sum += BOND;
   return sum;

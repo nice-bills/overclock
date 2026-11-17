@@ -101,7 +101,7 @@ TapeOut's own limit is the market: `step()` costs about 2.5K gas per flattened g
 4. **Check one step.** `resolveLeaf` reads the gate's record from the netlist, takes the leaves it depends on (with Merkle proofs against the claimant's root) and recomputes it.
    - It covers NAND, LATCH reads, LATCH writes, constants, inputs, REF input wires and REF output wires.
    - The challenger builds every proof from its own trace plus the nodes the claimant revealed, so nobody has to publish the trace.
-5. **Settle.** A watcher who proves a claim wrong takes both bonds, and the job reopens. A false challenge loses its bond to the claimant, whose own bond stays staked on the claim, and restarts the window, so other watchers still get their chance. A party that stops responding loses on `timeout`. Unchallenged claims `finalize`, and then any contract can read the result.
+5. **Settle.** A watcher who proves a claim wrong gets its bond back plus half the claimant's, and the job reopens; the other half goes to the protocol treasury, so a cheat who settles its own claim through a second account still loses. A false challenge loses half its bond to the claimant and half to the treasury, whose own bond stays staked on the claim, and restarts the window, so other watchers still get their chance. A party that stops responding loses on `timeout`. Unchallenged claims `finalize`, and then any contract can read the result.
 
 ## On TapeOut
 

@@ -25,6 +25,7 @@ see the end of this file.
 | M-1 | Medium | Whoever calls `finalize` can starve the poster's result callback of gas | Fixed |
 | M-2 | Medium | Padding bits of a claimed result are unchecked and undisputable | Fixed |
 | M-3 | Medium | One challenge at a time: a claimant and an accomplice can stall a job indefinitely | Fixed (parallel games) |
+| M-4 | Medium | A caught cheat settles its own claim through an accomplice and loses nothing | Fixed (slashing split) |
 | L-1 | Low | `flatSize` is truncated to `uint64` when a job is posted | Fixed |
 | L-2 | Low | A 10-minute move window and a 0.001 OKB bond are thin for real value | Open (redeploy parameters) |
 | L-3 | Low | Moves after their deadline are accepted until someone calls `timeout` | Fixed |
@@ -127,6 +128,22 @@ stale: they take no more moves, and `timeout` closes each one at once and return
 bond. PoC: *a cheat's accomplice who challenges first cannot keep an honest watcher out*; also *a
 claim cannot finalize while any game against it is open*. The solvency invariant now opens games in
 parallel and leaves some parked until they go stale.
+
+## M-4. A caught cheat loses nothing (Medium, fixed 17 Nov)
+
+Found 16 Nov. When an honest watcher challenges a wrong claim, the cheat's second account settles
+the claim first with one `disputeOutput` call (or a fast bisection it plays against itself). That
+game pays its challenger both bonds and makes the watcher's game stale, so the watcher only gets a
+refund through `timeout`. The cheat and its accomplice net zero, which defeats the point of a bond.
+The same trick made self-challenges a free way to keep restarting a claim's window.
+
+**Fix.** `_settle` now splits every losing bond: half goes to the winner and the rest (including
+any odd wei) is held in `slashed`, which `sweep()` sends to the treasury. Pull-based, so a treasury
+that rejects payment can't block a dispute. A cheat caught through an accomplice now loses half a
+bond, and each self-challenge costs half a bond. PoCs: *a caught cheat cannot rescue its bond by
+settling the claim through an accomplice*, *stalling a claim with self-challenges costs half a bond
+each time*, *sweep sends the slashed pool to the treasury*. The solvency invariant counts `slashed`
+as owed.
 
 ## L-1. `flatSize` truncated to `uint64` (Low)
 

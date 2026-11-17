@@ -445,7 +445,7 @@ export function createServer(ctx) {
 
   ocTool('challenge_claim', {
     title: 'Challenge a wrong claim',
-    description: 'Re-run a claimed job and, if the claim is wrong, challenge it: either disprove a wrong result directly, or bisect the trace with the claimant down to the single wrong gate and prove it on-chain. Locks the bond; winning returns both bonds. Plays for up to waitSeconds, then returns; call advance_disputes to keep going. Sends transactions.',
+    description: 'Re-run a claimed job and, if the claim is wrong, challenge it: either disprove a wrong result directly, or bisect the trace with the claimant down to the single wrong gate and prove it on-chain. Locks the bond; winning returns it plus half the claimant\'s bond. Plays for up to waitSeconds, then returns; call advance_disputes to keep going. Sends transactions.',
     inputSchema: { jobId: z.number().int().min(0), waitSeconds: z.number().int().min(0).max(600).default(60) },
   }, tx('challenge_claim', async ({ jobId, waitSeconds = 60 }) => {
     ctx.watcher ??= new Challenger({ oc, signer: await signer(), name: 'watcher', circuits: ctx.circuitCache, log: (e) => (ctx.log ??= []).push(e) });
