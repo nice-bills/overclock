@@ -644,6 +644,35 @@ test('a runner with no commitment is slashed like anyone else', async () => {
   assert.equal((await oc.slashed()) - slashed0, cutOf(B));
 });
 
+test('a runner contract that refuses its refund cannot keep its caught claim from settling', async () => {
+  const src = { language: 'Solidity', sources: { 'R.sol': { content: `
+pragma solidity ^0.8.28;
+interface IOC { function commitForced(uint256, bytes32) external; function claim(uint256, bytes32, bytes calldata, bytes calldata) external payable; }
+contract StubbornRunner {
+    function go(IOC oc, uint256 jobId, bytes32 c, bytes32 root, bytes calldata out) external payable {
+        oc.commitForced(jobId, c);
+        oc.claim{value: msg.value}(jobId, root, out, "");
+    }
+    receive() external payable { revert("no refunds"); }
+}` } }, settings: { optimizer: { enabled: true, runs: 200 }, evmVersion: 'shanghai', outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } } } };
+  const r = JSON.parse(solc.compile(JSON.stringify(src))).contracts['R.sol'].StubbornRunner;
+  const stub = await deploy({ abi: r.abi, bytecode: '0x' + r.evm.bytecode.object }, poster);
+  const oc2 = await deploy(art('Overclock'), poster, BOND, WINDOW, ZERO, signers[7].address, 0, BOND_BPS, 0, await stub.getAddress());
+  const inputs = [1, 0, 1, 0, 1, 1, 0, 0];
+  const honest = traceBeat(pop, [], inputs), H = buildTree(honest.leaves);
+  await send(oc2.postJob(await cpu.getAddress(), popId, bytesToHex(pack(inputs)), '0x', 1, false, { value: parseEther('1') }));
+  const id2 = (await oc2.jobCount()) - 1n;
+  const wrong = honest.outputs.slice();
+  wrong[0] ^= 1; // a wrong result against a correct trace: disputeOutput proves it in one transaction
+  await send(stub.go(oc2.target, id2, commitOf(id2, SALT), H.root, bytesToHex(pack(wrong)), { value: await oc2.bondFor(id2) }));
+  const pos = sigPosOf(pop, 0, pop.nSignals - pop.nOut);
+  const dep = [{ pos, bit: honest.leaves[pos], siblings: H.proof(pos) }];
+  const before = await oc2.slashed();
+  await send(oc2.connect(watcher).disputeOutput(id2, 0, dep, { value: await oc2.bondFor(id2), gasLimit: 2_000_000 }));
+  assert.equal((await oc2.jobs(id2)).claimant, ZERO, 'the caught claim settled although the runner reverts on payment');
+  assert.ok((await oc2.slashed()) > before, 'the refused refund went to the pool');
+});
+
 test('the runner and watcher bots play forced errors: one is caught and paid, one is revealed and refunded', async () => {
   const mk = async (Cls, signer, name, extra = {}) => {
     const a = new Cls({ oc, signer, name, log: (e) => logs.push(e), circuits: new Map(), ...extra });

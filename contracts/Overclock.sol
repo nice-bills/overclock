@@ -407,6 +407,8 @@ contract Overclock {
         g.turn = Turn.Done; // a settled game takes no more moves
         address winner;
         uint256 prize;
+        uint256 refund; // paid to `refundTo` after the game is closed: the forced-error runner's bond
+        address refundTo;
         // the loser's bond is split: half to the winner, the rest held for the treasury
         uint256 b = bondFor(g.jobId);
         uint256 cut = b - b / 2;
@@ -423,9 +425,7 @@ contract Overclock {
                 uint256 jackpot = b < slashed ? b : slashed;
                 slashed -= jackpot;
                 (forcedCommit[g.jobId], forcedAt[g.jobId]) = (bytes32(0), 0);
-                (winner, prize) = (g.challenger, b + jackpot);
-                g.level = 255;
-                _pay(loser, b);
+                (winner, prize, refundTo, refund) = (g.challenger, b + jackpot, loser, b);
                 emit ForcedCaught(g.jobId, gameId, winner, jackpot);
             } else {
                 // the challenger gets its bond back plus half the claimant's, the rest is held for the treasury
@@ -440,6 +440,11 @@ contract Overclock {
             j.claimedAt = uint64(block.timestamp); // a fresh window for other watchers
         }
         g.level = 255; // closed
+        if (refund > 0) {
+            // a runner that refuses its refund must not be able to keep its own caught claim from settling
+            (bool ok,) = refundTo.call{value: refund}("");
+            if (!ok) slashed += refund;
+        }
         _pay(winner, prize);
         emit Resolved(g.jobId, gameId, winner, reason);
     }
