@@ -398,6 +398,56 @@ export function mainnetSource({ provider = new JsonRpcProvider(MAINNET_RPC, unde
   return source;
 }
 
+// A source from a JSON file instead of FabX's contracts and API, for offline checks and tests:
+//   { miners: { "<processor>#<id>": <taskId> }, tasks: { "<taskId>": <task> }, vectors: { "<taskId>": [{ index, input, expectedOut }] } }
+// Circuits (the design and the reference) are read from `provider`.
+export function fixtureSource({ provider, fixture, chainId = 31337 }) {
+  const key = (cpu, id) => `${String(cpu).toLowerCase()}#${Number(id)}`;
+  const miners = new Map(Object.entries(fixture.miners ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+  return {
+    provider,
+    chainId,
+    circuit: (cpu, id) => fetchCircuit(provider, cpu, id),
+    miner: async (cpu, id) => (miners.has(key(cpu, id)) ? { taskId: Number(miners.get(key(cpu, id))), status: 1 } : null),
+    task: async (taskId) => {
+      const t = fixture.tasks?.[taskId];
+      if (!t) throw new Error(`fixture has no task ${taskId}`);
+      return { taskId: Number(taskId), ...t, refCircuitId: BigInt(t.refCircuitId ?? 0) };
+    },
+    vectors: async (taskId) => {
+      const v = fixture.vectors?.[taskId];
+      if (!v) throw new Error(`fixture has no vectors for task ${taskId}`);
+      return v;
+    },
+    log: () => {},
+  };
+}
+
+// The quick answer to "is this FabX miner correct?": replay every official vector against the miner
+// and say whether the challenge's reference is even meaningful. Read-only. The verdict uses the same
+// words and the same precedence as certifyMiner (a constant reference outranks a failure), but it is
+// the vector replay alone: the saved certificate (docs/certificates) also runs the LFSR equivalence
+// sweep, so `certified` is only ever claimed by a certificate.
+export async function verifyMiner(source, processor, id) {
+  const miner = await source.miner(processor, id);
+  if (!miner?.taskId) return { status: 'not-a-fabx-miner', message: `${processor}#${id} is not a claimed FabX miner.` };
+  const task = await source.task(miner.taskId);
+  if (zeroAddress(task.refCircuits) || Number(task.refCircuitId) === 0) {
+    return { status: 'no-reference', challenge: challengeName(miner.taskId), taskId: miner.taskId, message: `${challengeName(miner.taskId)} has no on-chain reference to check against.` };
+  }
+  const [design, reference, vectors] = await Promise.all([source.circuit(processor, id), source.circuit(task.refCircuits, task.refCircuitId), source.vectors(miner.taskId)]);
+  const checked = officialCheck(design, task, vectors);
+  const ref = constantReference(reference, task, vectors);
+  const unsound = checked.degenerate || ref.constant;
+  const status = unsound ? 'unsound-reference' : checked.failed ? 'fail' : 'pass';
+  return {
+    status, challenge: challengeName(miner.taskId), name: task.name, taskId: miner.taskId,
+    passed: checked.passed, failed: checked.failed, total: checked.total, cycles: checked.cycles,
+    ...(checked.firstFailure ? { firstFailure: checked.firstFailure } : {}),
+    ...(unsound ? { finding: 'The official reference (or its published vectors) produces a constant output, so passing it proves nothing about the advertised function.' } : {}),
+  };
+}
+
 // Read every claimed miner on a processor and group it by (challenge, netlist, dimensions).
 // Chain reads only; Multicall3 batches keep a full 7,000-circuit scan to a few dozen calls.
 export async function scanProcessor({ provider, processor, mc = null, log = () => {} }) {
