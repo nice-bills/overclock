@@ -1,0 +1,34 @@
+{
+  "name": "overclock-js",
+  "version": "0.1.0",
+  "description": "Post a TapeOut circuit job to Overclock, watch it settle, and read a verified result",
+  "type": "module",
+  "license": "MIT",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "examples",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "example": "node examples/post-and-read.js"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.3.2"
+  },
+  "peerDependencies": {
+    "ethers": "^6.0.0"
+  },
+  "keywords": [
+    "overclock",
+    "tapeout",
+    "optimistic",
+    "x-layer"
+  ]
+}
