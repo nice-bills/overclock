@@ -23,7 +23,7 @@ import { toState, fromState, fibonacciMachine } from './cpu4.js';
 import { labelled, txLink } from './wallet.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { certificateFilename } from './certify.js';
+import { certificateFilename, mainnetSource, officialCheck, constantReference, challengeName } from './certify.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
 const hex = z.string().regex(/^0x([0-9a-fA-F]{2})*$/, 'a 0x-prefixed hex string of whole bytes');
@@ -90,9 +90,16 @@ export function createServer(ctx) {
     return { outputs: bytesToHex(pack(t.outputs)), finalState: bytesToHex(pack(t.newState)), traceRoot: new Tree(t.leaves).root, traceLeaves: t.n };
   }));
   server.registerTool('get_certificate', { title: 'Get a circuit certificate', description: 'Read the saved FabX official-vector certificate and verdict for a circuit.', inputSchema: { processor: address, id: z.number().int().min(1) } }, safe(async ({ processor, id }) => certificate(processor, id) ?? { status: 'not certified' }));
-  server.registerTool('certify', { title: 'Certify a FabX miner', description: 'Check a FabX miner against its official challenge vectors and return the certificate verdict. Certification requires a configured local settlement chain.', inputSchema: { processor: address, id: z.number().int().min(1) } }, safe(async ({ processor, id }) => {
-    const prior = certificate(processor, id); if (prior) return prior;
-    throw new Error('No certificate exists. Run src/certify.js with a local settlement chain configured; MCP certification is unavailable without a local certifier deployment.');
+  server.registerTool('certify', { title: 'Certify a FabX miner', description: 'Check a FabX miner against FabX official vectors and return the verdict.', inputSchema: { processor: address, id: z.number().int().min(1) } }, safe(async ({ processor, id }) => {
+    const source = ctx.certificationSource ?? (ctx.certificationSource = mainnetSource());
+    const miner = await source.miner(processor, id);
+    if (!miner?.taskId) return { status: 'not-a-fabx-miner', message: `${processor}#${id} is not a claimed FabX miner.` };
+    const task = await source.task(miner.taskId);
+    const [design, reference, vectors] = await Promise.all([source.circuit(processor, id), source.circuit(task.refCircuits, task.refCircuitId), source.vectors(miner.taskId)]);
+    const checked = officialCheck(design, task, vectors);
+    const ref = constantReference(reference, task, vectors);
+    const status = ref.constant ? 'unsound-reference' : checked.failed ? 'fail' : 'pass';
+    return { status, challenge: challengeName(miner.taskId), taskId: miner.taskId, passed: checked.passed, failed: checked.failed, total: checked.total, ...(checked.firstFailure ? { firstFailure: checked.firstFailure } : {}), ...(ref.constant ? { finding: 'The official reference emits a constant output for all published vectors.' } : {}) };
   }));
   // A ready-made machine by name, or an explicit processor and circuit id.
   const MACHINE_ARGS = {
