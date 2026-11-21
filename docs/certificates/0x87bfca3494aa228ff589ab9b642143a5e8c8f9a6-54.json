@@ -50,7 +50,7 @@
  },
  "mirror": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
   "design": {
    "id": 7
   },
@@ -65,9 +65,10 @@
   "kind": "truth-table",
   "mode": "count",
   "beats": 2,
+  "nOut": 3,
   "gatesPerBeat": 34,
   "stateBits": 3,
-  "netlistHash": "0xe23f187095051a534d794baf8acc153893132ca46186ec4747733e0f380274e1"
+  "netlistHash": "0xda5e873fef6132523ab46e6fdb05afb2f080f23c44f1115cb3d9c38816246f7c"
  },
  "inputs": 2,
  "inputsCovered": "all 2 inputs (0..1)",
@@ -79,6 +80,20 @@
   "mismatches": 0,
   "kind": "truth-table"
  },
+ "sweeps": [
+  {
+   "kind": "truth-table",
+   "mode": "count",
+   "beats": 2,
+   "mismatches": 0,
+   "outputs": "0x04",
+   "job": {
+    "runId": "31337:2",
+    "jobId": 2,
+    "benchId": 9
+   }
+  }
+ ],
  "officialVectors": {
   "passed": 256,
   "failed": 0,
@@ -86,49 +101,52 @@
   "uniqueInputs": 2,
   "exhaustive": true,
   "degenerate": false,
+  "constantOutput": null,
+  "referenceConstant": false,
+  "referenceOutput": null,
   "firstFailure": null
  },
  "verdict": "certified",
  "job": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
   "benchId": 9,
   "jobId": 2,
   "runId": "31337:2",
-  "overclock": "0x060e8d366675569977450c8017f0025c39011c7a",
+  "overclock": "0x0fd546c3f3ec6d68016c0dc2bbb92c291e325f65",
   "txs": [
    {
     "what": "post job",
-    "tx": "0x4d1b75526b594c7c2327c09733baa10c4c19176f7b66bcee4865004f3782df2f",
-    "gas": 308924
+    "tx": "0x7f5882d45cfc52c76af7c9261a5c0e6f6664dad03b9d77ff369cca81cd0eae29",
+    "gas": 380605
    },
    {
     "what": "claim",
-    "tx": "0x5252b9db9d0cde7e39a02608e968bd59c4c030ceee96b2f5a679f2c81b9488ff",
-    "gas": 165057
+    "tx": "0xd193db9caa7c114f103380dcd90966b262e1749340023630b394ea92708ce51f",
+    "gas": 167723
    },
    {
     "what": "finalize",
-    "tx": "0x29c94c9be3b2ada0f974145a87abdc86c20bc015c390164b91f24023c04f22de",
-    "gas": 47258
+    "tx": "0x4ee69051816ad6187ed5531491c0958d44b63e79d6ed737f7d07cb1f2616b479",
+    "gas": 52116
    }
   ],
   "gas": {
-   "post": 308924,
-   "claim": 165057,
-   "finalize": 47258,
-   "honestPath": 521239
+   "post": 380605,
+   "claim": 167723,
+   "finalize": 52116,
+   "honestPath": 600444
   },
   "outputs": "0x04",
   "newState": "0x00",
   "traceLeaves": 94,
   "traceRoot": "0xa8c80a6705ba9e4f8f8fc8bb2b73da88966ce7e00b428dc9fcb747bd039771f1",
   "beats": 2,
-  "postedAt": "2026-11-17T12:31:05.372Z",
-  "finalizedAt": "2026-11-17T12:31:05.446Z",
+  "postedAt": "2026-11-17T14:25:15.666Z",
+  "finalizedAt": "2026-11-17T14:25:15.743Z",
   "fee": "0.0",
   "bond": "1.0",
-  "outcome": "0 mismatches over 2 settled inputs; 256/256 official vectors pass."
+  "outcome": "0 mismatches over 2 settled inputs (all 2 inputs (0..1)); 256/256 official vectors pass."
  },
  "shape": {
   "key": "1:1/1/0:0xada89efb34e8c5a1a2ceb9296d311081fa89b10e0815afa0ea86e9a667a44604",
@@ -1274,5 +1292,5 @@
    }
   ]
  },
- "issuedAt": "2026-11-17T12:31:05.452Z"
+ "issuedAt": "2026-11-17T14:25:15.750Z"
 }

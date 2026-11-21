@@ -50,35 +50,72 @@
  },
  "mirror": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
   "design": {
-   "id": 16
+   "id": 18
   },
   "reference": {
-   "id": 17
+   "id": 19
   },
   "bench": {
-   "id": 18
+   "id": 20
   }
  },
  "bench": {
-  "kind": "official-vector",
+  "kind": "official-vectors",
   "mode": "frames",
-  "beats": 5,
-  "gatesPerBeat": 419,
-  "stateBits": 33,
-  "netlistHash": "0x217863ca9f38ebe1fa4937c1696b48109ac73263a7e877bd23142fa62885fb07"
+  "beats": 1280,
+  "nOut": 13,
+  "gatesPerBeat": 7411,
+  "stateBits": 1329,
+  "netlistHash": "0x1e70b6b991a16102325abae0f686df7bcbcf70e5653d910aeb1d3b5f2fbcc85e",
+  "vectors": 256,
+  "vectorBits": 8,
+  "cycleBits": 3
  },
  "inputs": 256,
- "inputsCovered": "1 official vector (5 frames from reset)",
- "coverage": "1 official vector (5 frames from reset)",
+ "inputsCovered": "256 official vectors (1280 frames from reset) + 3 LFSR inputs from reset (every non-zero 2-bit input once)",
+ "coverage": "256 official vectors (1280 frames from reset) + 3 LFSR inputs from reset (every non-zero 2-bit input once)",
  "mismatches": 35,
  "firstFailingInput": "0x0302000200",
  "settled": {
-  "inputs": 5,
-  "mismatches": 1,
-  "kind": "official-vector"
+  "inputs": 1280,
+  "mismatches": 43,
+  "kind": "official-vectors",
+  "vectors": 256,
+  "firstVector": 17,
+  "firstCycle": 4,
+  "firstVectorIndex": 17
  },
+ "sweeps": [
+  {
+   "kind": "official-vectors",
+   "mode": "frames",
+   "beats": 1280,
+   "vectors": 256,
+   "mismatches": 43,
+   "firstVector": 17,
+   "firstCycle": 4,
+   "outputs": "0x2318",
+   "job": {
+    "runId": "31337:7",
+    "jobId": 7,
+    "benchId": 20
+   }
+  },
+  {
+   "kind": "lfsr",
+   "mode": "lfsr",
+   "beats": 3,
+   "mismatches": 0,
+   "outputs": "0x08",
+   "job": {
+    "runId": "31337:8",
+    "jobId": 8,
+    "benchId": 21
+   }
+  }
+ ],
  "officialVectors": {
   "passed": 221,
   "failed": 35,
@@ -86,6 +123,9 @@
   "uniqueInputs": 229,
   "exhaustive": false,
   "degenerate": false,
+  "constantOutput": null,
+  "referenceConstant": false,
+  "referenceOutput": null,
   "firstFailure": {
    "index": 17,
    "cycle": 4,
@@ -97,44 +137,44 @@
  "verdict": "failed",
  "job": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
-  "benchId": 18,
-  "jobId": 5,
-  "runId": "31337:5",
-  "overclock": "0x060e8d366675569977450c8017f0025c39011c7a",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
+  "benchId": 20,
+  "jobId": 7,
+  "runId": "31337:7",
+  "overclock": "0x0fd546c3f3ec6d68016c0dc2bbb92c291e325f65",
   "txs": [
    {
     "what": "post job",
-    "tx": "0x23304a1525a44887055bac51ed9aa0890eea737bdd26af25201b13dbd504df3a",
-    "gas": 445487
+    "tx": "0xda0d946733390b95e6f9b5ec08742ebe8b2b2af21272dc55800c5da98a1e9b5c",
+    "gas": 2656387
    },
    {
     "what": "claim",
-    "tx": "0xac1f2802f014bef0a07175f823eab81b39c1d630c35102d9d2dca942b0bf2351",
-    "gas": 165093
+    "tx": "0x27b73e7bd0b048b9106de7c7009dbb7a47dd46bde6aa93107d7926cb54349c1e",
+    "gas": 202044
    },
    {
     "what": "finalize",
-    "tx": "0x451b77b4a5d51269536863e2ecbd5c2563e98d7f25c68525cbe66cd2d93a8c6b",
-    "gas": 47258
+    "tx": "0x424e51434c1b1bb8b2c357b215b1f80daa0557cfc0f612f32fc18847bd28a910",
+    "gas": 52116
    }
   ],
   "gas": {
-   "post": 445487,
-   "claim": 165093,
-   "finalize": 47258,
-   "honestPath": 657838
+   "post": 2656387,
+   "claim": 202044,
+   "finalize": 52116,
+   "honestPath": 2910547
   },
-  "outputs": "0x19",
-  "newState": "0x7d00002001",
-  "traceLeaves": 2420,
-  "traceRoot": "0x449cbe95a230e4e7b30d2d624cb8816276b7fa7a8a41f8168effd24568514be0",
-  "beats": 5,
-  "postedAt": "2026-11-17T12:52:09.318Z",
-  "finalizedAt": "2026-11-17T12:52:09.411Z",
+  "outputs": "0x2318",
+  "newState": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff1d4101000000",
+  "traceLeaves": 11189760,
+  "traceRoot": "0x2fe56bb9621e0d960506b536f69f915591e14f9ca9317282a50442a53776b5ef",
+  "beats": 1280,
+  "postedAt": "2026-11-17T14:49:18.571Z",
+  "finalizedAt": "2026-11-17T14:49:18.669Z",
   "fee": "0.0",
   "bond": "1.0",
-  "outcome": "35 mismatches in 256 official vectors; first failing input 0x0302000200 at cycle 4."
+  "outcome": "35 mismatches in 256 official vectors; first failing input 0x0302000200 at vector 17 cycle 4."
  },
  "shape": {
   "key": "94:2/11/2:0xd25b3900d1732697f4895ea4ee5ef2454c776e42f6664529db8c4dbd134cd85a",
@@ -148,5 +188,5 @@
    }
   ]
  },
- "issuedAt": "2026-11-17T12:52:09.420Z"
+ "issuedAt": "2026-11-17T14:49:19.611Z"
 }

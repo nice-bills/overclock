@@ -50,35 +50,68 @@
  },
  "mirror": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
   "design": {
-   "id": 13
-  },
-  "reference": {
    "id": 14
   },
-  "bench": {
+  "reference": {
    "id": 15
+  },
+  "bench": {
+   "id": 16
   }
  },
  "bench": {
-  "kind": "lfsr",
-  "mode": "lfsr",
-  "beats": 262143,
-  "gatesPerBeat": 839,
-  "stateBits": 138,
-  "netlistHash": "0xddd72bfb7db43bd8acc6cc1ac33ed90ffa2f52cb7bfd22e732bcb8f091919782"
+  "kind": "official-vectors",
+  "mode": "frames",
+  "beats": 512,
+  "nOut": 11,
+  "gatesPerBeat": 17261,
+  "stateBits": 632,
+  "netlistHash": "0xc828c0b95aa3057621f6eebeb259869e51129962407e984e0977ee581aca9c8f",
+  "vectors": 256,
+  "vectorBits": 8,
+  "cycleBits": 1
  },
- "inputs": 262143,
- "inputsCovered": "262143 LFSR inputs from reset (every non-zero 18-bit input once)",
- "coverage": "262143 LFSR inputs from reset (every non-zero 18-bit input once)",
+ "inputs": 262655,
+ "inputsCovered": "256 official vectors (512 frames from reset) + 262143 LFSR inputs from reset (every non-zero 18-bit input once)",
+ "coverage": "256 official vectors (512 frames from reset) + 262143 LFSR inputs from reset (every non-zero 18-bit input once)",
  "mismatches": 32766,
  "firstFailingInput": "0x100000",
  "settled": {
-  "inputs": 262143,
-  "mismatches": 32766,
-  "kind": "lfsr"
+  "inputs": 512,
+  "mismatches": 0,
+  "kind": "official-vectors",
+  "vectors": 256
  },
+ "sweeps": [
+  {
+   "kind": "official-vectors",
+   "mode": "frames",
+   "beats": 512,
+   "vectors": 256,
+   "mismatches": 0,
+   "outputs": "0x0004",
+   "job": {
+    "runId": "31337:5",
+    "jobId": 5,
+    "benchId": 16
+   }
+  },
+  {
+   "kind": "lfsr",
+   "mode": "lfsr",
+   "beats": 262143,
+   "mismatches": 32766,
+   "firstInput": "0x100000",
+   "outputs": "0x210008",
+   "job": {
+    "runId": "31337:6",
+    "jobId": 6,
+    "benchId": 17
+   }
+  }
+ ],
  "officialVectors": {
   "passed": 256,
   "failed": 0,
@@ -86,50 +119,68 @@
   "uniqueInputs": 256,
   "exhaustive": false,
   "degenerate": true,
+  "constantOutput": "0x000000000000",
+  "referenceConstant": true,
+  "referenceOutput": "00000000000000000",
   "firstFailure": null
  },
- "verdict": "failed",
- "caveat": "The published vectors for this challenge are all zero and the official reference is constant zero. This certifies equivalence to that reference, not the advertised function.",
+ "verdict": "unsound-reference",
+ "caveat": "The official reference or vectors are constant; equivalence to them is not evidence for the advertised function. Verdict withheld as unsound-reference.",
+ "findings": [
+  {
+   "code": "degenerate-reference",
+   "output": "00000000000000000",
+   "detail": "The official reference or its published vectors produce a constant output. Equivalence to that reference can never establish the advertised function, so the verdict is withheld."
+  },
+  {
+   "code": "divergence",
+   "bench": "lfsr",
+   "mode": "lfsr",
+   "mismatches": 32766,
+   "firstInput": "0x100000",
+   "detail": "The design diverges from the official reference under the swept inputs. This is reported as a finding; it is not a passing certificate."
+  }
+ ],
  "job": {
   "chainId": 31337,
-  "processor": "0xd10d05ac6f6b6e0b5a4eaad5e3f73a82c1238154",
-  "benchId": 15,
-  "jobId": 4,
-  "runId": "31337:4",
-  "overclock": "0x060e8d366675569977450c8017f0025c39011c7a",
+  "processor": "0x6781013822ec92d18b9f318fda995c3e9fa1f8d6",
+  "benchId": 16,
+  "jobId": 5,
+  "runId": "31337:5",
+  "overclock": "0x0fd546c3f3ec6d68016c0dc2bbb92c291e325f65",
   "txs": [
    {
     "what": "post job",
-    "tx": "0x8f22260f04e4842d58c184fac7e54f20e7a68dbe43e0fe36f20c98dcd325f885",
-    "gas": 553129
+    "tx": "0x0bf0239f86277061c9f1d33bf414fcc7e4ff39452e5d480107cb958d35dbda92",
+    "gas": 5909496
    },
    {
     "what": "claim",
-    "tx": "0x1a22082b9855b353a0e05a29a24d4a7f9634d427ecc5941f39c872297682b776",
-    "gas": 165117
+    "tx": "0xc4930aa42d94b6d4b31e17251f3e2b5b8a5724793e9812dd92d1ec957b0946cd",
+    "gas": 194702
    },
    {
     "what": "finalize",
-    "tx": "0x88fcc605e6d26dea5f54e5b165e83a60752dd71088ff23efc4b94ad1251d929b",
-    "gas": 47258
+    "tx": "0x23306613d34448d36718b1712d3b14d431c35d1f6851ad4f2c1bd4d4aa560dd9",
+    "gas": 52116
    }
   ],
   "gas": {
-   "post": 553129,
-   "claim": 165117,
-   "finalize": 47258,
-   "honestPath": 765504
+   "post": 5909496,
+   "claim": 194702,
+   "finalize": 52116,
+   "honestPath": 6156314
   },
-  "outputs": "0x210008",
-  "newState": "0x01008400000000000000000000004000a000",
-  "traceLeaves": 276036579,
-  "traceRoot": "0x469210c4ea54edc9882426427471b030ba4b6277ef1227be731fe699c3f41e4e",
-  "beats": 262143,
-  "postedAt": "2026-11-17T12:51:56.466Z",
-  "finalizedAt": "2026-11-17T12:51:56.559Z",
+  "outputs": "0x0004",
+  "newState": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff0000000000000000000000000000",
+  "traceLeaves": 9162240,
+  "traceRoot": "0x19f77e5084b7954ef07fb50039621625041f8250e0f13b6c46c54ad894cf440d",
+  "beats": 512,
+  "postedAt": "2026-11-17T14:39:57.805Z",
+  "finalizedAt": "2026-11-17T14:39:57.887Z",
   "fee": "0.0",
   "bond": "1.0",
-  "outcome": "32766 mismatches in 262143 official vectors; first failing input 0x100000."
+  "outcome": "Verdict withheld (unsound-reference): 256/256 official vectors pass over a constant reference; no sound certificate is possible from the published data."
  },
  "shape": {
   "key": "98:18/17/50:0x79ea0600fe3afcbad984ff92baad58a9b1947f56dd036eb0c0689c7f20c4af1d",
@@ -967,5 +1018,5 @@
    }
   ]
  },
- "issuedAt": "2026-11-17T12:51:56.568Z"
+ "issuedAt": "2026-11-17T14:48:17.815Z"
 }
