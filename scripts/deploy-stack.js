@@ -4,10 +4,13 @@
 // deployments/<chainId>.json, which the MCP server reads for the default contract and machines.
 //
 //   RPC_URL=https://testrpc.xlayer.tech PRIVATE_KEY=0x... node scripts/deploy-stack.js [--bond 0.001] [--bond-bps 10000] [--window 120] [--runner 0x...]
+//   RPC_URL=https://testrpc.xlayer.tech node scripts/deploy-stack.js --wallet [--port 8787]
+//     No key: prints a localhost page; open it, connect MetaMask or OKX Wallet, approve each transaction.
 
 import { JsonRpcProvider, Wallet, ContractFactory, parseEther, formatEther } from 'ethers';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { artifact } from '../src/chain.js';
+import { WalletBridge } from '../src/wallet.js';
 import { createCPU, mint, burnCost, tapeout } from '../src/tapeout.js';
 import { cellCircuit, boardCircuit } from '../src/life.js';
 import { cpuCircuit } from '../src/cpu4.js';
@@ -24,14 +27,26 @@ provider.call = async (tx) => {
     await new Promise((ok) => setTimeout(ok, 1500));
   }
 };
-const me = new Wallet(process.env.PRIVATE_KEY, provider);
-// The same lag can hand out a stale nonce: take the highest of a few answers once, then count.
-let nonce = null;
-me.getNonce = async () => {
-  if (nonce === null) for (let i = 0; i < 5; i++) nonce = Math.max(nonce ?? 0, await provider.getTransactionCount(me.address, 'pending'));
-  return nonce++;
-};
 const net = await provider.getNetwork();
+let me, bridge = null;
+if (process.env.PRIVATE_KEY) {
+  me = new Wallet(process.env.PRIVATE_KEY, provider);
+  // The same lag can hand out a stale nonce: take the highest of a few answers once, then count.
+  let nonce = null;
+  me.getNonce = async () => {
+    if (nonce === null) for (let i = 0; i < 5; i++) nonce = Math.max(nonce ?? 0, await provider.getTransactionCount(me.address, 'pending'));
+    return nonce++;
+  };
+} else if (process.argv.includes('--wallet')) {
+  bridge = new WalletBridge({ provider, chainId: net.chainId, rpcUrl: process.env.RPC_URL });
+  await bridge.listen(Number(arg('port', 0)));
+  console.log(`open ${bridge.url} and connect your wallet (MetaMask or OKX Wallet); approve each transaction there`);
+  me = bridge.signer;
+  me.address = await me.getAddress();
+} else {
+  throw new Error('set PRIVATE_KEY, or pass --wallet to sign in MetaMask / OKX Wallet');
+}
+
 const start = await provider.getBalance(me.address);
 console.log(`chain ${net.chainId}, deployer ${me.address}, balance ${formatEther(start)}`);
 
@@ -72,3 +87,4 @@ const out = {
 mkdirSync('deployments', { recursive: true });
 writeFileSync(`deployments/${net.chainId}.json`, JSON.stringify(out, null, 1) + '\n');
 console.log(`wrote deployments/${net.chainId}.json; spent ${formatEther(start - await provider.getBalance(me.address))}`);
+bridge?.close();
