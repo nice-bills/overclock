@@ -179,7 +179,7 @@ Without network access to X Layer, `npm run demo` runs the identical flow agains
 
 ```sh
 npm ci --include=dev
-npm test             # 203 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server, certificates, streaming trace
+npm test             # 246 tests: spec vectors, Life circuits, every-leaf dispute sweeps, TapeOut flow, MCP server, certificates, streaming trace
 npm run demo         # 16x16 board, 100 generations, local EVM; --w --h --beats to change
 node scripts/build-web.js   # inline the run into web/overclock.html
 node scripts/bigjob.js      # the billion-step job (minutes, about 800 MB)

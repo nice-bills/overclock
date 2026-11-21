@@ -41,7 +41,7 @@ Headline results, all on mainnet with a cheat caught on-chain in each run:
 | `scripts/` | `deploy.js` (Overclock), `deploy-stack.js` (testnet playground), `publish-deweb.js`, `demo.js`, `headline.js`, `verify-live.js`, `census.js`, `snapshot-board.js` |
 | `.claude-plugin/`, `.mcp.json`, `skills/overclock/` | Claude Code plugin |
 | `docs/` | Submission write-up (EN + 中文), film script, launch thread, mainnet tx records, security audit, census |
-| `test/` | 203 tests on node:test with local ganache |
+| `test/` | 246 tests on node:test with local ganache |
 
 ## Deployed addresses and URLs
 
@@ -75,7 +75,7 @@ later parallel-challenge and on-time-move fixes.
 
 ```sh
 npm ci                 # works on Linux and macOS (lockfile fixed 14 Nov)
-npm test               # compiles, then 203 tests, about 5 minutes on an idle machine
+npm test               # compiles, then 246 tests, about 5 minutes on an idle machine
 npm run demo           # 16×16 Life, 100 generations, local EVM; writes web/demo-run.json
 npm run cpu            # CPU headline run; npm run digits for the digit net
 node scripts/build-web.js     # rebuild web/overclock.html after editing web/ sources
@@ -118,7 +118,7 @@ Chinese, film script and launch thread, landing redesign.
 
 Fixed in this handoff pass: `npm ci` failed on Linux because of an extraneous `fsevents` entry in
 the lockfile (bundled under ganache); the lockfile is cleaned and `npm ci` now installs. README test
-count updated then. (Now 203 tests; see "Run it" in the README.)
+count updated then. (Now 246 tests; see "Run it" in the README.)
 
 ## What's left, and what only Will can do
 
@@ -157,7 +157,7 @@ You're picking up Overclock, my X Layer "TapeOut Accelerate" hackathon entry (de
 23:59 UTC). Read HANDOFF.md first, then README.md, docs/security-audit.md and docs/submission.md.
 
 Rules: push straight to main, no pull requests. Every push redeploys three Render services, so run
-`npm test` (203 tests, ~5 min) before pushing anything that touches src/, contracts/ or web/, and run
+`npm test` (246 tests, ~5 min) before pushing anything that touches src/, contracts/ or web/, and run
 `node scripts/build-web.js` after editing web/ sources. Never print or commit a private key. Ask me
 before any transaction that spends mainnet OKB, and tell me the expected cost first.
 
