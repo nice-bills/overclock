@@ -21,6 +21,9 @@ import { cellCircuit, boardCircuit, board, PATTERNS, render } from './life.js';
 import { worldStep } from './world.js';
 import { toState, fromState, fibonacciMachine } from './cpu4.js';
 import { labelled, txLink } from './wallet.js';
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { certificateFilename } from './certify.js';
 
 const ZERO = '0x0000000000000000000000000000000000000000';
 const hex = z.string().regex(/^0x([0-9a-fA-F]{2})*$/, 'a 0x-prefixed hex string of whole bytes');
@@ -54,13 +57,12 @@ export const MACHINES = {
 // Long-lived helpers (circuit cache, the watcher's open games) live on ctx so HTTP mode, which
 // builds a server per request, keeps them between calls.
 export function createServer(ctx) {
-  const server = new McpServer({ name: 'overclock', version: '0.4.0' }, {
+  const server = new McpServer({ name: 'overclock', version: '0.5.0' }, {
     instructions: [
       'Overclock runs circuits on X Layer that are far too big for one block: someone runs the job off-chain and posts the result with a bond, and anyone who finds it wrong can prove the one wrong gate on-chain and take half the bond (the other half goes to the treasury).',
       'Users speak plainly. Ready-made machines need no addresses or hex: machine "life" (8x8 Game of Life; pattern glider, blinker, toad, lwss or rpentomino; beats = generations) and machine "cpu" (Fibonacci on a 4-bit CPU). For "show me", "try it" or "what would happen", use run_locally: it is free and instant. Use post_job only when they want it done on-chain.',
       'Transactions: call the tool directly, with no setup step. Within seconds it either returns the result or returns status "waiting for approval" with an approve link. Show that link to the user as one tappable link, say it opens their wallet (OKX Wallet or MetaMask) to approve, and that on a phone they can use phone.openInOkxWalletApp instead. When they say they approved (or after a short while), call transaction_status with the requestId. Never ask for a private key or seed phrase.',
       'Before a paid action, say in one line what it costs (post_job: the fee, default 0.0001 OKB, plus a little gas; claim_job and challenge_claim lock the job\'s bond, shown by get_job, which comes back with the winnings if the user is right).',
-      'Overclock World (when the network has one): a shared Red vs Blue Game of Life. world_status shows the board, world_forecast tries a move for free, world_place buys cells, world_advance moves it on, world_claim collects winnings. Show boards exactly as given, in a code block.',
       'Amounts are OKB as decimal strings. Raw bit vectors are TAP-02 packed hex (bit i is (byte[i>>3] >> (i&7)) & 1); only needed for circuits other than the ready-made machines.',
     ].join('\n'),
   });
@@ -73,6 +75,25 @@ export function createServer(ctx) {
   const machines = Object.fromEntries(Object.entries(MACHINES).map(([k, m]) => [k, { ...m, ...(ctx.machines?.[k] ?? {}), processor: String(ctx.machines?.[k]?.processor ?? m.processor).toLowerCase() }]));
   const machineOf = (processor, id) => Object.entries(machines).find(([, m]) => m.processor === String(processor).toLowerCase() && m.circuitId === Number(id));
   const machine = (j) => machineOf(j.cpu, j.id);
+  const repo = new URL('../', import.meta.url).pathname;
+  const runsIndex = () => { try { return JSON.parse(readFileSync(join(repo, 'web/runs.json'), 'utf8')); } catch { return { runs: [], certificates: [] }; } };
+  const certificate = (processor, id) => { const f = join(repo, 'docs/certificates', certificateFilename(processor, id)); return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null; };
+  server.registerTool('find_my_circuits', { title: 'Find my circuits', description: 'Find all TapeOut circuits owned by this address and show their run and certificate status.', inputSchema: { address: address.describe('the circuit owner wallet address') } }, safe(async ({ address: owner }) => {
+    const c = new Contract(ctx.processor ?? ctx.machines?.life?.processor ?? MACHINES.life.processor, CIRCUITS_FULL_ABI, ctx.provider);
+    const n = Number(await c.nextId()); const found = [];
+    for (let id = 1; id < n; id++) { try { const info = await c.circuitInfo(id); if (String(info.owner ?? '').toLowerCase() === owner.toLowerCase()) found.push({ processor: await c.getAddress(), id }); } catch {} }
+    const idx = runsIndex(); return found.map((x) => ({ ...x, runs: (idx.runs ?? []).filter(r => r.circuit?.processor?.toLowerCase() === x.processor.toLowerCase() && Number(r.circuit.id) === x.id), certificate: certificate(x.processor, x.id) }));
+  }));
+  server.registerTool('run_circuit', { title: 'Run a circuit', description: 'Run a TapeOut circuit off-chain for free and return its outputs, state, and trace. Set post=true to submit it on-chain through wallet approval.', inputSchema: { processor: address, id: z.number().int().min(1), beats: z.number().int().min(1).max(100000), post: z.boolean().default(false) } }, safe(async ({ processor, id, beats, post = false }) => {
+    const c = await circuit(processor, id); const state = new Array(c.nState).fill(0); const t = traceJob(c, { state, inputs: [], beats, perBeat: false });
+    if (post) { if (!oc) throw new Error('On-chain posting is unavailable on this server.'); return { local: { outputs: bytesToHex(pack(t.outputs)), finalState: bytesToHex(pack(t.newState)) }, next: 'Use post_job with this processor and circuitId to request wallet approval.' }; }
+    return { outputs: bytesToHex(pack(t.outputs)), finalState: bytesToHex(pack(t.newState)), traceRoot: new Tree(t.leaves).root, traceLeaves: t.n };
+  }));
+  server.registerTool('get_certificate', { title: 'Get a circuit certificate', description: 'Read the saved FabX official-vector certificate and verdict for a circuit.', inputSchema: { processor: address, id: z.number().int().min(1) } }, safe(async ({ processor, id }) => certificate(processor, id) ?? { status: 'not certified' }));
+  server.registerTool('certify', { title: 'Certify a FabX miner', description: 'Check a FabX miner against its official challenge vectors and return the certificate verdict. Certification requires a configured local settlement chain.', inputSchema: { processor: address, id: z.number().int().min(1) } }, safe(async ({ processor, id }) => {
+    const prior = certificate(processor, id); if (prior) return prior;
+    throw new Error('No certificate exists. Run src/certify.js with a local settlement chain configured; MCP certification is unavailable without a local certifier deployment.');
+  }));
   // A ready-made machine by name, or an explicit processor and circuit id.
   const MACHINE_ARGS = {
     machine: z.enum(['life', 'cpu']).optional().describe('a ready-made machine; leave processor and circuitId out when using one'),
