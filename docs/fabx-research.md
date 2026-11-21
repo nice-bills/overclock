@@ -240,7 +240,7 @@ verification: 1311/1314 distinct (challenge, netlist) pairs pass all official ve
   FAIL 0x87BFCa3494Aa228fF589ab9B642143A5e8c8F9a6 #4897 GC-014: 240/256 {"index":0,"cycle":0,"input":"0x00","expected":"0x01","got":"0"}
 ```
 
-`npm test` passes 83/83 tests, including the nine in `test/miner-shapes.test.js`.
+`npm test` passes 203/203 tests (21 Nov), including the nine in `test/miner-shapes.test.js`.
 
 The test file `test/miner-shapes.test.js` covers the grouping/hash logic and the vector runner on the
 local TAP-02 vectors (`vendor-tap02/vectors.json`): `describeNetlist` gate counts and hashes, shape and
