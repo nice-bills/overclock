@@ -1,4 +1,8 @@
-# Overclock demo film: script and shot list
+# Overclock demo film: script and shot list (v1, superseded)
+
+> **Superseded by [film-script.md](film-script.md)**, which is shaped around the Floor and certificates and
+> uses the v2 numbers. This file is the v1 film, built on the three mainnet runs; its clips are still valid
+> source material for shots that show the v1 mainnet transactions.
 
 Target length 2:55, just under the recommended 3 minutes. About 420 words of voiceover at a brisk pace.
 Every on-chain clip comes from the mainnet run in [mainnet-run.md](mainnet-run.md), so nothing in the
