@@ -4,8 +4,10 @@
 //   RPC_URL=https://rpc.xlayer.tech [OVERCLOCK=0x...] overclock-mcp [--no-open]                 # stdio
 //   RPC_URL=... overclock-mcp --http [--port 3333] [--host 127.0.0.1] [--read-only]            # Streamable HTTP at /mcp
 //
-// OVERCLOCK defaults to the public deployment on X Layer mainnet; on other chains, without it only
-// the TapeOut tools are offered.
+// OVERCLOCK defaults to deployments/<chainId>.json (src/config.js: the one place a network's contract, v2
+// included, is named), else the public deployment on X Layer mainnet; without any of them only the
+// TapeOut tools are offered. PROCESSORS=0x..,0x.. sets where find_my_circuits looks. CERTIFY_FIXTURE=file.json
+// makes certify read FabX's tasks and vectors from a file (offline use, tests; see fixtureSource).
 //
 // Transactions are signed in the user's own wallet. connect_wallet returns a link to an approval
 // page on localhost (WALLET_PORT, default: any free port; in HTTP mode the page is on the same
@@ -35,7 +37,6 @@ if (!existsSync(new URL('../build/Overclock.json', import.meta.url))) {
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 const { createServer } = await import('../src/mcp.js');
-const { XLAYER } = await import('../src/tapeout.js');
 
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const env = (k) => process.env[k] || undefined;
@@ -54,15 +55,23 @@ const chainId = await provider.getNetwork().then((n) => n.chainId, () => null);
 const walletOn = !signer && !readOnly && chainId !== null;
 const newBridge = () => new WalletBridge({ provider, chainId, rpcUrl: RPC_URL, log: (e) => console.error('overclock-mcp: wallet', JSON.stringify(e)) });
 const wallet = walletOn && !http ? newBridge() : null;
-// deployments/<chainId>.json gives this network's Overclock contract, factory and ready-made machines.
-const depFile = chainId === null ? null : new URL(`../deployments/${chainId}.json`, import.meta.url);
-const dep = depFile && existsSync(depFile) ? JSON.parse(readFileSync(depFile, 'utf8')) : {};
+// src/config.js decides the contract: OVERCLOCK/FACTORY env, else deployments/<chainId>.json (the one
+// place that holds a network's address, v2 included), else the built-in X Layer mainnet address.
+const { resolveDeployment } = await import('../src/config.js');
+const resolved = resolveDeployment(chainId, { env: process.env });
+const dep = resolved.dep;
+if (resolved.version === 'v1') console.error(`overclock-mcp: deployments/${chainId}.json is an earlier contract version (v1); redeploy with scripts/deploy-stack.js to serve v2`);
 const ctx = {
   provider, signer, wallet, readOnly, approvalWaitMs: env('OVERCLOCK_APPROVAL_WAIT_MS') && Number(env('OVERCLOCK_APPROVAL_WAIT_MS')),
-  overclock: OVERCLOCK ?? dep.overclock ?? (chainId === BigInt(XLAYER.chainId) ? XLAYER.overclock : undefined),
-  factory: FACTORY ?? (chainId === BigInt(XLAYER.chainId) ? undefined : dep.factory), machines: dep.machines,
+  overclock: resolved.overclock, factory: resolved.factory, machines: resolved.machines,
   world: env('WORLD') ?? dep.world?.address,
+  processors: env('PROCESSORS')?.split(',').map((x) => x.trim()).filter(Boolean), // find_my_circuits searches these (default: the ready-made machines' processor, and FabX's miner contract on X Layer)
 };
+if (env('CERTIFY_FIXTURE')) {
+  // Offline certification (tests, air-gapped use): FabX's tasks and vectors from a JSON file, circuits from RPC_URL.
+  const { fixtureSource } = await import('../src/certify.js');
+  ctx.certificationSource = fixtureSource({ provider, fixture: JSON.parse(readFileSync(env('CERTIFY_FIXTURE'), 'utf8')) });
+}
 
 // OVERCLOCK_OPERATOR_KEY: also run an operator here, claiming every open job, defending its claims
 // and finalizing them, so jobs posted through this server come back with a result. Meant for a

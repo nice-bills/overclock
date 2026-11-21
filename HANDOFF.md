@@ -136,7 +136,9 @@ In rough priority order. Steps 1, 2, 4 and 5 spend real OKB from Will's wallet.
    from `docs/mainnet-run.md`, so decide whether the board lists both contracts.
 2. **Re-run at least one mainnet job on the new contract** so the README's live claims point at the fixed
    build, and switch `#run` (web/run.js) from testnet to mainnet.
-3. **Redeploy the testnet playground** (`deploy-stack.js`) so it runs the same contract as mainnet, then update
+3. **Redeploy the testnet playground** (`deploy-stack.js`) so it runs the same contract as mainnet. It rewrites
+   `deployments/1952.json`, the one place the testnet v2 address lives (`src/config.js` reads it; `OVERCLOCK` in the
+   environment overrides; the server logs a warning while the file is still v1, i.e. has no `bondBps`). Then update
    the testnet Render service's env if the operator wallet changes. Needs the testnet operator key or a new funded testnet key.
 4. **Launch Overclock World on mainnet**: about 0.087 OKB plus about 0.03 OKB of fuel per season. Do it after
    step 1 so it sits on the fixed contract. The `world_*` MCP tools and the site's World page switch on once

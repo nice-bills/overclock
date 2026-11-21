@@ -230,6 +230,10 @@ What the server offers depends on its configuration:
 | `connect_wallet`, `transaction_status` | The approval page link and wallet status; the result of a transaction that waited for your approval |
 | `describe_circuit` | Pins, state, flattened gates, REFs and estimated `step` gas for any TapeOut circuit |
 | `run_locally` | Runs beats off-chain for free: outputs, final state and the trace root an honest claim commits to |
+| `find_my_circuits` | The circuits (FabX miners included) an address owns, with their runs and saved certificate verdicts |
+| `run_circuit` | Runs any circuit (processor + id) for free; `post=true` also posts it on-chain exactly as `post_job` does, approved in your wallet |
+| `certify` | Checks a FabX miner against FabX's official vectors, live: `pass`, `fail` (first failing vector and cycle) or `unsound-reference` |
+| `get_certificate` | The saved certificate for a circuit (`docs/certificates/`): verdict, vector counts, the job that settled it |
 | `verify_claim` | Re-runs a claimed job and says whether to trust it |
 | `post_job`, `continue_job` | Posts a job, or more beats from a finalized job's final state |
 | `claim_job`, `challenge_claim`, `advance_disputes`, `finalize_job` | Operator and watcher: claim with a bond, bisect a wrong claim to one gate and prove it, settle |
